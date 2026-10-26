@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AudioDesk on the knob: a Knob Hub plugin. Building it also packs bin\<config>\AudioDesk.knobapp (app.json and
+       the assembly, zipped) to install from Knob Hub's Apps page. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AudioDesk.KnobApp</RootNamespace>
+    <AssemblyName>AudioDesk.KnobApp</AssemblyName>
+    <Version>1.0.0</Version>
+    <!-- Knob Hub loads plugins from their own folder. -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Knob Hub provides KnobHub.Sdk; the plugin doesn't carry its own copy. -->
+    <ProjectReference Include="..\..\KnobHub.Sdk\KnobHub.Sdk.csproj" Private="false" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="app.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The app's own icons (Icons\make_icons.ps1 draws game and aux), handed to Knob Hub to draw for the knob. -->
+    <EmbeddedResource Include="Icons\*.png" LogicalName="Icons.%(Filename).png" />
+  </ItemGroup>
+
+  <Target Name="PackKnobApp" AfterTargets="Build">
+    <PropertyGroup>
+      <KnobAppStaging>$(IntermediateOutputPath)knobapp\</KnobAppStaging>
+    </PropertyGroup>
+    <RemoveDir Directories="$(KnobAppStaging)" />
+    <Copy SourceFiles="$(OutDir)app.json;$(OutDir)$(AssemblyName).dll" DestinationFolder="$(KnobAppStaging)" />
+    <ZipDirectory SourceDirectory="$(KnobAppStaging)" DestinationFile="$(OutDir)..\AudioDesk.knobapp" Overwrite="true" />
+  </Target>
+
+</Project>

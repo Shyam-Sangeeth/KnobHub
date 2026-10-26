@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>KnobHub.Sdk</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>Knob Hub</Product>
+    <Company>Shyam Sangeeth</Company>
+    <Description>Build apps for the Knob Hub controller.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Self-explanatory members (Label, Color...) have no XML docs. -->
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,44 @@
+# Knob OS (PlatformIO). Builds normally go to %USERPROFILE%\.cache\knob-os (see platformio.ini); these are in case.
+.pio/
+knob-os/build/
+
+# Knob Hub and its apps (.NET)
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.rsuser
+*.binlog
+TestResults/
+# Packed apps: built from the projects (hub/Plugins/pack-release.ps1 gathers them for GitHub releases)
+*.knobapp
+hub/Plugins/release/
+
+# Build output that may land anywhere
+*.exe
+*.dll
+*.pdb
+*.obj
+*.o
+*.elf
+
+# Python and Node (font and icon tools)
+__pycache__/
+*.pyc
+node_modules/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

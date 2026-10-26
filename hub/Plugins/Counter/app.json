@@ -1,0 +1,12 @@
+{
+  "id": "counter",
+  "name": "Counter",
+  "subtitle": "Turn to count",
+  "description": "Counts up and down as you turn the knob",
+  "icon": "counter.icon",
+  "color": "#38BDF8",
+  "version": "1.0.0",
+  "author": "Knob Hub",
+  "assembly": "Counter.KnobApp.dll",
+  "type": "Counter.KnobApp.CounterApp"
+}

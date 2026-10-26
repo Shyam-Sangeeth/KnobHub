@@ -1,0 +1,457 @@
+<Window x:Class="KnobHub.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Knob Hub"
+        Icon="Assets/KnobHub.ico"
+        Width="1100" Height="820" MinWidth="760" MinHeight="560"
+        WindowStartupLocation="Manual">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border BorderThickness="0,0,1,0" Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <DockPanel Margin="12,20">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="14,0,0,18">
+                    <Border Width="24" Height="24" CornerRadius="7" Background="#8B7CF6">
+                        <Grid>
+                            <Ellipse Width="13" Height="13" Margin="0,2,0,0" Stroke="White" StrokeThickness="2.4" />
+                            <Rectangle Width="2.4" Height="5" Fill="White" VerticalAlignment="Top" Margin="0,4,0,0" RadiusX="1" RadiusY="1" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="Knob Hub" FontSize="16" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding HubVersion}" FontSize="12" Margin="14,12,0,0"
+                           Style="{StaticResource SecondaryText}" />
+                <ListBox x:Name="Nav" SelectedIndex="0" Background="Transparent" BorderThickness="0"
+                         SelectionChanged="Nav_SelectionChanged">
+                    <ListBoxItem Padding="12,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7B5;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                            <TextBlock Text="Knob" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Padding="12,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xF0E2;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                            <TextBlock Text="Apps" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Padding="12,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                            <TextBlock Text="Add apps" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Padding="12,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                            <TextBlock Text="Settings" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Knob: the live preview -->
+        <ScrollViewer x:Name="KnobPage" Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="32,28,32,32">
+                <WrapPanel>
+                    <TextBlock Text="{Binding KnobName}" Style="{StaticResource PageTitle}" Margin="0,0,16,4" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource Chip}" VerticalAlignment="Center" Margin="0,0,16,4">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Fill" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding Status}" FontSize="13" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding Details}" FontSize="13" VerticalAlignment="Center" Margin="0,0,0,4"
+                               Style="{StaticResource SecondaryText}" />
+                </WrapPanel>
+
+                <Border Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24">
+                    <StackPanel>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                         Fill="{DynamicResource SystemFillColorCriticalBrush}" />
+                                <TextBlock Text="{Binding PreviewMode}" FontSize="12" Margin="6,0,0,0" Style="{StaticResource SecondaryText}" />
+                            </StackPanel>
+                            <TextBlock Text="Live preview" Style="{StaticResource SectionTitle}" />
+                        </DockPanel>
+
+                        <!-- The knob's round screen, each knob pixel exactly 2x2 screen pixels (sized in code for the
+                             monitor's scaling), in a thin circle. Scroll = turn, middle-click = press (held: back, the
+                             knob's long press), left button = touch (tap, drag, swipe). Only what the knob itself has. -->
+                        <Grid x:Name="PreviewFrame" Margin="0,18" HorizontalAlignment="Center" Background="Transparent" Cursor="Hand"
+                              UseLayoutRounding="True" SnapsToDevicePixels="True"
+                              MouseWheel="Preview_MouseWheel" MouseDown="Preview_MouseDown" MouseUp="Preview_MouseUp"
+                              MouseLeftButtonDown="Preview_TouchDown" MouseMove="Preview_TouchMove"
+                              MouseLeftButtonUp="Preview_TouchUp">
+                            <!-- Nearest neighbour: sharp pixel blocks, exactly what the knob shows, rather than a smeared stretch. -->
+                            <Image x:Name="PreviewScreen" Source="{Binding Screen}" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                            <Ellipse x:Name="PreviewDim" Fill="Black" Opacity="{Binding DimOpacity}" IsHitTestVisible="False" />
+                            <Ellipse x:Name="PreviewRing" Stroke="#D9F2F3F5" StrokeThickness="2" IsHitTestVisible="False" />
+                        </Grid>
+
+                        <TextBlock Text="{Binding PreviewError}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"
+                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+
+                        <!-- The controls, one chip per knob action: the action, then the mouse controls that do it. -->
+                        <WrapPanel HorizontalAlignment="Center">
+                            <WrapPanel.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontSize" Value="13" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                                <Style x:Key="ChipAction" TargetType="Run">
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </Style>
+                                <Style x:Key="ChipHow" TargetType="Run">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Style>
+                            </WrapPanel.Resources>
+                            <Border Style="{StaticResource Chip}" Margin="4">
+                                <TextBlock><Run Text="Turn" Style="{StaticResource ChipAction}" /><Run Text="   Scroll" Style="{StaticResource ChipHow}" /></TextBlock>
+                            </Border>
+                            <Border Style="{StaticResource Chip}" Margin="4">
+                                <TextBlock><Run Text="Press" Style="{StaticResource ChipAction}" /><Run Text="   Middle-click" Style="{StaticResource ChipHow}" /></TextBlock>
+                            </Border>
+                            <Border Style="{StaticResource Chip}" Margin="4">
+                                <TextBlock><Run Text="Touch" Style="{StaticResource ChipAction}" /><Run Text="   Click or drag" Style="{StaticResource ChipHow}" /></TextBlock>
+                            </Border>
+                            <Border Style="{StaticResource Chip}" Margin="4">
+                                <TextBlock><Run Text="Back" Style="{StaticResource ChipAction}" /><Run Text="   Hold middle-click or swipe right" Style="{StaticResource ChipHow}" /></TextBlock>
+                            </Border>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Apps -->
+        <ScrollViewer x:Name="AppsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32,28,32,32">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" VerticalAlignment="Center" Padding="14,7" Click="GoToAddApps_Click"
+                            Style="{DynamicResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Add apps" Margin="8,0,0,0" />
+                        </StackPanel>
+                    </Button>
+                    <StackPanel>
+                        <TextBlock Text="Apps" Style="{StaticResource PageTitle}" />
+                        <TextBlock Text="Drag apps to change their order on the knob's Home ring. Home starts on the first one."
+                                   Margin="0,4,0,0" Style="{StaticResource SecondaryText}" />
+                    </StackPanel>
+                </DockPanel>
+
+                <ItemsControl ItemsSource="{Binding Apps}" Margin="0,20,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- A row: drag it (anywhere but its controls) to move the app. While another row is dragged
+                                 over it, a line above or below shows where that one will go. -->
+                            <Grid Margin="0,0,0,8">
+                                <Border Padding="8,12,16,12" AllowDrop="True"
+                                        PreviewMouseLeftButtonDown="AppRow_MouseDown" PreviewMouseMove="AppRow_MouseMove"
+                                        DragOver="AppRow_DragOver" Drop="AppRow_Drop">
+                                    <Border.Style>
+                                        <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsDragged}" Value="True">
+                                                    <Setter Property="Opacity" Value="0.45" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="&#xE76F;" FontFamily="{StaticResource IconFont}" FontSize="14" Margin="0,0,8,0"
+                                               VerticalAlignment="Center" Cursor="SizeAll" ToolTip="Drag to move"
+                                               Style="{StaticResource SecondaryText}" />
+                                    <Border Grid.Column="1" Width="40" Height="40" CornerRadius="20" Background="{Binding AccentFill}" VerticalAlignment="Center">
+                                        <Grid>
+                                            <!-- The icon as the knob shows it; a generic glyph for a name Knob Hub doesn't know. -->
+                                            <Image Source="{Binding IconImage}" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality" />
+                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="17"
+                                                       Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Grid.Column="2" Margin="14,0,12,0" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+                                            <Border CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                    Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                                                <TextBlock Text="{Binding SourceLabel}" FontSize="11" Style="{StaticResource SecondaryText}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Description}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                                   Style="{StaticResource SecondaryText}" />
+                                        <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,2,0,0" Style="{StaticResource SecondaryText}" />
+                                        <TextBlock Text="{Binding ErrorText}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                   Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- The app's own settings: a label and a drop-down each. -->
+                                        <ItemsControl ItemsSource="{Binding Settings}" VerticalAlignment="Center" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                                                        <TextBlock Text="{Binding Label}" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                                   Style="{StaticResource SecondaryText}" />
+                                                        <ComboBox MinWidth="80" VerticalAlignment="Center" ToolTip="{Binding Label}"
+                                                                  ItemsSource="{Binding Options}" SelectedIndex="{Binding Selected}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Button Content="&#xE74D;" ToolTip="Uninstall" Style="{StaticResource IconButton}" Click="Uninstall_Click"
+                                                Visibility="{Binding CanUninstall, Converter={StaticResource BoolToVisibility}}" />
+                                        <CheckBox IsChecked="{Binding Enabled}" Content="On the knob" Margin="16,0,0,0" VerticalAlignment="Center"
+                                                  Visibility="{Binding CanTurnOff, Converter={StaticResource BoolToVisibility}}" />
+                                        <!-- Clock: 24-hour or 12-hour (a knob setting, kept on the window's model). -->
+                                        <ComboBox Width="130" VerticalAlignment="Center" ToolTip="Clock format"
+                                                  ItemsSource="{Binding DataContext.ClockFormats, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  SelectedIndex="{Binding DataContext.ClockFormat, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  Visibility="{Binding IsClock, Converter={StaticResource BoolToVisibility}}" />
+                                    </StackPanel>
+                                </Grid>
+                                </Border>
+                                <!-- Where a dragged row will go: above (1) or below (2) this one, in the gap between rows. -->
+                                <Rectangle Height="2" RadiusX="1" RadiusY="1" VerticalAlignment="Top" Margin="8,-5,8,0"
+                                           Fill="{DynamicResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle">
+                                            <Setter Property="Visibility" Value="Hidden" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DropMark}" Value="1">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                                <Rectangle Height="2" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom" Margin="8,0,8,-5"
+                                           Fill="{DynamicResource AccentFillColorDefaultBrush}" IsHitTestVisible="False">
+                                    <Rectangle.Style>
+                                        <Style TargetType="Rectangle">
+                                            <Setter Property="Visibility" Value="Hidden" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DropMark}" Value="2">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Rectangle.Style>
+                                </Rectangle>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Style="{StaticResource Card}" Margin="0,12,0,0" Padding="16">
+                    <DockPanel>
+                        <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="16" Margin="0,1,12,0"
+                                   VerticalAlignment="Top" Style="{StaticResource SecondaryText}" />
+                        <StackPanel>
+                            <TextBlock Text="Apps run on your PC" FontWeight="SemiBold" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,2,0,0" Style="{StaticResource SecondaryText}"
+                                       Text="Plugins run with Knob Hub's permissions. Only install apps you trust. Knob Hub asks before installing anything." />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Add apps: the apps released on GitHub, and installing from a file -->
+        <ScrollViewer x:Name="AddAppsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32,28,32,32">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Padding="14,7" Click="InstallFile_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE8E5;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                                <TextBlock Text="Install from file…" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                        <Button Padding="14,7" Margin="8,0,0,0" Click="RefreshCatalog_Click" ToolTip="Look for apps again">
+                            <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                        </Button>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Add apps" Style="{StaticResource PageTitle}" />
+                        <TextBlock Text="Apps released on GitHub, or a .knobapp file you have." Margin="0,4,0,0"
+                                   Style="{StaticResource SecondaryText}" />
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- Where the list comes from: a GitHub repository's releases. -->
+                <DockPanel Margin="0,20,0,0">
+                    <TextBlock Text="From GitHub" Margin="0,0,12,0" VerticalAlignment="Center" Style="{StaticResource SecondaryText}" />
+                    <TextBox x:Name="RepoBox" Text="{Binding AppsRepo, UpdateSourceTrigger=LostFocus}" MinWidth="260"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" ToolTip="owner/repository: its releases are the apps"
+                             KeyDown="RepoBox_KeyDown" />
+                </DockPanel>
+
+                <TextBlock Text="{Binding CatalogStatus}" Margin="0,16,0,0" TextWrapping="Wrap" Style="{StaticResource SecondaryText}"
+                           Visibility="{Binding HasCatalogStatus, Converter={StaticResource BoolToVisibility}}" />
+
+                <ItemsControl ItemsSource="{Binding Catalog}" Margin="0,16,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Padding="16,12" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{Binding AccentFill}" VerticalAlignment="Center">
+                                        <Grid>
+                                            <Image Source="{Binding IconImage}" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality" />
+                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="17"
+                                                       Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="14,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                                   Style="{StaticResource SecondaryText}" />
+                                        <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,2,0,0" Style="{StaticResource SecondaryText}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding InstalledText}" FontSize="12" Margin="0,0,12,0" VerticalAlignment="Center"
+                                                   Style="{StaticResource SecondaryText}"
+                                                   Visibility="{Binding HasInstalledText, Converter={StaticResource BoolToVisibility}}" />
+                                        <Button Content="{Binding ActionText}" IsEnabled="{Binding CanInstall}" MinWidth="96" Padding="14,6"
+                                                Click="CatalogInstall_Click" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Style="{StaticResource Card}" Margin="0,12,0,0" Padding="16">
+                    <DockPanel>
+                        <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="16" Margin="0,1,12,0"
+                                   VerticalAlignment="Top" Style="{StaticResource SecondaryText}" />
+                        <StackPanel>
+                            <TextBlock Text="Apps run on your PC" FontWeight="SemiBold" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,2,0,0" Style="{StaticResource SecondaryText}"
+                                       Text="Plugins run with Knob Hub's permissions. Only install apps you trust. Knob Hub asks before installing anything." />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Settings -->
+        <ScrollViewer x:Name="SettingsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32,28,32,32" MaxWidth="820" HorizontalAlignment="Left">
+                <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
+
+                <TextBlock Text="Knob" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="180" />
+                            <ColumnDefinition Width="300" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Screen brightness" VerticalAlignment="Center" />
+                        <DockPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="{Binding Brightness, StringFormat={}{0}%}" />
+                            <Slider Minimum="5" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding Brightness}" />
+                        </DockPanel>
+
+                        <TextBlock Grid.Row="1" Text="LED brightness" VerticalAlignment="Center" />
+                        <DockPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="{Binding LedBrightness, StringFormat={}{0}%}" />
+                            <Slider Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding LedBrightness}" />
+                        </DockPanel>
+
+                        <TextBlock Grid.Row="2" Text="LED mode" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding LedModes}" SelectedIndex="{Binding LedMode}" />
+
+                        <TextBlock Grid.Row="3" Text="Screen timeout" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding Timeouts}" SelectedIndex="{Binding Timeout}" />
+
+                        <TextBlock Grid.Row="4" Text="Dim the screen when idle" VerticalAlignment="Center" />
+                        <CheckBox Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding DimIdle}" />
+
+                        <TextBlock Grid.Row="5" Text="Turn the LEDs off when idle" VerticalAlignment="Center" />
+                        <CheckBox Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding LedsIdleOff}" />
+
+                        <TextBlock Grid.Row="6" Text="Name" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" MaxLength="24"
+                                 Text="{Binding Name, UpdateSourceTrigger=LostFocus}" />
+                    </Grid>
+                </Border>
+
+                <TextBlock Text="Connection" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ConnectionText}" TextWrapping="Wrap" />
+                        <TextBlock TextWrapping="Wrap" Margin="0,6,0,12" Style="{StaticResource SecondaryText}"
+                                   Text="USB is used whenever it's plugged in. Wi-Fi setup (pairing mode, knobhub.local) comes with the knob hardware." />
+                        <WrapPanel>
+                            <Button Content="Start pairing mode" IsEnabled="False" Margin="0,0,8,0" />
+                            <Button Content="Forget Wi-Fi" IsEnabled="False" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Knob Hub" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" />
+                        <TextBlock Text="{Binding HubVersion, StringFormat=You have {0}}" Margin="0,10,0,0" Style="{StaticResource SecondaryText}" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Firmware" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                <Border Style="{StaticResource Card}">
+                    <TextBlock Text="{Binding FirmwareText}" />
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Windows 10 2004+ for the media session API (Windows.Media.Control) used by the Media app. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Only for the tray icon (NotifyIcon). -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>KnobHub</AssemblyName>
+    <RootNamespace>KnobHub</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>Knob Hub</Product>
+    <Company>Shyam Sangeeth</Company>
+    <!-- WPF Fluent theme (ThemeMode) is still marked experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <ApplicationIcon>Assets\KnobHub.ico</ApplicationIcon>
+    <!-- The preview is a native x64 DLL. -->
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- Where Knob OS builds knob_preview.dll (pio run -e preview in knob-os; see the KnobPreview target). -->
+    <KnobPreviewDll>$(USERPROFILE)\.cache\knob-os\build\preview\knob_preview.dll</KnobPreviewDll>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\KnobHub.ico" />
+  </ItemGroup>
+
+  <!-- The live preview runs Knob OS from knob_preview.dll. PlatformIO clears its build folder whenever
+       platformio.ini changes, so build the DLL here if it's missing, then copy it next to Knob Hub. -->
+  <Target Name="KnobPreview" AfterTargets="Build">
+    <!-- PlatformIO's native builds use the MinGW compiler in %USERPROFILE%\.mingw64. -->
+    <Exec Condition="!Exists('$(KnobPreviewDll)')"
+          Command="set &quot;PATH=$(USERPROFILE)\.mingw64\bin;%PATH%&quot; &amp;&amp; &quot;$(USERPROFILE)\.platformio\penv\Scripts\pio.exe&quot; run -e preview"
+          WorkingDirectory="$(MSBuildProjectDirectory)\..\..\knob-os" />
+    <Copy SourceFiles="$(KnobPreviewDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <!-- Keep WinForms types out of the global usings so they don't clash with WPF names. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KnobHub.Sdk\KnobHub.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

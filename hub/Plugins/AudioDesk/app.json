@@ -1,0 +1,12 @@
+{
+  "id": "audiodesk",
+  "name": "AudioDesk",
+  "subtitle": "Game, Media, Aux",
+  "description": "Channels, volume and output devices",
+  "icon": "equalizer",
+  "color": "#8B7CF6",
+  "version": "1.0.0",
+  "author": "AudioDesk",
+  "assembly": "AudioDesk.KnobApp.dll",
+  "type": "AudioDesk.KnobApp.AudioDeskApp"
+}

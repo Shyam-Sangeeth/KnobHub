@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Plugins/" />
+  <Folder Name="/Plugins/AudioDesk/">
+    <Project Path="Plugins/AudioDesk/AudioDesk.KnobApp.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/Counter/">
+    <Project Path="Plugins/Counter/Counter.KnobApp.csproj" />
+  </Folder>
+  <Project Path="KnobHub.Sdk/KnobHub.Sdk.csproj" />
+  <Project Path="KnobHub/KnobHub.csproj" />
+</Solution>
