@@ -264,9 +264,10 @@ internal sealed class CatalogItem(CatalogApp app, AppManager manager) : Observab
         _ when IsUpdate => "Update",
         _ => "Installed",
     };
-    /// <summary>"v1.0.0 installed" while an update is offered.</summary>
-    public string? InstalledText => IsUpdate ? $"v{Installed!.Manifest.Version} installed" : null;
-    public bool HasInstalledText => InstalledText != null;
+    /// <summary>The version on the tile: "v1.0.1", or "v1.0.0 → v1.0.1" while an update is offered.</summary>
+    public string VersionText => string.IsNullOrEmpty(app.Version) ? ""
+        : IsUpdate ? $"v{Installed!.Manifest.Version} → v{app.Version}" : $"v{app.Version}";
+    public bool HasVersion => VersionText.Length > 0;
 
     /// <summary>The installed apps changed.</summary>
     public void Refresh() => OnAllChanged();

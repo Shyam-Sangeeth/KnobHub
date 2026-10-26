@@ -79,27 +79,32 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource Card}" Width="200" Height="200" Padding="16" Margin="0,0,12,12">
+                        <Border Style="{StaticResource Card}" Width="200" Height="200" Padding="16" Margin="0,0,12,12"
+                                ToolTip="{Binding Details}">
                             <DockPanel>
                                 <Button DockPanel.Dock="Bottom" Content="{Binding ActionText}" IsEnabled="{Binding CanInstall}"
                                         HorizontalAlignment="Stretch" Padding="0,6" Margin="0,10,0,0" Click="Install_Click" />
                                 <StackPanel>
-                                    <Border Width="44" Height="44" CornerRadius="22" Background="{Binding AccentFill}" HorizontalAlignment="Left">
-                                        <Grid>
-                                            <Image Source="{Binding IconImage}" Width="20" Height="20" RenderOptions.BitmapScalingMode="HighQuality" />
-                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="18"
-                                                       Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
-                                        </Grid>
-                                    </Border>
+                                    <!-- The icon, and the version (with the installed one while an update is offered). -->
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" VerticalAlignment="Top" Padding="8,2" CornerRadius="9"
+                                                Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                                Visibility="{Binding HasVersion, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{Binding VersionText}" FontSize="12" Style="{StaticResource SecondaryText}" />
+                                        </Border>
+                                        <Border Width="44" Height="44" CornerRadius="22" Background="{Binding AccentFill}" HorizontalAlignment="Left">
+                                            <Grid>
+                                                <Image Source="{Binding IconImage}" Width="20" Height="20" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="18"
+                                                           Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
+                                            </Grid>
+                                        </Border>
+                                    </DockPanel>
                                     <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Margin="0,12,0,0"
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding Description}" Margin="0,2,0,0" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
                                                MaxHeight="38" Style="{StaticResource SecondaryText}" />
-                                    <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
-                                               Style="{StaticResource SecondaryText}" />
-                                    <TextBlock Text="{Binding InstalledText}" FontSize="12" Margin="0,2,0,0" Style="{StaticResource SecondaryText}"
-                                               Visibility="{Binding HasInstalledText, Converter={StaticResource BoolToVisibility}}" />
                                 </StackPanel>
                             </DockPanel>
                         </Border>

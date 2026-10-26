@@ -234,7 +234,8 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
 
     // --- Starting AudioDesk ---
 
-    /// <summary>AudioDesk's exe: its Start with Windows entry, or where its installer puts it.</summary>
+    /// <summary>AudioDesk's exe: its Start with Windows entry, or where its installer put it (the folder chosen in the
+    /// installer, Program Files by default; versions before 1.0.2 installed per user into %LocalAppData%\Programs).</summary>
     private static string? AudioDeskPath()
     {
         try
@@ -247,8 +248,17 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             }
         }
         catch (Exception) { }
-        string installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "AudioDesk", "AudioDesk.exe");
-        return File.Exists(installed) ? installed : null;
+        var folders = new List<string?>();
+        try
+        {
+            using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var installer = hklm.OpenSubKey(@"Software\AudioDesk\Installer");
+            folders.Add(installer?.GetValue("InstallFolder") as string);
+        }
+        catch (Exception) { }
+        folders.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AudioDesk"));
+        folders.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "AudioDesk"));
+        return folders.Where(f => !string.IsNullOrEmpty(f)).Select(f => Path.Combine(f!, "AudioDesk.exe")).FirstOrDefault(File.Exists);
     }
 
     private void StartAudioDesk()
