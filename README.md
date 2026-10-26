@@ -150,7 +150,9 @@ counts; each new lap fills in a new random bright colour over the last one.
 ### Settings
 
 The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode), Connection (USB,
-Wi-Fi setup) and About. Knob Hub's Settings page has them too.
+Wi-Fi setup) and About. Knob Hub's Settings page has them too. The knob keeps its settings itself, so it starts with
+them before Knob Hub connects; once connected, Knob Hub's saved settings win, and a change on either side shows on the
+other.
 
 <table>
   <tr>
@@ -202,7 +204,9 @@ clock's 12/24-hour format), and remove plugins.
 ![Knob Hub: Add apps](docs/screenshots/hub-add-apps.png)
 
 **Add apps** (on the Apps page) opens over Knob Hub and lists the apps released on GitHub, as tiles, with search.
-Install or update one from the list, or use **Install from file...** for a `.knobapp` you have. Knob Hub asks before
+Each tile shows the app's version; when a newer one is out it shows both (e.g. "v1.0.1 → v1.0.2") and the button
+says **Update**. Install or update one from the list, or use **Install from file...** for a `.knobapp` you have.
+Updates and removals take effect right away, without restarting Knob Hub. Knob Hub asks before
 installing anything, because apps run with Knob Hub's permissions: only install apps you trust.
 
 ![Knob Hub: Settings page](docs/screenshots/hub-settings.png)
@@ -318,7 +322,7 @@ Latin Extended-A and typographic punctuation) and digits-only fonts for big numb
 - Installed apps: `%LOCALAPPDATA%\KnobHub\Apps\<id>`
 - Log: `%LOCALAPPDATA%\KnobHub\knobhub.log` (connections, apps opened, app problems)
 - The simulator's kept data, its stand-in for the knob's flash: `%LOCALAPPDATA%\KnobHub\Simulator\` (`apps.json`,
-  `icons.bin`). The real knob keeps the same files in its flash.
+  `icons.bin`, `settings.json`). The real knob keeps the same files in its flash.
 
 ## Connection
 

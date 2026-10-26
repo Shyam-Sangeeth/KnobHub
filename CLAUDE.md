@@ -57,7 +57,9 @@ simulator is connected), and keep `design/screenshots/` current when screens cha
 - `apps.cpp` and `icons.cpp`: the cached app list (`apps.json`) and icon cache (`icons.bin`, format "KIC1").
 - `link.cpp/.h`: the protocol. Every message is documented in `link.h`, in the `hub_link` namespace (not `link`,
   which clashes with newlib's `link()`).
-- `settings.cpp`, `message.cpp`, `toast.cpp`.
+- `settings.cpp`: the knob's settings, kept in `settings.json`. Knob Hub's saved settings win: it sends them after
+  every hello, and the knob only sends a setting when it's changed on the knob.
+- `message.cpp`, `toast.cpp`.
 - `ui.cpp/.h`: shared widgets, plus the ink helpers `ui::ink_top` and `ui::ink_height` used to centre text visually.
 - `theme.h`: colours.
 
@@ -86,6 +88,8 @@ simulator is connected), and keep `design/screenshots/` current when screens cha
 
 ## Things that bite
 
+- **Plugins load from memory** (`PluginLoadContext.LoadFromMemory` in `AppManager.cs`), so their files are never
+  locked. Loading them from the file path again breaks updating and uninstalling apps while Knob Hub runs.
 - **Icons are cached on the knob by hash.** If you change how `KnobIcons` draws, bump `DrawVersion` in
   `KnobIcons.cs` so knobs fetch icons again.
 - **Fonts:** `knob-os/fonts/make_fonts.py` generates them (Montserrat Medium + Latin ranges + LVGL symbols, plus
