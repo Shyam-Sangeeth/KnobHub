@@ -93,7 +93,9 @@ The Apps page in Knob Hub lists everything on the Home ring in order, Clock and 
 
 ### Plugins
 
-A plugin is a folder with `app.json` and a .NET assembly, zipped and renamed to `.knobapp`. It is installed from the Apps page into `%LOCALAPPDATA%\KnobHub\Apps\<id>`.
+A plugin is a folder with `app.json` and a .NET assembly, zipped and renamed to `.knobapp`. It is installed from the Add apps page into `%LOCALAPPDATA%\KnobHub\Apps\<id>`.
+
+The Add apps page lists the apps released in [Shyam-Sangeeth/KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (a repository of their own, apart from Knob Hub's releases) and installs or updates them; **Install from file...** takes a `.knobapp` you have. Each release there is one version of one app, tagged `<id>-v<version>`, with `<id>.knobapp` and `<id>.app.json`. `hub/Plugins/pack-release.ps1` builds every app in `hub/Plugins` and publishes the versions not released yet (it needs the GitHub CLI, logged in); bump `version` in an app's `app.json` to publish an update.
 
 `app.json` fields: `id`, `name`, `subtitle`, `description`, `icon`, `color`, `version`, `author`, `assembly` (file name of the DLL), `type` (full name of the KnobApp subclass).
 
@@ -114,11 +116,11 @@ Plugins run with Knob Hub's permissions: only install apps you trust.
 - Volume follows AudioDesk: while a channel goes through Sonar it is Sonar's own volume for that channel, otherwise each app's volume in the Windows mixer. Changes made in AudioDesk show up on the knob and the other way round.
 - It talks to AudioDesk (https://github.com/Shyam-Sangeeth/AudioDesk) through AudioDesk's local API, so AudioDesk must be running (a version with the local API, newer than 1.0.4). If it isn't running, the knob says so, with a "Start AudioDesk" button when it can find AudioDesk on the PC (its Start with Windows entry or the installer's folder).
 - If AudioDesk stops (or restarts), the knob shows that it isn't running and goes back to the same screen once AudioDesk is running again.
-- Building `hub/Plugins/AudioDesk` (`dotnet build -c Release`) produces `bin\Release\AudioDesk.knobapp`; install it from Knob Hub's Apps page with "Install app...".
+- Building `hub/Plugins/AudioDesk` (`dotnet build -c Release`) produces `bin\Release\AudioDesk.knobapp`; install it from Knob Hub's Add apps page (from the list, or with "Install from file...").
 
 ### Counter app
 
-A small example app (`hub/Plugins/Counter`). It opens at 0 and counts up by one for each click turned to the right and down by one for each click to the left, never below 0. The number sits in the middle of a ring and gets smaller as it grows so it always fits. The ring fills once every 20 counts; each time it's full, the next lap fills in a new random bright colour over the last one. Build it with `dotnet build -c Release` and install `bin\Release\Counter.knobapp` from the Apps page.
+A small example app (`hub/Plugins/Counter`). It opens at 0 and counts up by one for each click turned to the right and down by one for each click to the left, never below 0. The number sits in the middle of a ring and gets smaller as it grows so it always fits. The ring fills once every 20 counts; each time it's full, the next lap fills in a new random bright colour over the last one. Build it with `dotnet build -c Release` and install `bin\Release\Counter.knobapp` from the Add apps page.
 
 ## Link protocol
 

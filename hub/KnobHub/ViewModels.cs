@@ -218,10 +218,18 @@ internal sealed class CatalogItem(CatalogApp app, AppManager manager) : Observab
                                                            string.IsNullOrEmpty(app.Manifest.Author) ? "" : "by " + app.Manifest.Author }
                                                     .Where(s => s.Length > 0));
 
-    // Only built-in icons can be drawn before the app is installed (its own icons are in its DLL).
-    public ImageSource? IconImage => KnobIcons.BuiltIn.GetValueOrDefault(app.Manifest.Icon) is { } icon
-        ? IconHelper.Render(icon, IconHelper.ParseColor(app.Manifest.Color, Fallback))
-        : null;
+    // An app's own icons are in its DLL: they can be drawn once it's installed; before that only a built-in one.
+    public ImageSource? IconImage
+    {
+        get
+        {
+            KnobHub.Sdk.KnobIcon? icon = null;
+            try { Installed?.App?.Icons.TryGetValue(app.Manifest.Icon, out icon); }
+            catch (Exception) { }
+            icon ??= KnobIcons.BuiltIn.GetValueOrDefault(app.Manifest.Icon);
+            return icon != null ? IconHelper.Render(icon, IconHelper.ParseColor(app.Manifest.Color, Fallback)) : null;
+        }
+    }
     public bool ShowGlyph => IconImage == null;
     public string Glyph => IconHelper.Glyph(app.Manifest.Icon);
     public Brush Accent => Frozen(IconHelper.ParseColor(app.Manifest.Color, Fallback));

@@ -23,7 +23,7 @@ internal sealed class HubSettings
     public int[]? Window { get; set; }
 
     /// <summary>The GitHub repository ("owner/name") whose releases the Add apps page lists (see AppCatalog).</summary>
-    public string AppsRepo { get; set; } = "Shyam-Sangeeth/KnobHub";
+    public string AppsRepo { get; set; } = "Shyam-Sangeeth/KnobHub-Apps";
 
     public static HubSettings Load()
     {

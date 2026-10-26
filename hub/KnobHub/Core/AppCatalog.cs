@@ -14,9 +14,10 @@ internal sealed record CatalogApp(AppManifest Manifest, string DownloadUrl, stri
 }
 
 /// <summary>
-/// Knob Hub apps published as GitHub releases of one repository. Each release is one version of one app: tagged
-/// "&lt;id&gt;-v&lt;version&gt;", with the app ("&lt;id&gt;.knobapp") and its app.json ("&lt;id&gt;.app.json"), so the list
-/// shows names, icons and versions without downloading every app. Drafts and pre-releases are left out.
+/// Knob Hub apps published as the GitHub releases of a repository of their own (Shyam-Sangeeth/KnobHub-Apps, apart
+/// from Knob Hub's own releases). Each release is one version of one app: tagged "&lt;id&gt;-v&lt;version&gt;", with the
+/// app ("&lt;id&gt;.knobapp") and its app.json ("&lt;id&gt;.app.json"), so the list shows names, icons and versions without
+/// downloading every app. Drafts and pre-releases are left out.
 /// </summary>
 internal static class AppCatalog
 {
