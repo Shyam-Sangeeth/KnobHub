@@ -28,7 +28,7 @@ void open(const AppInfo& app);
 
 void show_screen(JsonObjectConst msg);
 void update_screen(JsonObjectConst msg);
-void close();  // back to Home
+void close(const std::string& app_id = "");  // back to Home
 void on_connected(bool connected);
 
 // The app on screen ("" on Home or in Settings).

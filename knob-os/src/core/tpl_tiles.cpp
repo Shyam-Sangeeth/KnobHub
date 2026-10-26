@@ -114,7 +114,7 @@ private:
                 p.off_color = ui::parse_color(item["off_color"], Unset);
                 p.on = item["on"] | false;
                 p.selected = item["selected"] | 0;
-                for (JsonVariantConst option : item["options"].as<JsonArrayConst>()) p.options.push_back(option.as<const char*>());
+                for (JsonVariantConst option : item["options"].as<JsonArrayConst>()) p.options.push_back(option | "");
                 pills_.push_back(p);
             }
         }

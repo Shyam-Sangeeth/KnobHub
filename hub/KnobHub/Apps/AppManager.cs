@@ -134,7 +134,7 @@ internal sealed class AppManager
         int value;
         lock (entry.Settings)
             if (!entry.Settings.TryGetValue(id, out value)) value = setting?.Default ?? 0;
-        return setting != null ? Math.Clamp(value, 0, setting.Options.Count - 1) : value;
+        return setting != null ? (setting.Options.Count > 0 ? Math.Clamp(value, 0, setting.Options.Count - 1) : 0) : value;
     }
 
     public void SetSetting(AppEntry entry, string id, int value)
@@ -180,6 +180,7 @@ internal sealed class AppManager
         if (old != null) RemoveEntry(old);
 
         string folder = Path.Combine(PluginsFolder, manifest.Id);
+        EnsureInsidePlugins(folder);
         if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
         Directory.CreateDirectory(folder);
         ZipFile.ExtractToDirectory(path, folder);
@@ -197,7 +198,14 @@ internal sealed class AppManager
     {
         if (entry.Source != AppSource.Plugin) return;
         RemoveEntry(entry);
-        try { if (entry.Folder != null) Directory.Delete(entry.Folder, recursive: true); }
+        try
+        {
+            if (entry.Folder != null)
+            {
+                EnsureInsidePlugins(entry.Folder);
+                Directory.Delete(entry.Folder, recursive: true);
+            }
+        }
         catch (IOException) { }  // still loaded until Knob Hub restarts: the folder goes then
         catch (UnauthorizedAccessException) { }
         SaveOrder();
@@ -248,8 +256,8 @@ internal sealed class AppManager
     private static KnobApp LoadPlugin(AppEntry entry)
     {
         string path = Path.Combine(entry.Folder!, entry.Manifest.Assembly);
-        var context = entry.LoadContext ??= new PluginLoadContext(path);
-        var assembly = context.LoadFromAssemblyPath(path);
+        var context = (PluginLoadContext)(entry.LoadContext ??= new PluginLoadContext(path));
+        var assembly = context.LoadFromMemory(path);
         var type = assembly.GetType(entry.Manifest.Type, throwOnError: true)!;
         if (!typeof(KnobApp).IsAssignableFrom(type)) throw new InvalidDataException($"{type.Name} isn't a KnobApp.");
         return (KnobApp)Activator.CreateInstance(type)!;
@@ -269,12 +277,24 @@ internal sealed class AppManager
 
     private static void Validate(AppManifest m)
     {
-        if (string.IsNullOrWhiteSpace(m.Id) || m.Id.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')))
+        if (string.IsNullOrWhiteSpace(m.Id)
+            || m.Id is "." or ".."
+            || m.Id.StartsWith('.')
+            || m.Id.Contains("..")
+            || m.Id.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')))
             throw new InvalidDataException("app.json needs an id made of letters, digits, '-', '_' or '.'.");
         if (string.IsNullOrWhiteSpace(m.Name)) throw new InvalidDataException("app.json needs a name.");
         if (string.IsNullOrWhiteSpace(m.Assembly) || string.IsNullOrWhiteSpace(m.Type))
             throw new InvalidDataException("app.json needs the app's assembly and type.");
         if (Path.GetFileName(m.Assembly) != m.Assembly) throw new InvalidDataException("app.json's assembly must be a file name.");
+    }
+
+    private static void EnsureInsidePlugins(string folder)
+    {
+        string fullFolder = Path.GetFullPath(folder);
+        string fullPlugins = Path.GetFullPath(PluginsFolder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullFolder.StartsWith(fullPlugins, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("App folder must be inside the plugins folder.");
     }
 
     private static AppEntry SystemEntry(string id, string name, string subtitle, string icon, string color) => new()
@@ -301,11 +321,23 @@ internal sealed class PluginLoadContext(string mainAssembly) : AssemblyLoadConte
 {
     private readonly AssemblyDependencyResolver _resolver = new(mainAssembly);
 
+    public Assembly LoadFromMemory(string path)
+    {
+        using var stream = new MemoryStream(File.ReadAllBytes(path));
+        string pdb = Path.ChangeExtension(path, ".pdb");
+        if (File.Exists(pdb))
+        {
+            using var symbols = new MemoryStream(File.ReadAllBytes(pdb));
+            return LoadFromStream(stream, symbols);
+        }
+        return LoadFromStream(stream);
+    }
+
     protected override Assembly? Load(AssemblyName name)
     {
         if (name.Name == typeof(KnobApp).Assembly.GetName().Name) return null;
         string? path = _resolver.ResolveAssemblyToPath(name);
-        return path != null ? LoadFromAssemblyPath(path) : null;
+        return path != null ? LoadFromMemory(path) : null;
     }
 
     protected override IntPtr LoadUnmanagedDll(string name)

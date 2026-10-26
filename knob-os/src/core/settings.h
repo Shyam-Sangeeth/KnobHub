@@ -18,6 +18,7 @@ struct KnobSettings {
 
 namespace settings {
 
+void load();
 KnobSettings& get();
 
 // The Settings app (opened from Home).

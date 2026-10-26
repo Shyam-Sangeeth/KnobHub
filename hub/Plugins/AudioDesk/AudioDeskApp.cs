@@ -205,7 +205,7 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             Picker = new ControlPicker(channel.Device, channel.Devices
                 .Select(d => new PickerOption(d.Id, d.Name, channel.Switching && d.Id == channel.Device
                     ? "Switching..."
-                    : string.Join(" Â· ", new[] { via, d.Format }.Where(p => !string.IsNullOrEmpty(p)))))
+                    : string.Join(" · ", new[] { via, d.Format }.Where(p => !string.IsNullOrEmpty(p)))))
                 .ToList(), EmptyText: "No device"),
         };
     }
@@ -229,7 +229,7 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
     {
         int bracket = name.IndexOf(" (", StringComparison.Ordinal);
         if (bracket > 0) name = name[..bracket];
-        return name.Length <= max ? name : name[..(max - 1)] + "â€¦";
+        return name.Length <= max ? name : name[..(max - 1)] + "…";
     }
 
     // --- Starting AudioDesk ---
@@ -257,7 +257,7 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
         try
         {
             Process.Start(new ProcessStartInfo(exe, "--minimized") { UseShellExecute = true });
-            Host.Toast("Starting AudioDeskâ€¦");
+            Host.Toast("Starting AudioDesk…");
         }
         catch (Exception ex) { Host.Log("Couldn't start AudioDesk: " + ex.Message); }
     }

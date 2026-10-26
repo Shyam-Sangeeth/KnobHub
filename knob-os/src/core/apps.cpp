@@ -132,8 +132,9 @@ void update_screen(JsonObjectConst msg) {
     if (current && app == open_app && screen == current_screen) current->update(msg["data"]);
 }
 
-void close() {
+void close(const std::string& app_id) {
     if (open_app.empty()) return;  // e.g. a stray "close" while Settings is open
+    if (!app_id.empty() && app_id != open_app) return;
     open_app.clear();
     current = nullptr;
     current_screen.clear();

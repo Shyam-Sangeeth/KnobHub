@@ -137,6 +137,8 @@ public:
                 options_.clear();
                 for (JsonObjectConst o : picker["options"].as<JsonArrayConst>())
                     options_.push_back({o["id"] | "", o["name"] | "", o["detail"] | ""});
+                if (options_.empty()) shown_ = -1;
+                else if (shown_ >= static_cast<int>(options_.size())) shown_ = static_cast<int>(options_.size()) - 1;
             }
             if (picker["selected"].is<const char*>() && !rest_timer_) shown_ = index_of(picker["selected"].as<const char*>());
         }
@@ -259,7 +261,8 @@ private:
     static void on_rest(lv_timer_t* t) {
         auto* self = static_cast<ControlsScreen*>(lv_timer_get_user_data(t));
         self->rest_timer_ = nullptr;  // a one-shot timer deletes itself
-        if (self->shown_ >= 0) self->emit("select", self->options_[self->shown_].id);
+        if (self->shown_ >= 0 && self->shown_ < static_cast<int>(self->options_.size()))
+            self->emit("select", self->options_[self->shown_].id);
     }
 
     int index_of(const std::string& id) const {

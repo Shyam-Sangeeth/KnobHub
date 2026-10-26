@@ -1,9 +1,11 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using KnobHub.Core;
 using KnobHub.Sdk;
+using Windows.Foundation;
 using Windows.Media.Control;
 
 namespace KnobHub.Apps;
@@ -31,6 +33,7 @@ internal sealed class MediaApp : KnobApp
 
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
     private GlobalSystemMediaTransportControlsSession? _session;
+    private TypedEventHandler<GlobalSystemMediaTransportControlsSessionManager, CurrentSessionChangedEventArgs>? _sessionChanged;
 
     // The album art on show, sent to the knob only when the picture changes. Kept by the thumbnail's own bytes, not by
     // the track: apps can change it for the same track (Chrome first gives its own logo, then the video's thumbnail).
@@ -47,8 +50,11 @@ internal sealed class MediaApp : KnobApp
         try
         {
             _manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-            _manager.CurrentSessionChanged += (_, _) => Watch(_manager.GetCurrentSession());
-            Watch(_manager.GetCurrentSession());
+            _sessionChanged = OnSessionChanged;
+            _manager.CurrentSessionChanged += _sessionChanged;
+            GlobalSystemMediaTransportControlsSession? session = null;
+            try { session = _manager.GetCurrentSession(); } catch (COMException) { }
+            Watch(session);
         }
         catch (Exception ex)
         {
@@ -58,13 +64,23 @@ internal sealed class MediaApp : KnobApp
 
     public override void Stop()
     {
+        if (_manager != null && _sessionChanged != null) _manager.CurrentSessionChanged -= _sessionChanged;
         Watch(null);
         _manager = null;
+    }
+
+    private void OnSessionChanged(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args)
+    {
+        var manager = _manager;
+        if (manager == null) return;
+        try { Watch(manager.GetCurrentSession()); }
+        catch (COMException) { Watch(null); }
     }
 
     public override async void Open()
     {
         try { Host.Show(Screen, await Describe(newScreen: true)); }
+        catch (COMException) { Watch(null); }
         catch (Exception ex) { Host.Log(ex.Message); }
     }
 
@@ -92,6 +108,7 @@ internal sealed class MediaApp : KnobApp
                     break;
             }
         }
+        catch (COMException) { Watch(null); }
         catch (Exception ex) { Host.Log(ex.Message); }
     }
 
@@ -108,16 +125,27 @@ internal sealed class MediaApp : KnobApp
     {
         if (_session != null)
         {
-            _session.MediaPropertiesChanged -= OnTrackChanged;
-            _session.PlaybackInfoChanged -= OnPlaybackChanged;
-            _session.TimelinePropertiesChanged -= OnTimelineChanged;
+            try
+            {
+                _session.MediaPropertiesChanged -= OnTrackChanged;
+                _session.PlaybackInfoChanged -= OnPlaybackChanged;
+                _session.TimelinePropertiesChanged -= OnTimelineChanged;
+            }
+            catch (COMException) { }
         }
         _session = session;
         if (_session != null)
         {
-            _session.MediaPropertiesChanged += OnTrackChanged;
-            _session.PlaybackInfoChanged += OnPlaybackChanged;
-            _session.TimelinePropertiesChanged += OnTimelineChanged;
+            try
+            {
+                _session.MediaPropertiesChanged += OnTrackChanged;
+                _session.PlaybackInfoChanged += OnPlaybackChanged;
+                _session.TimelinePropertiesChanged += OnTimelineChanged;
+            }
+            catch (COMException)
+            {
+                _session = null;
+            }
         }
         OnTrackChanged(null, null);
     }
@@ -126,22 +154,33 @@ internal sealed class MediaApp : KnobApp
     {
         if (!Host.IsOpen) return;
         try { Host.Update(Screen, await Describe(newScreen: false)); }
+        catch (COMException) { Watch(null); }
         catch (Exception ex) { Host.Log(ex.Message); }
     }
 
     private void OnPlaybackChanged(GlobalSystemMediaTransportControlsSession sender, object args)
     {
         if (!Host.IsOpen) return;
-        var screen = new MediaScreen();
-        Playback(sender, screen);
-        Host.Update(Screen, new { screen.Playing, screen.Position, screen.Duration, screen.CanSeek, screen.CanPrevious, screen.CanNext });
+        try
+        {
+            var screen = new MediaScreen();
+            Playback(sender, screen);
+            Host.Update(Screen, new { screen.Playing, screen.Position, screen.Duration, screen.CanSeek, screen.CanPrevious, screen.CanNext });
+        }
+        catch (COMException) { Watch(null); }
+        catch (Exception ex) { Host.Log(ex.Message); }
     }
 
     private void OnTimelineChanged(GlobalSystemMediaTransportControlsSession sender, object args)
     {
         if (!Host.IsOpen) return;
-        var (position, duration) = Timeline(sender);
-        Host.Update(Screen, new { position, duration });
+        try
+        {
+            var (position, duration) = Timeline(sender);
+            Host.Update(Screen, new { position, duration });
+        }
+        catch (COMException) { Watch(null); }
+        catch (Exception ex) { Host.Log(ex.Message); }
     }
 
     /// <summary>Everything on the Media screen. The art goes with a new screen, or an update when the track changed
@@ -170,8 +209,17 @@ internal sealed class MediaApp : KnobApp
         // At full length: the knob scrolls text that doesn't fit, pictures too.
         screen.TitleImage = Picture(screen.Title, 16, semibold: true);
         screen.ArtistImage = Picture(screen.Artist, 12);
-        screen.Source = SourceName(session.SourceAppUserModelId);
-        Playback(session, screen);
+        try
+        {
+            screen.Source = SourceName(session.SourceAppUserModelId);
+            Playback(session, screen);
+        }
+        catch (COMException)
+        {
+            // The player went away: show nothing playing.
+            Watch(null);
+            return await Describe(newScreen);
+        }
 
         // Read every time: apps (Spotify, Chrome) often add or replace the thumbnail a moment after the track starts.
         byte[]? thumbnail = await Thumbnail(media);
@@ -212,6 +260,7 @@ internal sealed class MediaApp : KnobApp
                 position += (DateTimeOffset.Now - timeline.LastUpdatedTime).TotalSeconds;
             return (Math.Round(Math.Clamp(position, 0, duration > 0 ? duration : double.MaxValue), 1), Math.Round(duration, 1));
         }
+        catch (COMException) { throw; }
         catch (Exception) { return (0, 0); }
     }
 

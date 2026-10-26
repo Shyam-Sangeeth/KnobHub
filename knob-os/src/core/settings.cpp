@@ -18,6 +18,7 @@
 namespace settings {
 namespace {
 
+constexpr const char* SettingsFile = "settings.json";
 KnobSettings values;
 
 const char* const TimeoutNames[] = {"15 s", "30 s", "1 min", "5 min", "Never"};
@@ -32,8 +33,35 @@ TemplateScreen* page_screen = nullptr;
 Page dial_parent = Page::None;    // the page a brightness dial was opened from
 bool dial_is_leds = false;
 
+void save() {
+    JsonDocument d;
+    d["brightness"] = values.brightness;
+    d["led_brightness"] = values.led_brightness;
+    d["led_mode"] = values.led_mode;
+    d["timeout"] = values.timeout;
+    d["dim_idle"] = values.dim_idle;
+    d["leds_idle_off"] = values.leds_idle_off;
+    d["clock_24h"] = values.clock_24h;
+    d["name"] = values.name;
+    std::string s;
+    serializeJson(d, s);
+    hal_store_write(SettingsFile, std::vector<uint8_t>(s.begin(), s.end()));
+}
+
+void apply_values(JsonObjectConst msg) {
+    if (msg["brightness"].is<int>()) values.brightness = std::min(100, std::max(5, msg["brightness"].as<int>()));
+    if (msg["led_brightness"].is<int>()) values.led_brightness = std::min(100, std::max(0, msg["led_brightness"].as<int>()));
+    if (msg["led_mode"].is<int>()) values.led_mode = std::min(LedModeCount - 1, std::max(0, msg["led_mode"].as<int>()));
+    if (msg["timeout"].is<int>()) values.timeout = std::min(TimeoutCount - 1, std::max(0, msg["timeout"].as<int>()));
+    if (msg["dim_idle"].is<bool>()) values.dim_idle = msg["dim_idle"];
+    if (msg["leds_idle_off"].is<bool>()) values.leds_idle_off = msg["leds_idle_off"];
+    if (msg["clock_24h"].is<bool>()) values.clock_24h = msg["clock_24h"];
+    if (msg["name"].is<const char*>()) values.name = msg["name"].as<const char*>();
+}
+
 void changed() {
     hal_set_brightness(values.brightness);
+    save();
     send_all();
 }
 
@@ -212,6 +240,15 @@ void show(Page p, bool push) {
 
 }  // namespace
 
+void load() {
+    std::vector<uint8_t> data;
+    if (!hal_store_read(SettingsFile, data)) return;
+    JsonDocument doc;
+    if (deserializeJson(doc, data.data(), data.size())) return;
+    apply_values(doc.as<JsonObjectConst>());
+    hal_set_brightness(values.brightness);
+}
+
 KnobSettings& get() { return values; }
 
 void open() { show(Page::Categories, true); }
@@ -221,14 +258,8 @@ void refresh() {
 }
 
 void apply_from_hub(JsonObjectConst msg) {
-    if (msg["brightness"].is<int>()) values.brightness = std::min(100, std::max(5, msg["brightness"].as<int>()));
-    if (msg["led_brightness"].is<int>()) values.led_brightness = std::min(100, std::max(0, msg["led_brightness"].as<int>()));
-    if (msg["led_mode"].is<int>()) values.led_mode = std::min(LedModeCount - 1, std::max(0, msg["led_mode"].as<int>()));
-    if (msg["timeout"].is<int>()) values.timeout = std::min(TimeoutCount - 1, std::max(0, msg["timeout"].as<int>()));
-    if (msg["dim_idle"].is<bool>()) values.dim_idle = msg["dim_idle"];
-    if (msg["leds_idle_off"].is<bool>()) values.leds_idle_off = msg["leds_idle_off"];
-    if (msg["clock_24h"].is<bool>()) values.clock_24h = msg["clock_24h"];
-    if (msg["name"].is<const char*>()) values.name = msg["name"].as<const char*>();
+    apply_values(msg);
+    save();
     hal_set_brightness(values.brightness);
     if (page == Page::Dial && page_screen) {
         JsonDocument d;

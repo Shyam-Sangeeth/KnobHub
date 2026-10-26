@@ -67,10 +67,7 @@ public:
     std::string current_id() const { return pages_.empty() ? "" : pages_[current_].app.id; }
 
     void select(const std::string& id) {
-        if (open_timer_) {  // a page about to open is overtaken (Knob Hub syncing its preview)
-            lv_timer_delete(open_timer_);
-            open_timer_ = nullptr;
-        }
+        cancel_open();
         int index = 0;
         for (size_t i = 0; i < pages_.size(); i++)
             if (pages_[i].app.id == id) index = static_cast<int>(i);
@@ -257,6 +254,13 @@ private:
 
     // --- Changing and opening pages ---
 
+    void cancel_open() {
+        if (!open_timer_) return;
+        lv_timer_delete(open_timer_);
+        open_timer_ = nullptr;
+        set_icon_pressed(false);
+    }
+
     // Opens the page on show a moment later, so the icon's touch animation is seen first. From the knob (no finger on
     // the screen) the icon gets a quick press of its own.
     void open_soon(bool pulse) {
@@ -333,6 +337,7 @@ private:
 
     // direction: +1 = forward (the new page comes in from the right), -1 = back, 0 = no animation.
     void show_page(int index, int direction) {
+        cancel_open();
         lv_obj_t* old = page_;
         current_ = index;
         page_ = make_page(index);

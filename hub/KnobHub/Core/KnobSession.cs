@@ -16,7 +16,6 @@ internal sealed class KnobSession : IDisposable
     private readonly IKnobConnection _knob;
     private readonly HubSettings _settings;
     private AppEntry? _open;              // the app on the knob's screen
-    private bool _previewSettingsPending; // the preview knob is about to report its defaults: answer with ours
 
     public KnobSession(HubSettings settings, IKnobConnection knob, Dispatcher ui)
     {
@@ -243,33 +242,32 @@ internal sealed class KnobSession : IDisposable
         return null;
     }
 
+    private void HandleHello(JsonObject msg, bool fromKnob)
+    {
+        OsVersion = msg.Str("os");
+        if (fromKnob)
+        {
+            // Bring the preview to where the knob is; the knob reopens its app by itself.
+            Preview.LinkLine(new JsonObject { ["t"] = "sync", ["page"] = msg.Str("page"), ["app"] = msg.Str("app") }.ToJsonString());
+        }
+        // After a reconnect, an app Knob Hub still thinks is open may not be on the knob any more: close it here. (An
+        // app that is still open on the knob asks to be opened again by itself.) The preview only counts when it's
+        // the knob, i.e. no real knob is connected.
+        if ((fromKnob || !_knob.IsConnected) && _open != null && _open.Id != msg.Str("app")) Closed(_open);
+        SendApps();
+        SendSettings();
+        StateChanged?.Invoke();
+    }
+
     private void Handle(JsonObject msg, bool fromKnob)
     {
         switch (msg.Str("t"))
         {
             case "hello":
-                OsVersion = msg.Str("os");
-                if (fromKnob)
-                {
-                    // Bring the preview to where the knob is; the knob reopens its app by itself.
-                    Preview.LinkLine(new JsonObject { ["t"] = "sync", ["page"] = msg.Str("page"), ["app"] = msg.Str("app") }.ToJsonString());
-                }
-                else
-                {
-                    _previewSettingsPending = true;
-                }
-                SendApps();
-                StateChanged?.Invoke();
+                HandleHello(msg, fromKnob);
                 break;
 
             case "settings":
-                if (!fromKnob && _previewSettingsPending)
-                {
-                    // The preview starts with Knob OS's defaults: give it the saved settings instead.
-                    _previewSettingsPending = false;
-                    SendSettings();
-                    break;
-                }
                 _settings.Knob.Apply(msg);
                 _settings.Save();
                 if (fromKnob) Preview.LinkLine(_settings.Knob.ToMessage().ToJsonString(Json.Link));

@@ -37,7 +37,6 @@ void set_connected(bool c) {
         hello["page"] = home_page();
         hello["app"] = apps::open_id();
         send(hello);
-        settings::send_all();
     }
     apps::on_connected(c);
     icons::on_connected(c);
@@ -52,7 +51,7 @@ void receive(const char* line) {
     if (std::strcmp(t, "apps") == 0) apps::set_list(msg["items"], msg["order"]);
     else if (std::strcmp(t, "screen") == 0) apps::show_screen(msg);
     else if (std::strcmp(t, "update") == 0) apps::update_screen(msg);
-    else if (std::strcmp(t, "close") == 0) apps::close();
+    else if (std::strcmp(t, "close") == 0) apps::close(msg["app"] | "");
     else if (std::strcmp(t, "icon") == 0) icons::receive(msg);
     else if (std::strcmp(t, "icons") == 0) icons::check(msg);
     else if (std::strcmp(t, "toast") == 0) toast_show(msg["text"] | "");

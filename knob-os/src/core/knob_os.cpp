@@ -35,6 +35,7 @@ void knob_os_start() {
     // What Knob Hub sent last time, so the Home ring is complete before it connects (it checks for changes then).
     apps::load();
     icons::load();
+    settings::load();
     screens::init(circle);
     screens::push(home_create());
 
