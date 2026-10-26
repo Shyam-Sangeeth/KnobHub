@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Knob OS Design Tokens */
+    :root {
+      --screen-bg: #07080A;
+      --text: #F2F3F5;
+      --text-secondary: #9AA0AA;
+      --text-muted: #8D939D;
+      --surface: #16181C;
+      --surface-raised: #1A1C21;
+      --border: #2A2D33;
+      --arc-track: #22252B;
+      --accent: #8B7CF6;
+      --media-accent: #4ADE80;
+      --page-bg: #1E2024;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      color: var(--text);
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      padding: 48px 32px 80px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    .screen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 56px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+      justify-items: center;
+    }
+
+    .screen-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 480px;
+    }
+
+    /* 480x480 frame for 2x presentation */
+    .screen-frame {
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      background-color: var(--screen-bg);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      flex-shrink: 0;
+    }
+
+    /* 240x240 native Knob OS screen scaled 2x */
+    .knob-screen {
+      width: 240px;
+      height: 240px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: scale(2);
+      transform-origin: top left;
+      border-radius: 50%;
+      overflow: hidden;
+      background-color: var(--screen-bg);
+      color: var(--text);
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Outer Progress Arc */
+    .progress-arc {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 240px;
+      height: 240px;
+      pointer-events: none;
+    }
+
+    /* Source Label (e.g. Chrome, Spotify) */
+    .media-source {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 17px;
+      line-height: 1.2;
+    }
+
+    /* Active Album Art Thumbnail */
+    .media-art-wrap {
+      width: 80px;
+      height: 80px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 7px;
+      margin-bottom: 11px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      flex-shrink: 0;
+    }
+
+    .art-svg {
+      display: block;
+      width: 80px;
+      height: 80px;
+    }
+
+    /* Empty Art Placeholder (Nothing Playing) */
+    .empty-art-wrap {
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      margin-top: 34px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--media-accent);
+    }
+
+    /* Track Title */
+    .media-title-mask {
+      width: 200px;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .media-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      line-height: 1.25;
+      letter-spacing: -0.2px;
+    }
+
+    /* Artist Name / Subtitle */
+    .media-artist {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 4px;
+      line-height: 1.2;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Playback Controls */
+    .media-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .control-btn {
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      outline: none;
+    }
+
+    .side-btn {
+      width: 32px;
+      height: 32px;
+      background-color: var(--surface);
+      color: var(--text);
+    }
+
+    .side-btn.disabled {
+      color: #525866;
+    }
+
+    .play-btn {
+      width: 40px;
+      height: 40px;
+      background-color: var(--text);
+    }
+
+    .play-btn svg {
+      transform: translateX(1px);
+    }
+
+    /* Card Metadata */
+    .card-meta {
+      width: 100%;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Media app</h1>
+    <p class="subtitle">Now playing screen and playback controls for Knob OS's 240&times;240 rotary display.</p>
+  </header>
+
+  <main class="screen-grid">
+
+    <!-- 1. Media (Now Playing) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <!-- Outer circular track and active playback progress arc -->
+          <svg class="progress-arc" viewBox="0 0 240 240">
+            <!-- Full perimeter background track -->
+            <circle cx="120" cy="120" r="117" fill="none" stroke="#22252B" stroke-width="2.5" />
+            <!-- Active green progress arc clockwise from 12 o'clock to ~42 deg -->
+            <path d="M 120 3 A 117 117 0 0 1 198.3 33.1" fill="none" stroke="#4ADE80" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+
+          <!-- Source App -->
+          <div class="media-source">Chrome</div>
+
+          <!-- Album Art (GreatScott! YouTube thumbnail) -->
+          <div class="media-art-wrap">
+            <svg viewBox="0 0 80 80" width="80" height="80" class="art-svg">
+              <defs>
+                <clipPath id="art-clip">
+                  <rect width="80" height="80" rx="10" ry="10" />
+                </clipPath>
+                <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4A4138" />
+                  <stop offset="60%" stop-color="#2D2823" />
+                  <stop offset="100%" stop-color="#1E1914" />
+                </linearGradient>
+                <linearGradient id="ali-grad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#FF6A00" />
+                  <stop offset="100%" stop-color="#E52010" />
+                </linearGradient>
+              </defs>
+              <g clip-path="url(#art-clip)">
+                <!-- Workbench background -->
+                <rect width="80" height="80" fill="url(#bg-grad)" />
+                <!-- Dark wooden table strip at bottom -->
+                <rect y="50" width="80" height="30" fill="#241B12" />
+
+                <!-- Background equipment (white router/switch with RJ45 ethernet ports) -->
+                <rect x="30" y="14" width="28" height="22" rx="3" fill="#E2E4E8" />
+                <rect x="35" y="18" width="6" height="5" rx="1" fill="#2A2F38" />
+                <rect x="44" y="18" width="6" height="5" rx="1" fill="#2A2F38" />
+                <!-- Blue module behind -->
+                <polygon points="25,12 36,12 30,26 23,26" fill="#1E52A4" />
+                <circle cx="27" cy="15" r="1.5" fill="#58A6FF" />
+                <circle cx="31" cy="18" r="1.5" fill="#58A6FF" />
+
+                <!-- Orange vertical clamp tool -->
+                <rect x="37" y="22" width="6" height="15" rx="1.5" fill="#EA7419" />
+                <rect x="39" y="24" width="2" height="11" fill="#994000" />
+
+                <!-- White LED Matrix Module (left side) -->
+                <rect x="5" y="24" width="27" height="34" rx="4" fill="#F0F2F5" stroke="#48505E" stroke-width="1.2" />
+                <rect x="7" y="26" width="23" height="23" fill="#1C2128" rx="2" />
+                <!-- LED grid dots (2 columns of 5) -->
+                <g fill="#E6EDF3">
+                  <rect x="9" y="28" width="3" height="3" rx="0.5" />
+                  <rect x="9" y="32" width="3" height="3" rx="0.5" />
+                  <rect x="9" y="36" width="3" height="3" rx="0.5" />
+                  <rect x="9" y="40" width="3" height="3" rx="0.5" />
+                  <rect x="9" y="44" width="3" height="3" rx="0.5" />
+                  <rect x="14" y="28" width="3" height="3" rx="0.5" />
+                  <rect x="14" y="32" width="3" height="3" rx="0.5" />
+                  <rect x="14" y="36" width="3" height="3" rx="0.5" />
+                  <rect x="14" y="40" width="3" height="3" rx="0.5" />
+                  <rect x="14" y="44" width="3" height="3" rx="0.5" />
+                </g>
+                <!-- Glowing illumination highlight on left side of LED panel -->
+                <circle cx="9" cy="34" r="6" fill="#FFFFFF" opacity="0.85" />
+                <!-- Lower rotary knob on module -->
+                <circle cx="18" cy="53" r="3.5" fill="#9EA7B3" />
+                <circle cx="18" cy="53" r="1.5" fill="#363C44" />
+
+                <!-- Red/Orange AliExpress Badge (right side) -->
+                <rect x="47" y="15" width="27" height="34" rx="7" fill="url(#ali-grad)" />
+                <!-- Curved white phone/smile icon -->
+                <path d="M 52 24 C 52 21 57 20 60 25 C 60.5 25.8 59.8 26.5 59 26 C 56.5 24.5 54.5 24 53 25" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" />
+                <text x="49" y="32" font-family="'Montserrat', sans-serif" font-weight="700" font-size="4.5" fill="#FFFFFF" letter-spacing="-0.3">AliEx...</text>
+                <text x="50" y="37" font-family="'Montserrat', sans-serif" font-weight="600" font-size="4" fill="#FFFFFF" opacity="0.85">Pa...</text>
+
+                <!-- Curved Red Arrow pointing to LEDs -->
+                <path d="M 60 41 Q 48 42 41 38" fill="none" stroke="#D32F2F" stroke-width="4.5" stroke-linecap="round" />
+                <polygon points="43,33 36,37 42,42" fill="#D32F2F" />
+
+                <!-- Bold text overlay: "Hid Ge" -->
+                <text x="46" y="55" font-family="'Montserrat', sans-serif" font-weight="700" font-size="10.5" fill="#FFFFFF" letter-spacing="-0.5">Hid</text>
+                <text x="46" y="65" font-family="'Montserrat', sans-serif" font-weight="700" font-size="10.5" fill="#FFFFFF" letter-spacing="-0.5">Ge</text>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Track Title (horizontally clipped marquee) -->
+          <div class="media-title-mask">
+            <div class="media-title">Finding Hidden Gems or</div>
+          </div>
+
+          <!-- Artist Name -->
+          <div class="media-artist">GreatScott!</div>
+
+          <!-- Playback Controls -->
+          <div class="media-controls">
+            <!-- Previous Button -->
+            <button class="control-btn side-btn" aria-label="Previous">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+                <rect x="2" y="3" width="2" height="10" rx="0.6"/>
+                <polygon points="13,3 5.5,8 13,13"/>
+              </svg>
+            </button>
+            <!-- Play Button (Centered 40px circle) -->
+            <button class="control-btn play-btn" aria-label="Play">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="#07080A">
+                <path d="M4.5 3.2 C4.5 2.6 5.2 2.2 5.7 2.5 L13.5 7.3 C14 7.6 14 8.4 13.5 8.7 L5.7 13.5 C5.2 13.8 4.5 13.4 4.5 12.8 Z"/>
+              </svg>
+            </button>
+            <!-- Next Button -->
+            <button class="control-btn side-btn" aria-label="Next">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+                <polygon points="3,3 10.5,8 3,13"/>
+                <rect x="12" y="3" width="2" height="10" rx="0.6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Media</div>
+        <div class="card-desc">Active media playback showing track progress, album art thumbnail, title, artist, source app, and transport controls.</div>
+      </div>
+    </div>
+
+    <!-- 2. Nothing Playing -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <!-- Empty Art Card with Green Music Note Icon -->
+          <div class="empty-art-wrap">
+            <svg viewBox="0 0 29 30" width="32" height="32" fill="currentColor">
+              <path d="M 12 6.5 L 25 3.5 C 25.8 3.3 26.5 3.9 26.5 4.7 L 26.5 17.2 C 25.4 16.5 23.8 16 22 16 C 18.7 16 16 18.2 16 21 C 16 23.8 18.7 26 22 26 C 25.3 26 28 23.8 28 21 L 28 4.2 C 28 2.6 26.5 1.4 24.9 1.8 L 12.9 4.6 C 11.8 4.8 11 5.8 11 7 L 11 20.2 C 9.9 19.5 8.3 19 6.5 19 C 3.2 19 0.5 21.2 0.5 24 C 0.5 26.8 3.2 29 6.5 29 C 9.8 29 12.5 26.8 12.5 24 L 12.5 6.5 Z"/>
+            </svg>
+          </div>
+
+          <!-- Title -->
+          <div class="media-title-mask">
+            <div class="media-title">Nothing playing</div>
+          </div>
+
+          <!-- Subtitle -->
+          <div class="media-artist">Play something on your PC</div>
+
+          <!-- Playback Controls (Previous and Next disabled) -->
+          <div class="media-controls">
+            <!-- Previous Button (Disabled) -->
+            <button class="control-btn side-btn disabled" aria-label="Previous">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+                <rect x="2" y="3" width="2" height="10" rx="0.6"/>
+                <polygon points="13,3 5.5,8 13,13"/>
+              </svg>
+            </button>
+            <!-- Play Button (Centered 40px circle) -->
+            <button class="control-btn play-btn" aria-label="Play">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="#07080A">
+                <path d="M4.5 3.2 C4.5 2.6 5.2 2.2 5.7 2.5 L13.5 7.3 C14 7.6 14 8.4 13.5 8.7 L5.7 13.5 C5.2 13.8 4.5 13.4 4.5 12.8 Z"/>
+              </svg>
+            </button>
+            <!-- Next Button (Disabled) -->
+            <button class="control-btn side-btn disabled" aria-label="Next">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+                <polygon points="3,3 10.5,8 3,13"/>
+                <rect x="12" y="3" width="2" height="10" rx="0.6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Nothing Playing</div>
+        <div class="card-desc">Idle state shown when no media player or audio session is currently active on the host PC.</div>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

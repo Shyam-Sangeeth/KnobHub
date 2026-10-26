@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AudioDesk app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Knob OS Design Tokens */
+    :root {
+      --screen-bg: #07080A;
+      --text: #F2F3F5;
+      --text-secondary: #9AA0AA;
+      --text-muted: #8D939D;
+      --surface: #16181C;
+      --surface-raised: #1A1C21;
+      --border: #2A2D33;
+      --arc-track: #22252B;
+      --accent: #8B7CF6;
+      --accent-fill: #1D1A33;
+      --page-bg: #1E2024;
+
+      /* Channel colors */
+      --channel-game: #4CC2FF;
+      --channel-game-muted: #1E4F6D;
+      --channel-media: #FF9F43;
+      --channel-aux: #C084FC;
+      --sonar-green: #4ADE80;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      color: var(--text);
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      padding: 48px 32px 80px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    .screen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 56px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+      justify-items: center;
+    }
+
+    .screen-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 480px;
+    }
+
+    /* 480x480 container rendering the 240x240 screen at 2x scale */
+    .screen-frame {
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      background-color: var(--screen-bg);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      flex-shrink: 0;
+    }
+
+    /* 240x240 native Knob OS display */
+    .knob-screen {
+      width: 240px;
+      height: 240px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: scale(2);
+      transform-origin: top left;
+      border-radius: 50%;
+      overflow: hidden;
+      background-color: var(--screen-bg);
+      color: var(--text);
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Screen Title */
+    .screen-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.8px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-top: 24px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    /* Tiles Row */
+    .tiles-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 13px;
+      margin-top: 15px;
+      position: relative;
+    }
+
+    /* Individual Tile */
+    .tile {
+      position: relative;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* White 2px Selection Outline tight to selected control */
+    .tile.selected::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 2px solid var(--text);
+      box-sizing: border-box;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Ring SVG overlay */
+    .tile-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 58px;
+      height: 58px;
+      pointer-events: none;
+    }
+
+    /* Tile Content */
+    .tile-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      margin-top: -1px;
+    }
+
+    .tile-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2px;
+    }
+
+    .tile-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.1;
+      text-align: center;
+    }
+
+    .tile-detail {
+      font-size: 8px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1;
+      margin-top: 1.5px;
+      text-align: center;
+    }
+
+    /* Sonar Badge at bottom of ring */
+    .tile-badge {
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background-color: var(--screen-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      box-sizing: border-box;
+    }
+
+    .badge-game {
+      border: 1.5px solid var(--channel-game);
+      color: var(--channel-game);
+    }
+
+    .badge-media {
+      border: 1.5px solid var(--channel-media);
+      color: var(--channel-media);
+    }
+
+    .badge-aux {
+      border: 1.5px solid var(--channel-aux);
+      color: var(--channel-aux);
+    }
+
+    /* Sonar Toggle Pill */
+    .sonar-pill {
+      margin-top: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5.5px;
+      background-color: var(--accent-fill);
+      border: 1px solid var(--accent);
+      border-radius: 9999px;
+      height: 24px;
+      padding: 0 13px;
+      box-sizing: border-box;
+    }
+
+    .sonar-icon {
+      color: var(--sonar-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sonar-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    /* Output Profile Segmented Pill */
+    .profile-pill {
+      margin-top: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      height: 26px;
+      width: 174px;
+      padding: 2px;
+      box-sizing: border-box;
+    }
+
+    .profile-segment {
+      border-radius: 9999px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .profile-segment.active {
+      background-color: var(--text);
+      color: var(--screen-bg);
+      font-weight: 600;
+      padding: 0 13px;
+    }
+
+    .profile-segment.inactive {
+      background-color: transparent;
+      color: var(--text-muted);
+      font-weight: 500;
+      padding: 0 10px;
+    }
+
+    /* Card Metadata */
+    .card-meta {
+      width: 100%;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>AudioDesk app</h1>
+    <p class="subtitle">Channels overview, volume rings, Sonar badge routing, and audio profile selector on Knob OS's 240&times;240 display.</p>
+  </header>
+
+  <main class="screen-grid">
+
+    <!-- 1. Channels (audiodesk-channels.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title">AUDIODESK</div>
+
+          <!-- Channel Tiles: Game, Media (Selected), Aux -->
+          <div class="tiles-row">
+
+            <!-- Game Tile -->
+            <div class="tile">
+              <svg class="tile-svg" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="#4CC2FF" stroke-width="3.5" />
+              </svg>
+              <div class="tile-content">
+                <div class="tile-icon" style="color: #4CC2FF;">
+                  <svg viewBox="0 0 16 12" width="13" height="10" fill="currentColor">
+                    <path fill-rule="evenodd" d="M 3.5 2 C 2 2 1 3.2 1 4.5 C 1 6 0.8 8.5 1.8 10.5 C 2.4 11.8 3.8 11.5 4.6 10.2 L 6 8 C 6.8 7.5 7.4 7.4 8 7.4 C 8.6 7.4 9.2 7.5 10 8 L 11.4 10.2 C 12.2 11.5 13.6 11.8 14.2 10.5 C 15.2 8.5 15 6 15 4.5 C 15 3.2 14 2 12.5 2 Z" />
+                    <rect x="3.7" y="3.6" width="1" height="2.8" rx="0.2" fill="#14161B" />
+                    <rect x="2.8" y="4.5" width="2.8" height="1" rx="0.2" fill="#14161B" />
+                    <circle cx="11.4" cy="4.4" r="0.6" fill="#14161B" />
+                    <circle cx="12.5" cy="5.5" r="0.6" fill="#14161B" />
+                  </svg>
+                </div>
+                <div class="tile-label">Game</div>
+                <div class="tile-detail">Earphone</div>
+              </div>
+              <div class="tile-badge badge-game">
+                <svg viewBox="0 0 16 16" width="9" height="9">
+                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                  <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Media Tile (Selected) -->
+            <div class="tile selected">
+              <svg class="tile-svg" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="#FF9F43" stroke-width="3.5" />
+              </svg>
+              <div class="tile-content">
+                <div class="tile-icon" style="color: #FF9F43;">
+                  <svg viewBox="0 0 14 14" width="11" height="11" fill="currentColor">
+                    <ellipse cx="4.5" cy="10.2" rx="2.4" ry="1.7" transform="rotate(-25 4.5 10.2)" />
+                    <rect x="6.1" y="2.5" width="1.3" height="7.8" rx="0.4" />
+                    <path d="M 6.8 2.5 C 8.6 2.5 10.3 3.5 10.6 6 C 10 4.7 8.8 3.9 6.8 4.1 Z" />
+                  </svg>
+                </div>
+                <div class="tile-label">Media</div>
+                <div class="tile-detail">Earphone</div>
+              </div>
+              <div class="tile-badge badge-media">
+                <svg viewBox="0 0 16 16" width="9" height="9">
+                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                  <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Aux Tile -->
+            <div class="tile">
+              <svg class="tile-svg" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="#C084FC" stroke-width="3.5" />
+              </svg>
+              <div class="tile-content">
+                <div class="tile-icon" style="color: #C084FC;">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor">
+                    <g transform="rotate(40 8 8)">
+                      <path d="M 7.2 1 C 7.2 0.5 7.5 0.2 8 0.2 C 8.5 0.2 8.8 0.5 8.8 1 L 8.8 3 L 7.2 3 Z" />
+                      <rect x="7.2" y="3.8" width="1.6" height="1.8" />
+                      <rect x="7.2" y="6.4" width="1.6" height="2" />
+                      <rect x="5.8" y="9" width="4.4" height="4" rx="0.8" />
+                      <rect x="7.2" y="13.4" width="1.6" height="2.6" rx="0.5" />
+                    </g>
+                  </svg>
+                </div>
+                <div class="tile-label">Aux</div>
+                <div class="tile-detail">Earphone</div>
+              </div>
+              <div class="tile-badge badge-aux">
+                <svg viewBox="0 0 16 16" width="9" height="9">
+                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                  <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Sonar Toggle Pill -->
+          <div class="sonar-pill">
+            <div class="sonar-icon">
+              <svg viewBox="0 0 16 16" width="12" height="12">
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </div>
+            <div class="sonar-label">Sonar</div>
+          </div>
+
+          <!-- Profile Segmented Control Pill -->
+          <div class="profile-pill">
+            <div class="profile-segment active">Headset</div>
+            <div class="profile-segment inactive">Home Theater</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Channels</div>
+        <div class="card-desc">Main channel overview showing Game, Media, and Aux volume rings with Sonar badges, Sonar master toggle, and output profile selector.</div>
+      </div>
+    </div>
+
+    <!-- 2. Channels Muted & Switching (audiodesk-channels-muted-switching.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title">AUDIODESK</div>
+
+          <!-- Channel Tiles: Game (Muted), Media (Selected), Aux (Switching) -->
+          <div class="tiles-row">
+
+            <!-- Game Tile (Muted) -->
+            <div class="tile">
+              <svg class="tile-svg" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="var(--channel-game-muted)" stroke-width="3.5" />
+              </svg>
+              <div class="tile-content">
+                <div class="tile-icon" style="color: #4CC2FF; position: relative;">
+                  <svg viewBox="0 0 16 12" width="13" height="10" fill="currentColor">
+                    <path fill-rule="evenodd" d="M 3.5 2 C 2 2 1 3.2 1 4.5 C 1 6 0.8 8.5 1.8 10.5 C 2.4 11.8 3.8 11.5 4.6 10.2 L 6 8 C 6.8 7.5 7.4 7.4 8 7.4 C 8.6 7.4 9.2 7.5 10 8 L 11.4 10.2 C 12.2 11.5 13.6 11.8 14.2 10.5 C 15.2 8.5 15 6 15 4.5 C 15 3.2 14 2 12.5 2 Z" />
+                    <rect x="3.7" y="3.6" width="1" height="2.8" rx="0.2" fill="#14161B" />
+                    <rect x="2.8" y="4.5" width="2.8" height="1" rx="0.2" fill="#14161B" />
+                    <circle cx="11.4" cy="4.4" r="0.6" fill="#14161B" />
+                    <circle cx="12.5" cy="5.5" r="0.6" fill="#14161B" />
+                    <line x1="0" y1="0" x2="16" y2="12" stroke="#07080A" stroke-width="2.5" />
+                    <line x1="0" y1="0" x2="16" y2="12" stroke="#4CC2FF" stroke-width="1.3" />
+                  </svg>
+                </div>
+                <div class="tile-label">Game</div>
+                <div class="tile-detail">Headset</div>
+              </div>
+              <div class="tile-badge badge-game">
+                <svg viewBox="0 0 16 16" width="9" height="9">
+                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                  <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Media Tile (Selected) -->
+            <div class="tile selected">
+              <svg class="tile-svg" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="#FF9F43" stroke-width="3.5" />
+              </svg>
+              <div class="tile-content">
+                <div class="tile-icon" style="color: #FF9F43;">
+                  <svg viewBox="0 0 14 14" width="11" height="11" fill="currentColor">
+                    <ellipse cx="4.5" cy="10.2" rx="2.4" ry="1.7" transform="rotate(-25 4.5 10.2)" />
+                    <rect x="6.1" y="2.5" width="1.3" height="7.8" rx="0.4" />
+                    <path d="M 6.8 2.5 C 8.6 2.5 10.3 3.5 10.6 6 C 10 4.7 8.8 3.9 6.8 4.1 Z" />
+                  </svg>
+                </div>
+                <div class="tile-label">Media</div>
+                <div class="tile-detail">Headset</div>
+              </div>
+              <div class="tile-badge badge-media">
+                <svg viewBox="0 0 16 16" width="9" height="9">
+                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                  <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                  <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Aux Tile (Switching) -->
+            <div class="tile">
+              <svg class="tile-svg" viewBox="0 0 58 58">
+                <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="#C084FC" stroke-width="3.5" stroke-dasharray="125 50" stroke-dashoffset="-38" />
+                <circle cx="29" cy="29" r="26.5" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-dasharray="45 130" stroke-dashoffset="15" stroke-linecap="round" />
+              </svg>
+              <div class="tile-content">
+                <div class="tile-icon" style="color: #C084FC;">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor">
+                    <g transform="rotate(40 8 8)">
+                      <path d="M 7.2 1 C 7.2 0.5 7.5 0.2 8 0.2 C 8.5 0.2 8.8 0.5 8.8 1 L 8.8 3 L 7.2 3 Z" />
+                      <rect x="7.2" y="3.8" width="1.6" height="1.8" />
+                      <rect x="7.2" y="6.4" width="1.6" height="2" />
+                      <rect x="5.8" y="9" width="4.4" height="4" rx="0.8" />
+                      <rect x="7.2" y="13.4" width="1.6" height="2.6" rx="0.5" />
+                    </g>
+                  </svg>
+                </div>
+                <div class="tile-label">Aux</div>
+                <div class="tile-detail">Speaker</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Sonar Toggle Pill -->
+          <div class="sonar-pill">
+            <div class="sonar-icon">
+              <svg viewBox="0 0 16 16" width="12" height="12">
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </div>
+            <div class="sonar-label">Sonar</div>
+          </div>
+
+          <!-- Profile Segmented Control Pill -->
+          <div class="profile-pill">
+            <div class="profile-segment active">Headset</div>
+            <div class="profile-segment inactive">Home Theater</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Channels Muted &amp; Switching</div>
+        <div class="card-desc">Overview with Game channel muted (dimmed ring, struck-through icon) and Aux switching device to Speaker with active loading arc.</div>
+      </div>
+    </div>
+
+    <!-- 3. Channel Controls (audiodesk-channel-controls.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Gauge Arc SVG background -->
+          <svg style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none;" viewBox="0 0 240 240">
+            <!-- Arc track -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 199.7 186.8" fill="none" stroke="var(--arc-track)" stroke-width="11" stroke-linecap="round" />
+            <!-- Active 100% Volume arc in Media Orange -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 199.7 186.8" fill="none" stroke="#FF9F43" stroke-width="11" stroke-linecap="round" />
+          </svg>
+
+          <!-- Top Music Icon -->
+          <div style="margin-top: 36px; color: #FF9F43;">
+            <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor">
+              <ellipse cx="4.5" cy="10.2" rx="2.4" ry="1.7" transform="rotate(-25 4.5 10.2)" />
+              <rect x="6.1" y="2.5" width="1.3" height="7.8" rx="0.4" />
+              <path d="M 6.8 2.5 C 8.6 2.5 10.3 3.5 10.6 6 C 10 4.7 8.8 3.9 6.8 4.1 Z" />
+            </svg>
+          </div>
+
+          <!-- Channel Title -->
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 1.5px; color: var(--text); text-transform: uppercase; margin-top: 5px; line-height: 1;">
+            MEDIA
+          </div>
+
+          <!-- Sonar Pill -->
+          <div style="margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background-color: #24180E; border: 1px solid #C4782A; border-radius: 9999px; height: 23px; padding: 0 11px;">
+            <div style="color: var(--sonar-green); display: flex; align-items: center;">
+              <svg viewBox="0 0 16 16" width="11" height="11">
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </div>
+            <span style="font-size: 11px; font-weight: 500; color: var(--text); line-height: 1;">Sonar</span>
+          </div>
+
+          <!-- Device Card -->
+          <div style="margin-top: 11px; width: 156px; height: 44px; background-color: var(--surface); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 10px; overflow: hidden; text-align: center;">
+            <div style="font-size: 12.5px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; width: 100%; text-overflow: clip;">
+              dset Earphone (Ga
+            </div>
+            <div style="font-size: 9px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; width: 100%; text-overflow: clip; margin-top: 2px;">
+              r &middot; Stereo &middot; 96 kHz &middot; 24-b
+            </div>
+          </div>
+
+          <!-- Volume Percentage -->
+          <div style="margin-top: 10px; font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px;">
+            100%
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Channel Controls</div>
+        <div class="card-desc">Detailed channel control view with 100% volume arc in channel color, device details card, and channel Sonar toggle.</div>
+      </div>
+    </div>
+
+    <!-- 4. Channel Muted (audiodesk-channel-muted.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Gauge Arc SVG background -->
+          <svg style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none;" viewBox="0 0 240 240">
+            <!-- Full Arc track -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 199.7 186.8" fill="none" stroke="var(--arc-track)" stroke-width="11" stroke-linecap="round" />
+            <!-- Muted Volume arc in muted slate gray (~80% volume) -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 210.1 68" fill="none" stroke="#909BAA" stroke-width="11" stroke-linecap="round" />
+          </svg>
+
+          <!-- Top Mute Slash line -->
+          <div style="margin-top: 36px; height: 16px; display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 16 16" width="16" height="16">
+              <line x1="2" y1="2" x2="14" y2="14" stroke="#F2F3F5" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </div>
+
+          <!-- Channel Title -->
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; margin-top: 5px; line-height: 1;">
+            GAME
+          </div>
+
+          <!-- Sonar Pill -->
+          <div style="margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background-color: #101F2B; border: 1px solid var(--channel-game); border-radius: 9999px; height: 23px; padding: 0 11px;">
+            <div style="color: var(--sonar-green); display: flex; align-items: center;">
+              <svg viewBox="0 0 16 16" width="11" height="11">
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </div>
+            <span style="font-size: 11px; font-weight: 500; color: var(--text); line-height: 1;">Sonar</span>
+          </div>
+
+          <!-- Device Card -->
+          <div style="margin-top: 11px; width: 156px; height: 44px; background-color: var(--surface); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 10px; text-align: center;">
+            <div style="font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; width: 100%;">
+              Headset Earphone
+            </div>
+            <div style="font-size: 9.5px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; width: 100%; margin-top: 2px;">
+              Sonar &middot; Stereo &middot; 96 kHz
+            </div>
+          </div>
+
+          <!-- Muted Label -->
+          <div style="margin-top: 10px; font-size: 25px; font-weight: 600; color: var(--text); letter-spacing: -0.3px;">
+            Muted
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Channel Muted</div>
+        <div class="card-desc">Channel control state when muted, featuring a desaturated gray volume arc, diagonal slash icon, and bold "Muted" readout.</div>
+      </div>
+    </div>
+
+    <!-- 5. Channel Switching (audiodesk-channel-switching.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Gauge Arc SVG background -->
+          <svg style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none;" viewBox="0 0 240 240">
+            <!-- Full Arc track -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 199.7 186.8" fill="none" stroke="var(--arc-track)" stroke-width="11" stroke-linecap="round" />
+            <!-- Active 72% Volume arc in Game Cyan -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 207.4 63.6" fill="none" stroke="#4CC2FF" stroke-width="11" stroke-linecap="round" />
+          </svg>
+
+          <!-- Channel Title (No icon above) -->
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; margin-top: 45px; line-height: 1;">
+            GAME
+          </div>
+
+          <!-- Sonar Pill -->
+          <div style="margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background-color: #101F2B; border: 1px solid var(--channel-game); border-radius: 9999px; height: 23px; padding: 0 11px;">
+            <div style="color: var(--sonar-green); display: flex; align-items: center;">
+              <svg viewBox="0 0 16 16" width="11" height="11">
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <path d="M 8 4.2 A 3.8 3.8 0 0 0 4.2 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 1.8 A 6.2 6.2 0 0 0 1.8 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                <path d="M 8 11.8 A 3.8 3.8 0 0 0 11.8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M 8 14.2 A 6.2 6.2 0 0 0 14.2 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </div>
+            <span style="font-size: 11px; font-weight: 500; color: var(--text); line-height: 1;">Sonar</span>
+          </div>
+
+          <!-- Device Card -->
+          <div style="margin-top: 11px; width: 156px; height: 44px; background-color: var(--surface); border-radius: 10px; display: flex; flex-direction: center; align-items: center; justify-content: center; flex-direction: column; padding: 0 10px; text-align: center;">
+            <div style="font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; width: 100%;">
+              Headset Earphone
+            </div>
+            <div style="font-size: 10.5px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; width: 100%; margin-top: 2px;">
+              Switching...
+            </div>
+          </div>
+
+          <!-- Volume Percentage -->
+          <div style="margin-top: 10px; font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px;">
+            72%
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Channel Switching</div>
+        <div class="card-desc">Channel view while an audio output device change is in progress, displaying "Switching..." status and 72% volume arc.</div>
+      </div>
+    </div>
+
+    <!-- 6. Channel No Sonar (audiodesk-channel-no-sonar.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Gauge Arc SVG background -->
+          <svg style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none;" viewBox="0 0 240 240">
+            <!-- Full Arc track -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 199.7 186.8" fill="none" stroke="var(--arc-track)" stroke-width="11" stroke-linecap="round" />
+            <!-- Active 72% Volume arc in Game Cyan -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 207.4 63.6" fill="none" stroke="#4CC2FF" stroke-width="11" stroke-linecap="round" />
+          </svg>
+
+          <!-- Channel Title without Sonar -->
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; margin-top: 78px; line-height: 1;">
+            GAME
+          </div>
+
+          <!-- Device Card -->
+          <div style="margin-top: 12px; width: 156px; height: 46px; background-color: var(--surface); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 10px; text-align: center;">
+            <div style="font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; width: 100%;">
+              Speakers
+            </div>
+            <div style="font-size: 10px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; width: 100%; margin-top: 3px;">
+              Stereo &middot; 48 kHz &middot; 24-bit
+            </div>
+          </div>
+
+          <!-- Volume Percentage -->
+          <div style="margin-top: 18px; font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px;">
+            72%
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Channel (No Sonar)</div>
+        <div class="card-desc">Standard channel controls view when routed directly to speakers without Sonar DSP processing active.</div>
+      </div>
+    </div>
+
+    <!-- 7. AudioDesk Not Running - Start (audiodesk-not-running-start.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Title -->
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 2px; color: #A78BFA; text-transform: uppercase; margin-top: 74px; line-height: 1;">
+            AUDIODESK
+          </div>
+
+          <!-- Status pill -->
+          <div style="margin-top: 8px; background-color: #1F1D33; border-radius: 9999px; height: 22px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center;">
+            <span style="font-size: 11px; font-weight: 500; color: var(--text); line-height: 1;">AudioDesk isn't running</span>
+          </div>
+
+          <!-- Action Button: Start AudioDesk -->
+          <div style="margin-top: 10px; width: 184px; height: 42px; background-color: var(--surface-raised); border: 2px solid var(--accent); border-radius: 10px; display: flex; align-items: center; padding: 0 14px; gap: 11px; box-sizing: border-box;">
+            <!-- Play triangle icon -->
+            <svg viewBox="0 0 12 14" width="11" height="13" fill="none" stroke="#D1D5DB" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+              <polygon points="2,1 11,7 2,13" />
+            </svg>
+            <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
+              <span style="font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2;">Start AudioDesk</span>
+              <span style="font-size: 9.5px; font-weight: 500; color: var(--text-secondary); line-height: 1.2;">On this PC</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Not Running &ndash; Start Action</div>
+        <div class="card-desc">State shown when the companion desktop app is detected offline, providing an accented button to launch AudioDesk on the connected PC.</div>
+      </div>
+    </div>
+
+    <!-- 8. AudioDesk Not Running - Hint (audiodesk-not-running-hint.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Title -->
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 2px; color: #A78BFA; text-transform: uppercase; margin-top: 86px; line-height: 1;">
+            AUDIODESK
+          </div>
+
+          <!-- Status pill -->
+          <div style="margin-top: 8px; background-color: #1F1D33; border-radius: 9999px; height: 22px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center;">
+            <span style="font-size: 11px; font-weight: 500; color: var(--text); line-height: 1;">AudioDesk isn't running</span>
+          </div>
+
+          <!-- Hint text -->
+          <div style="margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: center;">
+            Open it on your PC
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Not Running &ndash; Hint</div>
+        <div class="card-desc">Fallback guidance prompting the user to open AudioDesk manually on the host PC when auto-launch is unavailable.</div>
+      </div>
+    </div>
+
+    <!-- 9. Toast: Starting AudioDesk (toast-starting-audiodesk.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Title -->
+          <div style="font-size: 12px; font-weight: 600; letter-spacing: 2px; color: #A78BFA; text-transform: uppercase; margin-top: 74px; line-height: 1;">
+            AUDIODESK
+          </div>
+
+          <!-- Status pill -->
+          <div style="margin-top: 8px; background-color: #1F1D33; border-radius: 9999px; height: 22px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center;">
+            <span style="font-size: 11px; font-weight: 500; color: var(--text); line-height: 1;">AudioDesk isn't running</span>
+          </div>
+
+          <!-- Action Button: Start AudioDesk (under toast) -->
+          <div style="margin-top: 10px; width: 184px; height: 42px; background-color: var(--surface-raised); border: 2px solid var(--accent); border-radius: 10px; display: flex; align-items: center; padding: 0 14px; gap: 11px; box-sizing: border-box;">
+            <svg viewBox="0 0 12 14" width="11" height="13" fill="none" stroke="#D1D5DB" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+              <polygon points="2,1 11,7 2,13" />
+            </svg>
+            <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
+              <span style="font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2;">Start AudioDesk</span>
+              <span style="font-size: 9.5px; font-weight: 500; color: var(--text-secondary); line-height: 1.2;">On this PC</span>
+            </div>
+          </div>
+
+          <!-- Toast Overlay: Starting AudioDesk... -->
+          <div style="position: absolute; top: 148px; left: 50%; transform: translateX(-50%); width: 116px; height: 56px; background-color: #1A1C22; border: 1px solid #2E323A; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.7); z-index: 10;">
+            <span style="font-size: 13.5px; font-weight: 500; color: var(--text); line-height: 1.25;">Starting</span>
+            <span style="font-size: 13.5px; font-weight: 500; color: var(--text); line-height: 1.25;">AudioDesk...</span>
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Toast: Starting AudioDesk</div>
+        <div class="card-desc">Temporary feedback toast overlaid on screen confirming the trigger to launch AudioDesk on the connected system.</div>
+      </div>
+    </div>
+
+    <!-- 10. Toast: AudioDesk Error (toast-audiodesk-error.png) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen" style="justify-content: flex-start;">
+          <!-- Gauge Arc SVG background -->
+          <svg style="position: absolute; top: 0; left: 0; width: 240px; height: 240px; pointer-events: none;" viewBox="0 0 240 240">
+            <!-- Full Arc track -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 199.7 186.8" fill="none" stroke="var(--arc-track)" stroke-width="11" stroke-linecap="round" />
+            <!-- Active 72% Volume arc in Game Cyan -->
+            <path d="M 40.3 186.8 A 104 104 0 1 1 207.4 63.6" fill="none" stroke="#4CC2FF" stroke-width="11" stroke-linecap="round" />
+          </svg>
+
+          <!-- Channel Title without Sonar -->
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 1.5px; color: var(--text-secondary); text-transform: uppercase; margin-top: 78px; line-height: 1;">
+            GAME
+          </div>
+
+          <!-- Device Card (under toast) -->
+          <div style="margin-top: 12px; width: 156px; height: 46px; background-color: var(--surface); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 10px; text-align: center;">
+            <div style="font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; width: 100%;">
+              Speakers
+            </div>
+            <div style="font-size: 10px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; width: 100%; margin-top: 3px;">
+              Stereo &middot; 48 kHz &middot; 24-bit
+            </div>
+          </div>
+
+          <!-- Volume Percentage (covered by toast) -->
+          <div style="margin-top: 18px; font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px;">
+            72%
+          </div>
+
+          <!-- Toast Overlay: Error toast -->
+          <div style="position: absolute; top: 148px; left: 50%; transform: translateX(-50%); width: 156px; height: 56px; background-color: #1A1C22; border: 1px solid #2E323A; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.7); z-index: 10;">
+            <span style="font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.25;">SteelSeries Sonar</span>
+            <span style="font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.25;">isn't installed.</span>
+          </div>
+
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Toast: Sonar Not Installed Error</div>
+        <div class="card-desc">Warning toast notifying the user that SteelSeries Sonar software is missing when attempting to toggle or route audio through Sonar.</div>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counter app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Knob OS Design Tokens */
+    :root {
+      --screen-bg: #07080A;
+      --text: #F2F3F5;
+      --text-secondary: #9AA0AA;
+      --text-muted: #8D939D;
+      --surface: #16181C;
+      --surface-raised: #1A1C21;
+      --border: #2A2D33;
+      --arc-track: #22252B;
+      --accent: #8B7CF6;
+      --page-bg: #1E2024;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--page-bg);
+      color: var(--text);
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      min-height: 100vh;
+      padding: 48px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+      max-width: 600px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .description {
+      font-size: 16px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+      gap: 36px;
+      justify-content: center;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    /* 480x480 container showing the 240x240 screen at 2x scale */
+    .screen-container {
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      background-color: var(--screen-bg);
+      box-shadow: 0 0 0 1px var(--border), 0 12px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Inner 240x240 Knob OS display */
+    .screen-inner {
+      width: 240px;
+      height: 240px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: scale(2);
+      transform-origin: top left;
+      border-radius: 50%;
+      overflow: hidden;
+      background-color: var(--screen-bg);
+    }
+
+    .ring-svg {
+      display: block;
+      width: 240px;
+      height: 240px;
+    }
+
+    .counter-text {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      font-size: 96px;
+      fill: var(--text);
+      text-anchor: middle;
+      dominant-baseline: central;
+      user-select: none;
+    }
+
+    .card-info {
+      width: 100%;
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .card-meta {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Counter app</h1>
+    <p class="description">Screens of the rotary counter app on Knob OS's 240&times;240 display.</p>
+  </header>
+
+  <main class="grid">
+    <div class="card">
+      <div class="screen-container">
+        <div class="screen-inner">
+          <svg class="ring-svg" viewBox="0 0 240 240">
+            <!-- Full circular track: RingSize 220, RingWidth 12 centered at (120, 120) -->
+            <circle cx="120" cy="120" r="104" stroke="#22252B" stroke-width="12" fill="none" />
+            <!-- Centered counter value at 96px font size -->
+            <text x="120" y="120" class="counter-text">0</text>
+          </svg>
+        </div>
+      </div>
+      <div class="card-info">
+        <h2 class="card-title">Counter</h2>
+        <p class="card-meta">The initial screen when opening the app, starting at 0 with an empty ring track.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="screen-container">
+        <div class="screen-inner">
+          <svg class="ring-svg" viewBox="0 0 240 240">
+            <!-- Full circular track: completed first lap in blue -->
+            <circle cx="120" cy="120" r="104" stroke="#1E8CEB" stroke-width="12" fill="none" />
+            <!-- Active 25% arc: second lap in green from top (12 o'clock) clockwise to right (3 o'clock) -->
+            <path d="M 120 16 A 104 104 0 0 1 224 120" stroke="#1EBA43" stroke-width="12" fill="none" stroke-linecap="butt" />
+            <!-- Centered counter value at 96px font size -->
+            <text x="120" y="120" class="counter-text">25</text>
+          </svg>
+        </div>
+      </div>
+      <div class="card-info">
+        <h2 class="card-title">Counter 25</h2>
+        <p class="card-meta">State after 25 clicks: the second lap fills in green over the completed first lap&#39;s blue ring.</p>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

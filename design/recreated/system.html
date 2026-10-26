@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knob OS - System Alerts and Messages</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #1E2024;
+      color: #F2F3F5;
+      font-family: 'Montserrat', sans-serif;
+      padding: 56px 32px 96px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+      max-width: 760px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      color: #F2F3F5;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      font-weight: 500;
+      color: #9AA0AA;
+      line-height: 1.5;
+    }
+
+    .screens-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 48px;
+      width: 100%;
+      max-width: 1680px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #16181C;
+      border: 1px solid #2A2D33;
+      border-radius: 28px;
+      padding: 32px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: #3B3F47;
+      transform: translateY(-2px);
+    }
+
+    /* Screen at 2x: 480px x 480px viewport container */
+    .screen-container {
+      width: 480px;
+      height: 480px;
+      position: relative;
+      border-radius: 50%;
+      overflow: hidden;
+      background-color: #07080A;
+      box-shadow: 0 8px 36px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    /* Inner 240px x 240px screen scaled 2x */
+    .screen {
+      width: 240px;
+      height: 240px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: scale(2);
+      transform-origin: top left;
+      border-radius: 50%;
+      overflow: hidden;
+      background-color: #07080A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card-meta {
+      margin-top: 24px;
+      text-align: center;
+      max-width: 440px;
+    }
+
+    .screen-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: #F2F3F5;
+      margin-bottom: 6px;
+    }
+
+    .screen-desc {
+      font-size: 14px;
+      font-weight: 500;
+      color: #9AA0AA;
+      line-height: 1.45;
+    }
+
+    /* Common Typography Tokens */
+    .screen-title {
+      font-size: 20px;
+      font-weight: 500;
+      color: #F2F3F5;
+      text-align: center;
+      letter-spacing: -0.2px;
+    }
+
+    .screen-body {
+      font-size: 14px;
+      font-weight: 500;
+      color: #9AA0AA;
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    .screen-footer {
+      font-size: 12px;
+      font-weight: 500;
+      color: #8D939D;
+      text-align: center;
+    }
+
+    /* 1 & 2: Alert Screens (alert-disconnected & alert-open-knob-hub) */
+    .screen-alert {
+      padding-top: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .screen-alert .usb-icon {
+      margin-bottom: 14px;
+    }
+
+    .screen-alert .screen-title {
+      margin-bottom: 8px;
+    }
+
+    .screen-alert .screen-body {
+      margin-bottom: 16px;
+    }
+
+    /* 3, 4 & 5: AudioDesk Screens */
+    .screen-centered {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 240px;
+      position: relative;
+    }
+
+    .screen-centered .sliders-icon {
+      margin-bottom: 14px;
+    }
+
+    .screen-centered .screen-title {
+      margin-bottom: 8px;
+    }
+
+    .screen-status {
+      font-size: 14px;
+      font-weight: 500;
+      color: #9AA0AA;
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    /* Toast Overlays */
+    .toast-box {
+      position: absolute;
+      top: 176px;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1A1C21;
+      border: 1px solid #2A2D33;
+      border-radius: 11px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      z-index: 10;
+      padding: 8px 12px;
+    }
+
+    .toast-narrow {
+      width: 128px;
+    }
+
+    .toast-wide {
+      width: 156px;
+    }
+
+    .toast-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: #F2F3F5;
+      line-height: 1.35;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>System alerts and messages</h1>
+    <p class="subtitle">System notifications, connection alerts, and transient toast messages displayed on Knob OS's 240×240 circular dial.</p>
+  </header>
+
+  <main class="screens-grid">
+
+    <!-- Screen 1: alert-disconnected.png -->
+    <div class="card" id="card-alert-disconnected">
+      <div class="screen-container">
+        <div class="screen screen-alert">
+          <svg class="usb-icon" width="36" height="22" viewBox="0 0 36 22" fill="none">
+            <!-- Left circle -->
+            <circle cx="5" cy="11" r="3.2" fill="#8D939D" />
+            <!-- Center line -->
+            <path d="M7.5 11 L25 11" stroke="#8D939D" stroke-width="2.2" stroke-linecap="round" />
+            <!-- Top branch -->
+            <path d="M12 11 C15 11, 16 5, 20.5 5 L23.5 5" stroke="#8D939D" stroke-width="2.2" fill="none" stroke-linecap="round" />
+            <circle cx="26" cy="5" r="2.4" fill="#8D939D" />
+            <!-- Bottom branch -->
+            <path d="M15 11 C18 11, 19 17, 23 17 L24.5 17" stroke="#8D939D" stroke-width="2.2" fill="none" stroke-linecap="round" />
+            <rect x="25" y="14.5" width="5" height="5" rx="0.5" fill="#8D939D" />
+            <!-- Center arrowhead -->
+            <polygon points="25,6.8 33,11 25,15.2" fill="#8D939D" />
+          </svg>
+          <div class="screen-title">Disconnected</div>
+          <div class="screen-body">Waiting for Knob Hub.<br>Check the cable or<br>Wi-Fi.</div>
+          <div class="screen-footer">Press to go back</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="screen-name">Disconnected Alert</div>
+        <div class="screen-desc">Appears when the knob loses its connection to Knob Hub over USB or Wi-Fi.</div>
+      </div>
+    </div>
+
+    <!-- Screen 2: alert-open-knob-hub.png -->
+    <div class="card" id="card-alert-open-knob-hub">
+      <div class="screen-container">
+        <div class="screen screen-alert">
+          <svg class="usb-icon" width="36" height="22" viewBox="0 0 36 22" fill="none">
+            <circle cx="5" cy="11" r="3.2" fill="#8D939D" />
+            <path d="M7.5 11 L25 11" stroke="#8D939D" stroke-width="2.2" stroke-linecap="round" />
+            <path d="M12 11 C15 11, 16 5, 20.5 5 L23.5 5" stroke="#8D939D" stroke-width="2.2" fill="none" stroke-linecap="round" />
+            <circle cx="26" cy="5" r="2.4" fill="#8D939D" />
+            <path d="M15 11 C18 11, 19 17, 23 17 L24.5 17" stroke="#8D939D" stroke-width="2.2" fill="none" stroke-linecap="round" />
+            <rect x="25" y="14.5" width="5" height="5" rx="0.5" fill="#8D939D" />
+            <polygon points="25,6.8 33,11 25,15.2" fill="#8D939D" />
+          </svg>
+          <div class="screen-title">AudioDesk</div>
+          <div class="screen-body">Open Knob Hub on<br>your PC to use this<br>app.</div>
+          <div class="screen-footer">Press to go back</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="screen-name">Open Knob Hub Alert</div>
+        <div class="screen-desc">Prompts the user to launch the Knob Hub companion app on their PC to use AudioDesk.</div>
+      </div>
+    </div>
+
+    <!-- Screen 3: alert-opening.png -->
+    <div class="card" id="card-alert-opening">
+      <div class="screen-container">
+        <div class="screen screen-centered">
+          <!-- AudioDesk Sliders Icon -->
+          <svg class="sliders-icon" width="28" height="24" viewBox="0 0 28 24" fill="none">
+            <line x1="1" y1="7" x2="27" y2="7" stroke="#8D939D" stroke-width="2" stroke-linecap="round" />
+            <circle cx="18" cy="7" r="3.5" fill="#07080A" stroke="#8D939D" stroke-width="2" />
+            <line x1="1" y1="17" x2="27" y2="17" stroke="#8D939D" stroke-width="2" stroke-linecap="round" />
+            <circle cx="10" cy="17" r="3.5" fill="#07080A" stroke="#8D939D" stroke-width="2" />
+          </svg>
+          <div class="screen-title">AudioDesk</div>
+          <div class="screen-status">Opening...</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="screen-name">Opening App</div>
+        <div class="screen-desc">Displays a transition state while the selected application is loading.</div>
+      </div>
+    </div>
+
+    <!-- Screen 4: toast-app-not-available.png -->
+    <div class="card" id="card-toast-app-not-available">
+      <div class="screen-container">
+        <div class="screen screen-centered">
+          <svg class="sliders-icon" width="28" height="24" viewBox="0 0 28 24" fill="none">
+            <line x1="1" y1="7" x2="27" y2="7" stroke="#8D939D" stroke-width="2" stroke-linecap="round" />
+            <circle cx="18" cy="7" r="3.5" fill="#07080A" stroke="#8D939D" stroke-width="2" />
+            <line x1="1" y1="17" x2="27" y2="17" stroke="#8D939D" stroke-width="2" stroke-linecap="round" />
+            <circle cx="10" cy="17" r="3.5" fill="#07080A" stroke="#8D939D" stroke-width="2" />
+          </svg>
+          <div class="screen-title">AudioDesk</div>
+          <div class="screen-status">Opening...</div>
+
+          <!-- Toast overlay -->
+          <div class="toast-box toast-narrow">
+            <div class="toast-text">That app isn't<br>available</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="screen-name">App Not Available Toast</div>
+        <div class="screen-desc">Transient toast notification displayed when an application cannot be launched or found.</div>
+      </div>
+    </div>
+
+    <!-- Screen 5: toast-unknown-screen.png -->
+    <div class="card" id="card-toast-unknown-screen">
+      <div class="screen-container">
+        <div class="screen screen-centered">
+          <svg class="sliders-icon" width="28" height="24" viewBox="0 0 28 24" fill="none">
+            <line x1="1" y1="7" x2="27" y2="7" stroke="#8D939D" stroke-width="2" stroke-linecap="round" />
+            <circle cx="18" cy="7" r="3.5" fill="#07080A" stroke="#8D939D" stroke-width="2" />
+            <line x1="1" y1="17" x2="27" y2="17" stroke="#8D939D" stroke-width="2" stroke-linecap="round" />
+            <circle cx="10" cy="17" r="3.5" fill="#07080A" stroke="#8D939D" stroke-width="2" />
+          </svg>
+          <div class="screen-title">AudioDesk</div>
+          <div class="screen-status">Opening...</div>
+
+          <!-- Toast overlay -->
+          <div class="toast-box toast-wide">
+            <div class="toast-text">This knob can't<br>show that screen<br>yet</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="screen-name">Unknown Screen Toast</div>
+        <div class="screen-desc">Notification shown when requesting a view or screen that is unsupported by the current knob firmware.</div>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>

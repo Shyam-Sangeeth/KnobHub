@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using KnobHub.Apps;
@@ -34,6 +35,29 @@ public partial class MainWindow : Window
         DpiChanged += (_, _) => SizePreview();
         _model = model;
         DataContext = model;
+        StateChanged += (_, _) => ShowWindowState();
+        Loaded += (_, _) => ShowWindowState();
+    }
+
+    // --- The title bar ---
+
+    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void Maximize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    // Maximized, the window reaches past the screen's edges by its frame: the content stays inside. The middle button
+    // shows restore or maximize.
+    private void ShowWindowState()
+    {
+        bool maximized = WindowState == WindowState.Maximized;
+        var frame = SystemParameters.WindowNonClientFrameThickness;
+        Root.Margin = maximized ? new Thickness(frame.Left, frame.Bottom, frame.Right, frame.Bottom) : new Thickness(0);
+        MaximizeButton.Content = maximized ? "\uE923" : "\uE922";
+        MaximizeButton.ToolTip = maximized ? "Restore" : "Maximize";
+        AutomationProperties.SetName(MaximizeButton, maximized ? "Restore" : "Maximize");
     }
 
     private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -41,9 +65,7 @@ public partial class MainWindow : Window
         if (KnobPage == null) return;  // still loading
         KnobPage.Visibility = Nav.SelectedIndex == 0 ? Visibility.Visible : Visibility.Collapsed;
         AppsPage.Visibility = Nav.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
-        AddAppsPage.Visibility = Nav.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
-        SettingsPage.Visibility = Nav.SelectedIndex == 3 ? Visibility.Visible : Visibility.Collapsed;
-        if (Nav.SelectedIndex == 2) _ = _model.LoadCatalogAsync(once: true);
+        SettingsPage.Visibility = Nav.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // --- Live preview: scroll = turn, middle-click = press (held: back), left button = touch ---
@@ -202,71 +224,8 @@ public partial class MainWindow : Window
 
     private AppManager Manager => ((App)Application.Current).Session.Apps;
 
-    // --- Add apps ---
-
-    private void GoToAddApps_Click(object sender, RoutedEventArgs e) => Nav.SelectedIndex = 2;
-
-    private void RefreshCatalog_Click(object sender, RoutedEventArgs e) => _ = _model.LoadCatalogAsync();
-
-    // The repository box takes effect on Enter as well as when it loses focus.
-    private void RepoBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter) RepoBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-    }
-
-    private void InstallFile_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new OpenFileDialog { Title = "Install a Knob Hub app", Filter = "Knob Hub apps (*.knobapp)|*.knobapp" };
-        if (dialog.ShowDialog(this) == true) InstallPackage(dialog.FileName, from: null, expectedId: null);
-    }
-
-    /// <summary>Downloads an app from the list and installs it (or the update).</summary>
-    private async void CatalogInstall_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not CatalogItem item || item.Busy) return;
-        item.Busy = true;
-        string? path = null;
-        try
-        {
-            path = await Core.AppCatalog.DownloadAsync(item.App);
-            InstallPackage(path, from: $"GitHub ({_model.AppsRepo})", expectedId: item.App.Id);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, $"Couldn't download {item.Name}: {ex.Message}", "Install app", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            item.Busy = false;
-            try { if (path != null) System.IO.File.Delete(path); } catch (Exception) { }
-        }
-    }
-
-    /// <summary>Installs a .knobapp after asking: plugins run with Knob Hub's permissions.</summary>
-    private void InstallPackage(string path, string? from, string? expectedId)
-    {
-        try
-        {
-            var manifest = AppManager.ReadPackage(path);
-            if (expectedId != null && !string.Equals(manifest.Id, expectedId, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"The download is \"{manifest.Id}\", not the app the list shows (\"{expectedId}\").");
-            string by = string.IsNullOrEmpty(manifest.Author) ? "" : $" by {manifest.Author}";
-            string version = string.IsNullOrEmpty(manifest.Version) ? "" : $" {manifest.Version}";
-            string source = from == null ? "" : $" from {from}";
-            var answer = MessageBox.Show(this,
-                $"Install {manifest.Name}{version}{by}{source}?\n\nIt runs on your PC with Knob Hub's permissions. Only install apps you trust.",
-                "Install app", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (answer != MessageBoxResult.Yes) return;
-            var entry = Manager.Install(path);
-            if (entry.Error != null)
-                MessageBox.Show(this, $"{entry.Manifest.Name} was installed but couldn't start:\n\n{entry.Error}", "Install app",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, ex.Message, "Couldn't install the app", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
+    // Add apps is a modal window over Knob Hub: Knob Hub is back once it's closed.
+    private void AddApps_Click(object sender, RoutedEventArgs e) => new AddAppsWindow(_model, Manager, this).ShowDialog();
 
     private void Uninstall_Click(object sender, RoutedEventArgs e)
     {

@@ -4,9 +4,86 @@
         Title="Knob Hub"
         Icon="Assets/KnobHub.ico"
         Width="1100" Height="820" MinWidth="760" MinHeight="560"
-        WindowStartupLocation="Manual">
+        WindowStartupLocation="Manual" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
 
-    <Grid>
+    <!-- Knob Hub draws its own title bar (below); Windows still moves, resizes and snaps the window. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- The title bar's minimise / maximise / close buttons, like Windows' own. -->
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C42B1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#B3271C" />
+                    <Setter Property="Foreground" Value="White" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <!-- Margin while maximized, set in code: a maximized window reaches past the screen's edges by its frame. -->
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- The title bar: logo and name on the left, the window's buttons on the right; drag it to move the window,
+             double-click it to maximize. -->
+        <DockPanel Background="{DynamicResource LayerFillColorDefaultBrush}">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" ToolTip="Minimize" Click="Minimize_Click"
+                        AutomationProperties.Name="Minimize" />
+                <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButton}" Content="&#xE922;" ToolTip="Maximize"
+                        Click="Maximize_Click" AutomationProperties.Name="Maximize" />
+                <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" ToolTip="Close" Click="Close_Click"
+                        AutomationProperties.Name="Close" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                <Border Width="20" Height="20" CornerRadius="6" Background="#8B7CF6">
+                        <Grid>
+                            <Ellipse Width="11" Height="11" Margin="0,2,0,0" Stroke="White" StrokeThickness="2" />
+                            <Rectangle Width="2" Height="4.5" Fill="White" VerticalAlignment="Top" Margin="0,3.5,0,0" RadiusX="1" RadiusY="1" />
+                        </Grid>
+                    </Border>
+                <TextBlock Text="Knob Hub" FontSize="13" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+        </DockPanel>
+
+    <Grid Grid.Row="1">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220" />
             <ColumnDefinition Width="*" />
@@ -15,16 +92,7 @@
         <!-- Sidebar -->
         <Border BorderThickness="0,0,1,0" Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-            <DockPanel Margin="12,20">
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="14,0,0,18">
-                    <Border Width="24" Height="24" CornerRadius="7" Background="#8B7CF6">
-                        <Grid>
-                            <Ellipse Width="13" Height="13" Margin="0,2,0,0" Stroke="White" StrokeThickness="2.4" />
-                            <Rectangle Width="2.4" Height="5" Fill="White" VerticalAlignment="Top" Margin="0,4,0,0" RadiusX="1" RadiusY="1" />
-                        </Grid>
-                    </Border>
-                    <TextBlock Text="Knob Hub" FontSize="16" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
+            <DockPanel Margin="12,12,12,20">
                 <TextBlock DockPanel.Dock="Bottom" Text="{Binding HubVersion}" FontSize="12" Margin="14,12,0,0"
                            Style="{StaticResource SecondaryText}" />
                 <ListBox x:Name="Nav" SelectedIndex="0" Background="Transparent" BorderThickness="0"
@@ -43,12 +111,6 @@
                     </ListBoxItem>
                     <ListBoxItem Padding="12,10">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
-                            <TextBlock Text="Add apps" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </ListBoxItem>
-                    <ListBoxItem Padding="12,10">
-                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
                             <TextBlock Text="Settings" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
@@ -59,7 +121,14 @@
 
         <!-- Knob: the live preview -->
         <ScrollViewer x:Name="KnobPage" Grid.Column="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="32,28,32,32">
+            <!-- At least the page's height, so the preview's card fills it and the preview sits in its middle; a short
+                 window scrolls instead. -->
+            <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+            <Grid Margin="32,28,32,32">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
                 <WrapPanel>
                     <TextBlock Text="{Binding KnobName}" Style="{StaticResource PageTitle}" Margin="0,0,16,4" VerticalAlignment="Center" />
                     <Border Style="{StaticResource Chip}" VerticalAlignment="Center" Margin="0,0,16,4">
@@ -83,8 +152,14 @@
                                Style="{StaticResource SecondaryText}" />
                 </WrapPanel>
 
-                <Border Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24">
-                    <StackPanel>
+                <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,22,0,0" Padding="24">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Ellipse Width="6" Height="6" VerticalAlignment="Center"
@@ -97,7 +172,8 @@
                         <!-- The knob's round screen, each knob pixel exactly 2x2 screen pixels (sized in code for the
                              monitor's scaling), in a thin circle. Scroll = turn, middle-click = press (held: back, the
                              knob's long press), left button = touch (tap, drag, swipe). Only what the knob itself has. -->
-                        <Grid x:Name="PreviewFrame" Margin="0,18" HorizontalAlignment="Center" Background="Transparent" Cursor="Hand"
+                        <Grid x:Name="PreviewFrame" Grid.Row="1" Margin="0,18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Background="Transparent" Cursor="Hand"
                               UseLayoutRounding="True" SnapsToDevicePixels="True"
                               MouseWheel="Preview_MouseWheel" MouseDown="Preview_MouseDown" MouseUp="Preview_MouseUp"
                               MouseLeftButtonDown="Preview_TouchDown" MouseMove="Preview_TouchMove"
@@ -108,11 +184,11 @@
                             <Ellipse x:Name="PreviewRing" Stroke="#D9F2F3F5" StrokeThickness="2" IsHitTestVisible="False" />
                         </Grid>
 
-                        <TextBlock Text="{Binding PreviewError}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"
+                        <TextBlock Grid.Row="2" Text="{Binding PreviewError}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"
                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
 
                         <!-- The controls, one chip per knob action: the action, then the mouse controls that do it. -->
-                        <WrapPanel HorizontalAlignment="Center">
+                        <WrapPanel Grid.Row="3" HorizontalAlignment="Center">
                             <WrapPanel.Resources>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="FontSize" Value="13" />
@@ -138,16 +214,17 @@
                                 <TextBlock><Run Text="Back" Style="{StaticResource ChipAction}" /><Run Text="   Hold middle-click or swipe right" Style="{StaticResource ChipHow}" /></TextBlock>
                             </Border>
                         </WrapPanel>
-                    </StackPanel>
+                    </Grid>
                 </Border>
-            </StackPanel>
+            </Grid>
+            </Grid>
         </ScrollViewer>
 
         <!-- Apps -->
         <ScrollViewer x:Name="AppsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
             <StackPanel Margin="32,28,32,32">
                 <DockPanel>
-                    <Button DockPanel.Dock="Right" VerticalAlignment="Center" Padding="14,7" Click="GoToAddApps_Click"
+                    <Button DockPanel.Dock="Right" VerticalAlignment="Center" Padding="14,7" Click="AddApps_Click" AutomationProperties.Name="Add apps"
                             Style="{DynamicResource AccentButtonStyle}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
@@ -290,90 +367,6 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Add apps: the apps released on GitHub, and installing from a file -->
-        <ScrollViewer x:Name="AddAppsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-            <StackPanel Margin="32,28,32,32">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Padding="14,7" Click="InstallFile_Click">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8E5;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
-                                <TextBlock Text="Install from file…" Margin="8,0,0,0" />
-                            </StackPanel>
-                        </Button>
-                        <Button Padding="14,7" Margin="8,0,0,0" Click="RefreshCatalog_Click" ToolTip="Look for apps again">
-                            <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
-                        </Button>
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="Add apps" Style="{StaticResource PageTitle}" />
-                        <TextBlock Text="Apps released on GitHub, or a .knobapp file you have." Margin="0,4,0,0"
-                                   Style="{StaticResource SecondaryText}" />
-                    </StackPanel>
-                </DockPanel>
-
-                <!-- Where the list comes from: a GitHub repository's releases. -->
-                <DockPanel Margin="0,20,0,0">
-                    <TextBlock Text="From GitHub" Margin="0,0,12,0" VerticalAlignment="Center" Style="{StaticResource SecondaryText}" />
-                    <TextBox x:Name="RepoBox" Text="{Binding AppsRepo, UpdateSourceTrigger=LostFocus}" MinWidth="260"
-                             HorizontalAlignment="Left" VerticalAlignment="Center" ToolTip="owner/repository: its releases are the apps"
-                             KeyDown="RepoBox_KeyDown" />
-                </DockPanel>
-
-                <TextBlock Text="{Binding CatalogStatus}" Margin="0,16,0,0" TextWrapping="Wrap" Style="{StaticResource SecondaryText}"
-                           Visibility="{Binding HasCatalogStatus, Converter={StaticResource BoolToVisibility}}" />
-
-                <ItemsControl ItemsSource="{Binding Catalog}" Margin="0,16,0,0">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource Card}" Padding="16,12" Margin="0,0,0,8">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="40" Height="40" CornerRadius="20" Background="{Binding AccentFill}" VerticalAlignment="Center">
-                                        <Grid>
-                                            <Image Source="{Binding IconImage}" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality" />
-                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="17"
-                                                       Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                       Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
-                                        </Grid>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" Margin="14,0,12,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Description}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
-                                                   Style="{StaticResource SecondaryText}" />
-                                        <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,2,0,0" Style="{StaticResource SecondaryText}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding InstalledText}" FontSize="12" Margin="0,0,12,0" VerticalAlignment="Center"
-                                                   Style="{StaticResource SecondaryText}"
-                                                   Visibility="{Binding HasInstalledText, Converter={StaticResource BoolToVisibility}}" />
-                                        <Button Content="{Binding ActionText}" IsEnabled="{Binding CanInstall}" MinWidth="96" Padding="14,6"
-                                                Click="CatalogInstall_Click" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <Border Style="{StaticResource Card}" Margin="0,12,0,0" Padding="16">
-                    <DockPanel>
-                        <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="16" Margin="0,1,12,0"
-                                   VerticalAlignment="Top" Style="{StaticResource SecondaryText}" />
-                        <StackPanel>
-                            <TextBlock Text="Apps run on your PC" FontWeight="SemiBold" />
-                            <TextBlock TextWrapping="Wrap" Margin="0,2,0,0" Style="{StaticResource SecondaryText}"
-                                       Text="Plugins run with Knob Hub's permissions. Only install apps you trust. Knob Hub asks before installing anything." />
-                        </StackPanel>
-                    </DockPanel>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
-
         <!-- Settings -->
         <ScrollViewer x:Name="SettingsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
             <StackPanel Margin="32,28,32,32" MaxWidth="820" HorizontalAlignment="Left">
@@ -453,5 +446,6 @@
                 </Border>
             </StackPanel>
         </ScrollViewer>
+    </Grid>
     </Grid>
 </Window>

@@ -1,0 +1,119 @@
+<Window x:Class="KnobHub.AddAppsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add apps"
+        Icon="Assets/KnobHub.ico"
+        MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+    <!-- Opened from the Apps page and modal: the apps released on GitHub as tiles, and installing from a file. -->
+    <Grid Margin="28,24,28,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Padding="14,7" Click="InstallFile_Click" AutomationProperties.Name="Install from file">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8E5;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                        <TextBlock Text="Install from file…" Margin="8,0,0,0" />
+                    </StackPanel>
+                </Button>
+                <Button Padding="14,7" Margin="8,0,0,0" Click="Refresh_Click" ToolTip="Look for apps again" AutomationProperties.Name="Refresh">
+                    <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center" />
+                </Button>
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="Add apps" Style="{StaticResource PageTitle}" />
+                <TextBlock Text="Apps released on GitHub, or a .knobapp file you have." Margin="0,4,0,0"
+                           Style="{StaticResource SecondaryText}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Search on the left; where the list comes from (a GitHub repository's releases) on the right. -->
+        <DockPanel Grid.Row="1" Margin="0,18,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                <TextBlock Text="From GitHub" Margin="0,0,12,0" VerticalAlignment="Center" Style="{StaticResource SecondaryText}" />
+                <TextBox x:Name="RepoBox" Text="{Binding AppsRepo, UpdateSourceTrigger=LostFocus}" MinWidth="240"
+                         VerticalAlignment="Center" ToolTip="owner/repository: its releases are the apps" KeyDown="RepoBox_KeyDown" />
+            </StackPanel>
+            <Grid MaxWidth="420" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBox x:Name="SearchBox" Padding="30,6,8,6" TextChanged="SearchBox_TextChanged" KeyDown="SearchBox_KeyDown"
+                         AutomationProperties.Name="Search apps" MinWidth="280" />
+                <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" FontSize="13" Margin="10,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Style="{StaticResource SecondaryText}" />
+                <!-- A placeholder while the box is empty. -->
+                <TextBlock Text="Search apps" Margin="31,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </DockPanel>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="{Binding CatalogStatus}" Margin="0,16,0,0" TextWrapping="Wrap" Style="{StaticResource SecondaryText}"
+                       Visibility="{Binding HasCatalogStatus, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock x:Name="NoMatch" Margin="0,16,0,0" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource SecondaryText}" />
+        </StackPanel>
+
+        <!-- The apps as square tiles. -->
+        <ScrollViewer Grid.Row="3" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Catalog}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}" Width="200" Height="200" Padding="16" Margin="0,0,12,12">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Bottom" Content="{Binding ActionText}" IsEnabled="{Binding CanInstall}"
+                                        HorizontalAlignment="Stretch" Padding="0,6" Margin="0,10,0,0" Click="Install_Click" />
+                                <StackPanel>
+                                    <Border Width="44" Height="44" CornerRadius="22" Background="{Binding AccentFill}" HorizontalAlignment="Left">
+                                        <Grid>
+                                            <Image Source="{Binding IconImage}" Width="20" Height="20" RenderOptions.BitmapScalingMode="HighQuality" />
+                                            <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="18"
+                                                       Foreground="{Binding Accent}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Visibility="{Binding ShowGlyph, Converter={StaticResource BoolToVisibility}}" />
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Margin="0,12,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Description}" Margin="0,2,0,0" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                               MaxHeight="38" Style="{StaticResource SecondaryText}" />
+                                    <TextBlock Text="{Binding Details}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
+                                               Style="{StaticResource SecondaryText}" />
+                                    <TextBlock Text="{Binding InstalledText}" FontSize="12" Margin="0,2,0,0" Style="{StaticResource SecondaryText}"
+                                               Visibility="{Binding HasInstalledText, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <DockPanel Grid.Row="4" Margin="0,12,0,0">
+            <Button DockPanel.Dock="Right" Content="Close" Padding="20,7" IsCancel="True" VerticalAlignment="Center" Click="Close_Click" />
+            <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="14" Margin="0,0,10,0"
+                       VerticalAlignment="Center" Style="{StaticResource SecondaryText}" />
+            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,16,0" Style="{StaticResource SecondaryText}"
+                       Text="Apps run on your PC with Knob Hub's permissions. Only install apps you trust; Knob Hub asks before installing anything." />
+        </DockPanel>
+    </Grid>
+</Window>

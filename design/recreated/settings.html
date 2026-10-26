@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knob OS &mdash; Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #1E2024;
+      color: #F2F3F5;
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      padding: 48px 32px 80px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+      color: #F2F3F5;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #9AA0AA;
+      font-weight: 500;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    .screen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 56px 40px;
+      max-width: 1680px;
+      margin: 0 auto;
+      justify-items: center;
+    }
+
+    .screen-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 480px;
+    }
+
+    /* 480x480 frame for 2x presentation */
+    .screen-frame {
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      background-color: #07080A;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      flex-shrink: 0;
+    }
+
+    /* 240x240 native Knob OS screen scaled 2x */
+    .knob-screen {
+      width: 240px;
+      height: 240px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: scale(2);
+      transform-origin: top left;
+      border-radius: 50%;
+      overflow: hidden;
+      background-color: #07080A;
+      color: #F2F3F5;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Typography & Headers */
+    .screen-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: #9AA0AA;
+      text-transform: uppercase;
+      margin-top: 24px;
+      margin-bottom: 9px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .screen-title.compact {
+      margin-top: 17px;
+      margin-bottom: 5px;
+    }
+
+    /* Connection Pill */
+    .connection-pill {
+      display: inline-block;
+      background-color: #16181C;
+      color: #F2F3F5;
+      font-size: 9.5px;
+      font-weight: 500;
+      padding: 2.5px 9px;
+      border-radius: 9999px;
+      margin-bottom: 7px;
+      line-height: 1.2;
+      text-align: center;
+      max-width: 170px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* List Rows */
+    .row-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 184px;
+    }
+
+    .list-row {
+      width: 184px;
+      height: 38px;
+      border-radius: 10px;
+      background-color: #16181C;
+      display: flex;
+      align-items: center;
+      padding: 0 11px;
+      flex-shrink: 0;
+    }
+
+    .list-row.selected {
+      background-color: #1A1C21;
+      outline: 2px solid #F2F3F5;
+      outline-offset: -2px;
+    }
+
+    .row-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 9px;
+      flex-shrink: 0;
+      color: #F2F3F5;
+    }
+
+    .row-icon svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .row-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .row-stacked {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1.5px;
+      min-width: 0;
+    }
+
+    .row-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #F2F3F5;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+
+    .row-detail {
+      font-size: 10px;
+      color: #9AA0AA;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+
+    .row-value {
+      font-size: 12.5px;
+      color: #9AA0AA;
+      font-weight: 500;
+      margin-left: 8px;
+      flex-shrink: 0;
+      line-height: 1.2;
+    }
+
+    /* Danger row (Forget Wi-Fi) */
+    .danger-row .row-icon,
+    .danger-row .row-label {
+      color: #E06C75;
+    }
+
+    /* Bottom Page Indicator */
+    .page-indicator {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      color: #9AA0AA;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      line-height: 1;
+    }
+
+    /* Dial Screens */
+    .dial-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 240px;
+      height: 240px;
+    }
+
+    .dial-center {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 240px;
+      height: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .dial-icon {
+      color: #F2C14E;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dial-icon.sun svg {
+      width: 18px;
+      height: 14px;
+    }
+
+    .dial-icon.lightning svg {
+      width: 12px;
+      height: 17px;
+    }
+
+    .dial-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: #9AA0AA;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+      line-height: 1.2;
+    }
+
+    .dial-value {
+      font-size: 46px;
+      font-weight: 500;
+      color: #F2F3F5;
+      line-height: 1;
+      letter-spacing: -1px;
+      margin-top: 2px;
+    }
+
+    /* Card Details */
+    .card-meta {
+      width: 100%;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #F2F3F5;
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 13.5px;
+      color: #9AA0AA;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Settings</h1>
+    <p class="subtitle">Knob OS system settings and configuration screens for the 240&times;240 rotary display.</p>
+  </header>
+
+  <main class="screen-grid">
+
+    <!-- 1. Settings (Categories) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title">SETTINGS</div>
+          <div class="row-list">
+            <div class="list-row selected">
+              <div class="row-icon">
+                <!-- Eye / Sun icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 8s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/>
+                  <circle cx="10" cy="8" r="2.8" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-stacked">
+                  <div class="row-label">Display</div>
+                  <div class="row-detail">80%, 30 s</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Lightning / Charge icon -->
+                <svg viewBox="0 0 16 18" fill="currentColor">
+                  <path d="M9.5 1L2 10.2h5L5.5 17l8.5-9.8h-5.5L9.5 1z"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-stacked">
+                  <div class="row-label">Lights</div>
+                  <div class="row-detail">70%, Level meter</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- USB icon -->
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="9" cy="14" r="1.5" fill="currentColor"/>
+                  <path d="M9 12.5V4M9 4L6.5 6.5M9 4l2.5 2.5"/>
+                  <path d="M9 10l-3.5-2.2v-2a1.2 1.2 0 1 0-1.2 0v2.6L9 11"/>
+                  <circle cx="4.3" cy="4.6" r="1.2" fill="currentColor"/>
+                  <path d="M9 8.2l3.5-2v-1.8"/>
+                  <rect x="11.3" y="2.8" width="2.4" height="2.4" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-stacked">
+                  <div class="row-label">Connection</div>
+                  <div class="row-detail">Connected to Knob ...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="page-indicator">1 / 4</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Settings</div>
+        <div class="card-desc">Main settings menu showing categories with current values and connection status.</div>
+      </div>
+    </div>
+
+    <!-- 2. Display Settings -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title">DISPLAY</div>
+          <div class="row-list">
+            <div class="list-row selected">
+              <div class="row-icon">
+                <!-- Eye / Sun icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 8s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/>
+                  <circle cx="10" cy="8" r="2.8" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Brightness</div>
+                <div class="row-value">80%</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Home / Clock icon -->
+                <svg viewBox="0 0 18 18" fill="currentColor">
+                  <path d="M9 2.5L2.2 8.3v7.2a1 1 0 0 0 1 1h4v-4h3.6v4h4a1 1 0 0 0 1-1V8.3L9 2.5z"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Screen timeout</div>
+                <div class="row-value">30 s</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Eye / Sun icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 8s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/>
+                  <circle cx="10" cy="8" r="2.8" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Dim when idle</div>
+                <div class="row-value">On</div>
+              </div>
+            </div>
+          </div>
+          <div class="page-indicator">1 / 4</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Display</div>
+        <div class="card-desc">Display options including screen brightness, timeout duration, idle dimming, and clock format.</div>
+      </div>
+    </div>
+
+    <!-- 3. Display Brightness Dial -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <svg class="dial-svg" viewBox="0 0 240 240">
+            <!-- 270 deg arc track from 135 deg to 45 deg, radius 98, total arc length 461.81 -->
+            <path d="M 50.7 189.3 A 98 98 0 1 1 189.3 189.3" fill="none" stroke="#22252B" stroke-width="8" stroke-linecap="round"/>
+            <!-- 80% fill: 461.81 * 0.80 = 369.45 -->
+            <path d="M 50.7 189.3 A 98 98 0 1 1 189.3 189.3" fill="none" stroke="#F2C14E" stroke-width="8" stroke-linecap="round" stroke-dasharray="369.45 461.81" stroke-dashoffset="0"/>
+          </svg>
+          <div class="dial-center">
+            <div class="dial-icon sun">
+              <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 8s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/>
+                <circle cx="10" cy="8" r="2.8" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="dial-label">BRIGHTNESS</div>
+            <div class="dial-value">80%</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Display Brightness</div>
+        <div class="card-desc">Interactive dial screen to adjust display backlight brightness percentage.</div>
+      </div>
+    </div>
+
+    <!-- 4. Lights Settings -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title">LIGHTS</div>
+          <div class="row-list">
+            <div class="list-row selected">
+              <div class="row-icon">
+                <!-- Lightning / Charge icon -->
+                <svg viewBox="0 0 16 18" fill="currentColor">
+                  <path d="M9.5 1L2 10.2h5L5.5 17l8.5-9.8h-5.5L9.5 1z"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">LED brightness</div>
+                <div class="row-value">70%</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Lightning / Charge icon -->
+                <svg viewBox="0 0 16 18" fill="currentColor">
+                  <path d="M9.5 1L2 10.2h5L5.5 17l8.5-9.8h-5.5L9.5 1z"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">LED mode</div>
+                <div class="row-value">Level me...</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Lightning / Charge icon -->
+                <svg viewBox="0 0 16 18" fill="currentColor">
+                  <path d="M9.5 1L2 10.2h5L5.5 17l8.5-9.8h-5.5L9.5 1z"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">LEDs when idle</div>
+                <div class="row-value">Off</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Lights</div>
+        <div class="card-desc">LED lighting configuration for ring brightness, animation mode, and idle state.</div>
+      </div>
+    </div>
+
+    <!-- 5. LED Brightness Dial -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <svg class="dial-svg" viewBox="0 0 240 240">
+            <!-- 270 deg arc track from 135 deg to 45 deg, radius 98, total arc length 461.81 -->
+            <path d="M 50.7 189.3 A 98 98 0 1 1 189.3 189.3" fill="none" stroke="#22252B" stroke-width="8" stroke-linecap="round"/>
+            <!-- 70% fill: 461.81 * 0.70 = 323.27 -->
+            <path d="M 50.7 189.3 A 98 98 0 1 1 189.3 189.3" fill="none" stroke="#F2C14E" stroke-width="8" stroke-linecap="round" stroke-dasharray="323.27 461.81" stroke-dashoffset="0"/>
+          </svg>
+          <div class="dial-center">
+            <div class="dial-icon lightning">
+              <svg viewBox="0 0 16 18" fill="currentColor">
+                <path d="M9.5 1L2 10.2h5L5.5 17l8.5-9.8h-5.5L9.5 1z"/>
+              </svg>
+            </div>
+            <div class="dial-label">LED BRIGHTNESS</div>
+            <div class="dial-value">70%</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">LED Brightness</div>
+        <div class="card-desc">Interactive dial screen to adjust RGB LED ring brightness percentage.</div>
+      </div>
+    </div>
+
+    <!-- 6. Connection (Connected) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title compact">CONNECTION</div>
+          <div class="connection-pill">Connected to Knob Hub</div>
+          <div class="row-list">
+            <div class="list-row selected">
+              <div class="row-icon">
+                <!-- Wi-Fi icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <path d="M2 4.2a12 12 0 0 1 16 0"/>
+                  <path d="M5.2 7.7a7.5 7.5 0 0 1 9.6 0"/>
+                  <circle cx="10" cy="12.2" r="1.4" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Wi-Fi</div>
+                <div class="row-value">Not set up</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Wi-Fi icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <path d="M2 4.2a12 12 0 0 1 16 0"/>
+                  <path d="M5.2 7.7a7.5 7.5 0 0 1 9.6 0"/>
+                  <circle cx="10" cy="12.2" r="1.4" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-stacked">
+                  <div class="row-label">Wi-Fi setup</div>
+                  <div class="row-detail">Pairing mode, 5 min</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="list-row danger-row">
+              <div class="row-icon">
+                <!-- Trash icon -->
+                <svg viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 4.5h12M5.2 4.5V3a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1v1.5M3.5 4.5l.8 10.5a1.5 1.5 0 0 0 1.5 1.5h4.4a1.5 1.5 0 0 0 1.5-1.5l.8-10.5M6.5 8v5M9.5 8v5"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Forget Wi-Fi</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Connection (Connected)</div>
+        <div class="card-desc">Connection status when paired and actively connected to Knob Hub on the PC.</div>
+      </div>
+    </div>
+
+    <!-- 7. Connection (Disconnected) -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title compact">CONNECTION</div>
+          <div class="connection-pill">Knob Hub not connected</div>
+          <div class="row-list">
+            <div class="list-row selected">
+              <div class="row-icon">
+                <!-- Wi-Fi icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <path d="M2 4.2a12 12 0 0 1 16 0"/>
+                  <path d="M5.2 7.7a7.5 7.5 0 0 1 9.6 0"/>
+                  <circle cx="10" cy="12.2" r="1.4" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Wi-Fi</div>
+                <div class="row-value">Not set up</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Wi-Fi icon -->
+                <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <path d="M2 4.2a12 12 0 0 1 16 0"/>
+                  <path d="M5.2 7.7a7.5 7.5 0 0 1 9.6 0"/>
+                  <circle cx="10" cy="12.2" r="1.4" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-stacked">
+                  <div class="row-label">Wi-Fi setup</div>
+                  <div class="row-detail">Pairing mode, 5 min</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="list-row danger-row">
+              <div class="row-icon">
+                <!-- Trash icon -->
+                <svg viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 4.5h12M5.2 4.5V3a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1v1.5M3.5 4.5l.8 10.5a1.5 1.5 0 0 0 1.5 1.5h4.4a1.5 1.5 0 0 0 1.5-1.5l.8-10.5M6.5 8v5M9.5 8v5"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Forget Wi-Fi</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">Connection (Disconnected)</div>
+        <div class="card-desc">Connection status showing inactive indicator when unlinked from Knob Hub.</div>
+      </div>
+    </div>
+
+    <!-- 8. About -->
+    <div class="screen-card">
+      <div class="screen-frame">
+        <div class="knob-screen">
+          <div class="screen-title">ABOUT</div>
+          <div class="row-list">
+            <div class="list-row selected">
+              <div class="row-icon">
+                <!-- List / Bulleted icon -->
+                <svg viewBox="0 0 18 16" fill="currentColor">
+                  <rect x="1" y="2" width="3" height="3" rx="0.5"/>
+                  <rect x="6" y="2.5" width="11" height="2" rx="0.5"/>
+                  <rect x="1" y="6.5" width="3" height="3" rx="0.5"/>
+                  <rect x="6" y="7" width="11" height="2" rx="0.5"/>
+                  <rect x="1" y="11" width="3" height="3" rx="0.5"/>
+                  <rect x="6" y="11.5" width="11" height="2" rx="0.5"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Name</div>
+                <div class="row-value">knob-7f3a</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- List / Bulleted icon -->
+                <svg viewBox="0 0 18 16" fill="currentColor">
+                  <rect x="1" y="2" width="3" height="3" rx="0.5"/>
+                  <rect x="6" y="2.5" width="11" height="2" rx="0.5"/>
+                  <rect x="1" y="6.5" width="3" height="3" rx="0.5"/>
+                  <rect x="6" y="7" width="11" height="2" rx="0.5"/>
+                  <rect x="1" y="11" width="3" height="3" rx="0.5"/>
+                  <rect x="6" y="11.5" width="11" height="2" rx="0.5"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-label">Firmware</div>
+                <div class="row-value">0.1.0</div>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="row-icon">
+                <!-- Refresh / Restart icon -->
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2.5 9a6.5 6.5 0 0 1 11.5-4.2M14 2.5v2.8h-2.8M15.5 9a6.5 6.5 0 0 1-11.5 4.2M4 15.5v-2.8h2.8"/>
+                </svg>
+              </div>
+              <div class="row-content">
+                <div class="row-stacked">
+                  <div class="row-label">Restart</div>
+                  <div class="row-detail">Restarts the knob</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-title">About</div>
+        <div class="card-desc">Device information showing knob identifier, firmware version, and restart option.</div>
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>
