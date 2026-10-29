@@ -25,6 +25,10 @@ internal sealed class HubSettings
     /// <summary>The GitHub repository ("owner/name") whose releases the Add apps page lists (see AppCatalog).</summary>
     public string AppsRepo { get; set; } = "Shyam-Sangeeth/KnobHub-Apps";
 
+    /// <summary>The board the preview pretends to be while no knob is connected: the last knob's (see
+    /// <see cref="KnobBoard"/>).</summary>
+    public string PreviewBoard { get; set; } = KnobBoard.Default.Id;
+
     public static HubSettings Load()
     {
         try
@@ -62,16 +66,22 @@ internal sealed class KnobSettings
 {
     public static readonly string[] LedModes = ["Level meter", "App colour", "Off"];
     public static readonly string[] Timeouts = ["15 seconds", "30 seconds", "1 minute", "5 minutes", "Never"];
+    public static readonly string[] HapticStrengths = ["Light", "Medium", "Strong"];
 
     public int Brightness { get; set; } = 80;
     public int LedBrightness { get; set; } = 70;
     public int LedMode { get; set; }
     public int Timeout { get; set; } = 1;
     public bool DimIdle { get; set; } = true;
+    /// <summary>Lights > "When dimmed": off while the screen is dimmed (they're always off with the screen).</summary>
     public bool LedsIdleOff { get; set; } = true;
     /// <summary>The Home clock: 24-hour, or 12-hour with AM/PM.</summary>
     [JsonPropertyName("clock_24h")]
     public bool Clock24h { get; set; }
+    /// <summary>Boards with a vibration motor: clicks and alerts you feel.</summary>
+    public bool Vibration { get; set; } = true;
+    /// <summary>Boards with haptics: 0 light, 1 medium, 2 strong (the knob motor's detents and the vibration).</summary>
+    public int Haptics { get; set; } = 1;
     public string Name { get; set; } = "knob-7f3a";
 
     /// <summary>Takes the values a "settings" message from the knob carries.</summary>
@@ -84,6 +94,8 @@ internal sealed class KnobSettings
         if (msg["dim_idle"] is JsonValue d && d.TryGetValue(out bool dimIdle)) DimIdle = dimIdle;
         if (msg["leds_idle_off"] is JsonValue lo && lo.TryGetValue(out bool ledsIdleOff)) LedsIdleOff = ledsIdleOff;
         if (msg["clock_24h"] is JsonValue c && c.TryGetValue(out bool clock24h)) Clock24h = clock24h;
+        if (msg["vibration"] is JsonValue v && v.TryGetValue(out bool vibration)) Vibration = vibration;
+        if (msg["haptics"] is JsonValue h && h.TryGetValue(out int haptics)) Haptics = Math.Clamp(haptics, 0, 2);
         if (msg["name"] is JsonValue n && n.TryGetValue(out string? name) && !string.IsNullOrWhiteSpace(name)) Name = name;
     }
 

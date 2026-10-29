@@ -1,7 +1,8 @@
 // "media": what's playing, e.g. Knob Hub's Media app.
 //   title, artist, source (the app playing, optional), playing (bool), position / duration (seconds; the edge arc),
 //   can_seek, can_previous, can_next (bool, default true), color,
-//   art {w, h, rgb565: base64 of w*h little-endian RGB565 pixels} (the album art; {} goes back to the icon),
+//   art {w, h, rgb565: base64 of w*h little-endian RGB565 pixels, screen: the screen size it was drawn for} (the album
+//   art, up to 80 x 80 design px; {} goes back to the icon),
 //   title_image / artist_image (a TextPicture, for text the knob's fonts can't draw; {} goes back to the text)
 // Turning seeks 5 s per step: the knob shows the new position right away and reports rotate +1/-1. Pressing or tapping
 // the play button reports tap "play"; the other buttons report tap "previous" / "next". While playing, the position
@@ -23,57 +24,57 @@ namespace {
 
 constexpr uint32_t ArcTrack = 0x16181C;
 constexpr uint32_t PlayIcon = 0x101114;
-constexpr int ArtSize = 80;
+constexpr int ArtSize = 80;  // design px
 constexpr int SeekStep = 5;            // seconds per click of the knob
 constexpr uint32_t SeekShowMs = 1500;  // how long the position stays up after turning
 constexpr int ArcRange = 1000;
-constexpr int TitleY = 122, ArtistY = 143;
-constexpr int TitleWidth = 190, ArtistWidth = 190;  // the round screen's width there; longer text scrolls round
+constexpr int TitleY = 122, ArtistY = 143;  // design px
+constexpr int TitleWidth = 190, ArtistWidth = 190;  // the round screen's width there; longer text scrolls round (design px)
 
 class MediaScreen : public TemplateScreen {
 public:
     MediaScreen(JsonObjectConst data, TemplateSink sink) : TemplateScreen(ui::screen_root(screens::parent()), std::move(sink)) {
         lv_obj_t* r = root();
-        progress_ = ui::arc(r, 232, 3, 270, 360, ArcTrack, color_);
+        progress_ = ui::arc(r, ui::px(232), ui::px(3), 270, 360, ArcTrack, color_);
         lv_arc_set_range(progress_, 0, ArcRange);
         lv_obj_center(progress_);
 
         art_ = ui::plain(r);
-        lv_obj_set_size(art_, ArtSize, ArtSize);
-        lv_obj_set_pos(art_, (ui::Size - ArtSize) / 2, 34);
-        lv_obj_set_style_radius(art_, 10, 0);
+        lv_obj_set_size(art_, ui::px(ArtSize), ui::px(ArtSize));
+        lv_obj_set_pos(art_, (ui::size() - ui::px(ArtSize)) / 2, ui::px(34));
+        lv_obj_set_style_radius(art_, ui::px(10), 0);
         lv_obj_set_style_clip_corner(art_, true, 0);
         lv_obj_set_style_bg_color(art_, theme::color(theme::SurfaceRaised), 0);
         lv_obj_set_style_bg_opa(art_, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(art_, 1, 0);
+        lv_obj_set_style_border_width(art_, ui::px(1), 0);
         lv_obj_set_style_border_color(art_, theme::color(theme::Border), 0);
         lv_obj_set_style_border_post(art_, true, 0);  // the border goes over the picture
-        art_icon_ = ui::label(art_, LV_SYMBOL_AUDIO, &knob_font_28, color_);
+        art_icon_ = ui::label(art_, LV_SYMBOL_AUDIO, ui::font(28), color_);
         lv_obj_center(art_icon_);
         art_image_ = lv_image_create(art_);
         lv_obj_center(art_image_);
         lv_obj_add_flag(art_image_, LV_OBJ_FLAG_HIDDEN);
 
-        source_ = ui::label(r, "", &knob_font_12, theme::TextMuted);
-        lv_obj_align(source_, LV_ALIGN_TOP_MID, 0, 16);
-        title_ = ui::label(r, "", &knob_font_16, theme::Text);
-        lv_obj_align(title_, LV_ALIGN_TOP_MID, 0, TitleY);
-        artist_ = ui::label(r, "", &knob_font_12, theme::TextSecondary);
-        lv_obj_align(artist_, LV_ALIGN_TOP_MID, 0, ArtistY);
-        title_picture_ = std::make_unique<TextPicture>(r, TitleWidth);
+        source_ = ui::label(r, "", ui::font(12), theme::TextMuted);
+        lv_obj_align(source_, LV_ALIGN_TOP_MID, 0, ui::px(16));
+        title_ = ui::label(r, "", ui::font(16), theme::Text);
+        lv_obj_align(title_, LV_ALIGN_TOP_MID, 0, ui::px(TitleY));
+        artist_ = ui::label(r, "", ui::font(12), theme::TextSecondary);
+        lv_obj_align(artist_, LV_ALIGN_TOP_MID, 0, ui::px(ArtistY));
+        title_picture_ = std::make_unique<TextPicture>(r, ui::px(TitleWidth));
         title_picture_->set_color(theme::Text);
-        artist_picture_ = std::make_unique<TextPicture>(r, ArtistWidth);
+        artist_picture_ = std::make_unique<TextPicture>(r, ui::px(ArtistWidth));
         artist_picture_->set_color(theme::TextSecondary);
 
         lv_obj_t* row = ui::plain(r);
-        lv_obj_set_size(row, 160, 40);
-        lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 166);
+        lv_obj_set_size(row, ui::px(160), ui::px(40));
+        lv_obj_align(row, LV_ALIGN_TOP_MID, 0, ui::px(166));
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(row, 14, 0);
-        previous_ = button(row, "previous", LV_SYMBOL_PREV, 26, false);
-        play_ = button(row, "play", LV_SYMBOL_PLAY, 36, true);
-        next_ = button(row, "next", LV_SYMBOL_NEXT, 26, false);
+        lv_obj_set_style_pad_column(row, ui::px(14), 0);
+        previous_ = button(row, "previous", LV_SYMBOL_PREV, ui::px(26), false);
+        play_ = button(row, "play", LV_SYMBOL_PLAY, ui::px(36), true);
+        next_ = button(row, "next", LV_SYMBOL_NEXT, ui::px(26), false);
 
         tick_ = lv_timer_create(on_tick, 500, this);
         update(data);
@@ -94,17 +95,30 @@ public:
         }
     }
 
+    // How far the song has played as the level meter.
+    lights::Glow glow() const override {
+        int played = duration_ > 0 ? static_cast<int>(position() * 100 / duration_) : -1;
+        return {color_, played > 100 ? 100 : played};
+    }
+
+    // Seeking: endless fine clicks.
+    haptics::Feel feel() const override {
+        haptics::Feel f;
+        f.detent = haptics::Detent::Fine;
+        return f;
+    }
+
     void update(JsonObjectConst data) override {
         if (data["color"].is<const char*>()) {
             color_ = ui::parse_color(data["color"], color_);
             lv_obj_set_style_arc_color(progress_, theme::color(color_), LV_PART_INDICATOR);
             lv_obj_set_style_text_color(art_icon_, theme::color(color_), 0);
         }
-        if (data["title"].is<const char*>()) set_text(title_, data["title"], TitleWidth);
+        if (data["title"].is<const char*>()) set_text(title_, data["title"], ui::px(TitleWidth));
         if (data["artist"].is<const char*>()) artist_text_ = data["artist"].as<const char*>();
         if (data["source"].is<const char*>()) {
             lv_label_set_text(source_, data["source"]);
-            ui::one_line(source_, 120);
+            ui::one_line(source_, ui::px(120));
         }
         if (data["playing"].is<bool>()) {
             set_position(position());  // keep the position where it is when playing stops or starts
@@ -122,16 +136,16 @@ public:
         bool title_picture = title_picture_->has();
         if (title_picture) lv_obj_add_flag(title_, LV_OBJ_FLAG_HIDDEN);
         else lv_obj_remove_flag(title_, LV_OBJ_FLAG_HIDDEN);
-        title_picture_->show(title_picture, ui::Size / 2, TitleY + lv_font_get_line_height(&knob_font_16) / 2);
+        title_picture_->show(title_picture, ui::size() / 2, ui::px(TitleY) + lv_font_get_line_height(ui::font(16)) / 2);
         show_playing();
         show_position();
     }
 
 private:
     lv_obj_t* button(lv_obj_t* parent, const char* id, const char* symbol, int size, bool main) {
-        lv_obj_t* b = ui::circle(parent, size, main ? theme::Text : theme::Surface, theme::Border, main ? 0 : 1);
+        lv_obj_t* b = ui::circle(parent, size, main ? theme::Text : theme::Surface, theme::Border, main ? 0 : ui::px(1));
         touchable(b, id);
-        lv_obj_t* icon = ui::label(b, symbol, main ? &knob_font_16 : &knob_font_12,
+        lv_obj_t* icon = ui::label(b, symbol, main ? ui::font(16) : ui::font(12),
                                    main ? PlayIcon : theme::Text);
         lv_obj_center(icon);
         return b;
@@ -218,15 +232,15 @@ private:
         double p = position();
         lv_arc_set_value(progress_, duration_ > 0 ? static_cast<int>(std::lround(p / duration_ * ArcRange)) : 0);
         bool picture = !seek_timer_ && artist_picture_->has();
-        artist_picture_->show(picture, ui::Size / 2, ArtistY + lv_font_get_line_height(&knob_font_12) / 2);
+        artist_picture_->show(picture, ui::size() / 2, ui::px(ArtistY) + lv_font_get_line_height(ui::font(12)) / 2);
         if (picture) lv_obj_add_flag(artist_, LV_OBJ_FLAG_HIDDEN);
         else lv_obj_remove_flag(artist_, LV_OBJ_FLAG_HIDDEN);
         if (seek_timer_) {
             lv_obj_set_style_text_color(artist_, theme::color(color_), 0);
-            set_text(artist_, (clock(p) + " / " + clock(duration_)).c_str(), ArtistWidth);
+            set_text(artist_, (clock(p) + " / " + clock(duration_)).c_str(), ui::px(ArtistWidth));
         } else {
             lv_obj_set_style_text_color(artist_, theme::color(theme::TextSecondary), 0);
-            set_text(artist_, artist_text_.c_str(), ArtistWidth);
+            set_text(artist_, artist_text_.c_str(), ui::px(ArtistWidth));
         }
     }
 
@@ -245,7 +259,9 @@ private:
         int w = art["w"] | 0, h = art["h"] | 0;
         std::vector<uint8_t> pixels = ui::base64_decode(art["rgb565"] | "");
         lv_image_cache_drop(&art_dsc_);
-        bool ok = w > 0 && h > 0 && w <= ArtSize && h <= ArtSize && pixels.size() == static_cast<size_t>(w * h * 2);
+        int shown_w = ui::picture_px(w, art["screen"] | 0), shown_h = ui::picture_px(h, art["screen"] | 0);
+        bool ok = w > 0 && h > 0 && shown_w <= ui::px(ArtSize) && shown_h <= ui::px(ArtSize) &&
+                  pixels.size() == static_cast<size_t>(w * h * 2);
         if (!ok) {
             art_pixels_.clear();
             lv_obj_add_flag(art_image_, LV_OBJ_FLAG_HIDDEN);
@@ -262,6 +278,9 @@ private:
         art_dsc_.data_size = static_cast<uint32_t>(art_pixels_.size());
         art_dsc_.data = art_pixels_.data();
         lv_image_set_src(art_image_, &art_dsc_);
+        // Art drawn for another screen size is scaled, about its centre.
+        lv_image_set_scale(art_image_, shown_w == w ? LV_SCALE_NONE : static_cast<uint32_t>(LV_SCALE_NONE * shown_w / w));
+        lv_obj_center(art_image_);
         lv_obj_remove_flag(art_image_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(art_icon_, LV_OBJ_FLAG_HIDDEN);
     }

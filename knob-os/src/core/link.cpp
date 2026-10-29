@@ -7,6 +7,7 @@
 #include "hal.h"
 #include "home.h"
 #include "icons.h"
+#include "idle.h"
 #include "screens.h"
 #include "knob_os.h"
 #include "settings.h"
@@ -36,11 +37,19 @@ void set_connected(bool c) {
         hello["name"] = settings::get().name;
         hello["page"] = home_page();
         hello["app"] = apps::open_id();
+        const Board& board = hal_board();
+        hello["board"] = board.id;
+        hello["size"] = board.size;
+        hello["touch"] = board.touch;
+        hello["leds"] = board.leds;
+        hello["vibration"] = board.vibration;
+        hello["motor"] = board.motor;
         send(hello);
     }
     apps::on_connected(c);
     icons::on_connected(c);
     settings::refresh();
+    idle::on_connected(c);
 }
 
 void receive(const char* line) {
@@ -61,6 +70,9 @@ void receive(const char* line) {
         if (knob_input_parse(msg["input"] | "", input)) knob_os_input(input);
     } else if (std::strcmp(t, "touch") == 0) {
         knob_os_touch(msg["x"] | 0, msg["y"] | 0, msg["down"] | false);
+    } else if (std::strcmp(t, "idle") == 0) {
+        if (msg["follow"] | true) idle::follow(msg["state"] | "awake");
+        else idle::lead();
     } else if (std::strcmp(t, "sync") == 0) {
         screens::home();
         settings::forget_pages();

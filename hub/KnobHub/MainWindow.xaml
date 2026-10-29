@@ -111,6 +111,12 @@
                     </ListBoxItem>
                     <ListBoxItem Padding="12,10">
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE772;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
+                            <TextBlock Text="Board" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Padding="12,10">
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="16" VerticalAlignment="Center" />
                             <TextBlock Text="Settings" FontSize="14" Margin="12,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
@@ -169,23 +175,36 @@
                             <TextBlock Text="Live preview" Style="{StaticResource SectionTitle}" />
                         </DockPanel>
 
-                        <!-- The knob's round screen, each knob pixel exactly 2x2 screen pixels (sized in code for the
-                             monitor's scaling), in a thin circle. Scroll = turn, middle-click = press (held: back, the
-                             knob's long press), left button = touch (tap, drag, swipe). Only what the knob itself has. -->
-                        <Grid x:Name="PreviewFrame" Grid.Row="1" Margin="0,18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        <!-- The knob's round screen, 480 screen pixels across (sized in code for the monitor's
+                             scaling), in a thin circle that flashes when the knob would vibrate, with its LEDs glowing
+                             round it. Scroll = turn, middle-click = press (held: back, the knob's long press), left
+                             button = touch (tap, drag, swipe). Only what the knob itself has. -->
+                        <Grid x:Name="PreviewFrame" Grid.Row="1" Margin="0,30" HorizontalAlignment="Center" VerticalAlignment="Center"
                               Background="Transparent" Cursor="Hand"
                               UseLayoutRounding="True" SnapsToDevicePixels="True"
                               MouseWheel="Preview_MouseWheel" MouseDown="Preview_MouseDown" MouseUp="Preview_MouseUp"
                               MouseLeftButtonDown="Preview_TouchDown" MouseMove="Preview_TouchMove"
                               MouseLeftButtonUp="Preview_TouchUp">
-                            <!-- Nearest neighbour: sharp pixel blocks, exactly what the knob shows, rather than a smeared stretch. -->
+                            <!-- The LEDs, drawn in code behind the screen so only their glow outside it shows; the
+                                 blur softens the joins between LEDs. -->
+                            <Canvas x:Name="PreviewGlow" IsHitTestVisible="False">
+                                <Canvas.Effect>
+                                    <BlurEffect Radius="10" />
+                                </Canvas.Effect>
+                            </Canvas>
+                            <!-- One pixel per screen pixel; nearest neighbour so nothing smears if the layout rounds. -->
                             <Image x:Name="PreviewScreen" Source="{Binding Screen}" RenderOptions.BitmapScalingMode="NearestNeighbor" />
                             <Ellipse x:Name="PreviewDim" Fill="Black" Opacity="{Binding DimOpacity}" IsHitTestVisible="False" />
                             <Ellipse x:Name="PreviewRing" Stroke="#D9F2F3F5" StrokeThickness="2" IsHitTestVisible="False" />
                         </Grid>
 
-                        <TextBlock Grid.Row="2" Text="{Binding PreviewError}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12"
-                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                        <StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <TextBlock Text="{Binding HapticsText}" FontSize="12" HorizontalAlignment="Center"
+                                       Style="{StaticResource SecondaryText}"
+                                       Visibility="{Binding ShowsHaptics, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{Binding PreviewError}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                        </StackPanel>
 
                         <!-- The controls, one chip per knob action: the action, then the mouse controls that do it. -->
                         <WrapPanel Grid.Row="3" HorizontalAlignment="Center">
@@ -367,6 +386,88 @@
             </StackPanel>
         </ScrollViewer>
 
+        <!-- Board: which knob this is, what it has, and the settings only some knobs have. The preview is always the
+             board of the last knob that connected. -->
+        <ScrollViewer x:Name="BoardPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <StackPanel Margin="32,28,32,32" MaxWidth="820" HorizontalAlignment="Left">
+                <TextBlock Text="Board" Style="{StaticResource PageTitle}" />
+
+                <TextBlock Text="This knob" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Board.Name}" FontSize="16" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding BoardDetails}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding BoardSource}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Style="{StaticResource SecondaryText}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Only for knobs with LEDs. -->
+                <StackPanel Visibility="{Binding HasLeds, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Lights" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                    <Border Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="180" />
+                                <ColumnDefinition Width="300" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="44" />
+                                <RowDefinition Height="44" />
+                                <RowDefinition Height="44" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="LED brightness" VerticalAlignment="Center" />
+                            <DockPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="{Binding LedBrightness, StringFormat={}{0}%}" />
+                                <Slider Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding LedBrightness}" />
+                            </DockPanel>
+
+                            <TextBlock Grid.Row="1" Text="LED mode" VerticalAlignment="Center" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding LedModes}" SelectedIndex="{Binding LedMode}" />
+
+                            <TextBlock Grid.Row="2" Text="LEDs off when dimmed" VerticalAlignment="Center" Margin="0,0,12,0"
+                                       ToolTip="They're always off while the screen is off." />
+                            <CheckBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding LedsIdleOff}" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Only for knobs with a vibration motor or a motor on the knob. -->
+                <StackPanel Visibility="{Binding HasHaptics, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Haptics" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Grid MinHeight="44">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="180" />
+                                    <ColumnDefinition Width="300" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <TextBlock Text="Strength" />
+                                    <TextBlock Text="How firm the knob's clicks and end stops are, and how strong the vibration is"
+                                               FontSize="12" TextWrapping="Wrap" Style="{StaticResource SecondaryText}" />
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding HapticStrengths}" SelectedIndex="{Binding Haptics}" />
+                            </Grid>
+                            <Grid MinHeight="44" Visibility="{Binding HasVibration, Converter={StaticResource BoolToVisibility}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="180" />
+                                    <ColumnDefinition Width="300" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Vibration" VerticalAlignment="Center" />
+                                <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding Vibration}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Text="This knob has no LEDs or haptics, so there's nothing else to set here." Margin="0,22,0,0"
+                           Style="{StaticResource SecondaryText}"
+                           Visibility="{Binding HasNoBoardSettings, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+        </ScrollViewer>
+
         <!-- Settings -->
         <ScrollViewer x:Name="SettingsPage" Grid.Column="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
             <StackPanel Margin="32,28,32,32" MaxWidth="820" HorizontalAlignment="Left">
@@ -384,9 +485,6 @@
                             <RowDefinition Height="44" />
                             <RowDefinition Height="44" />
                             <RowDefinition Height="44" />
-                            <RowDefinition Height="44" />
-                            <RowDefinition Height="44" />
-                            <RowDefinition Height="44" />
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Text="Screen brightness" VerticalAlignment="Center" />
@@ -395,26 +493,14 @@
                             <Slider Minimum="5" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding Brightness}" />
                         </DockPanel>
 
-                        <TextBlock Grid.Row="1" Text="LED brightness" VerticalAlignment="Center" />
-                        <DockPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock DockPanel.Dock="Right" Width="44" TextAlignment="Right" Text="{Binding LedBrightness, StringFormat={}{0}%}" />
-                            <Slider Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding LedBrightness}" />
-                        </DockPanel>
+                        <TextBlock Grid.Row="1" Text="Screen timeout" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding Timeouts}" SelectedIndex="{Binding Timeout}" />
 
-                        <TextBlock Grid.Row="2" Text="LED mode" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding LedModes}" SelectedIndex="{Binding LedMode}" />
+                        <TextBlock Grid.Row="2" Text="Dim the screen when idle" VerticalAlignment="Center" />
+                        <CheckBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding DimIdle}" />
 
-                        <TextBlock Grid.Row="3" Text="Screen timeout" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding Timeouts}" SelectedIndex="{Binding Timeout}" />
-
-                        <TextBlock Grid.Row="4" Text="Dim the screen when idle" VerticalAlignment="Center" />
-                        <CheckBox Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding DimIdle}" />
-
-                        <TextBlock Grid.Row="5" Text="Turn the LEDs off when idle" VerticalAlignment="Center" />
-                        <CheckBox Grid.Row="5" Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding LedsIdleOff}" />
-
-                        <TextBlock Grid.Row="6" Text="Name" VerticalAlignment="Center" />
-                        <TextBox Grid.Row="6" Grid.Column="1" VerticalAlignment="Center" MaxLength="24"
+                        <TextBlock Grid.Row="3" Text="Name" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" MaxLength="24"
                                  Text="{Binding Name, UpdateSourceTrigger=LostFocus}" />
                     </Grid>
                 </Border>

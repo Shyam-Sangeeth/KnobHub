@@ -1,5 +1,6 @@
-// Knob OS simulator: runs the real Knob OS interface in a window on the PC, at 2x so it's easy to see. The mouse
-// stands in for what the knob has, nothing more:
+// Knob OS simulator: runs the real Knob OS interface in a window on the PC, at 2x so it's easy to see, as one of the
+// boards Knob OS knows (program.exe --board crowpanel-1.46; the 1.28" CrowPanel by default). The mouse stands in for
+// what the knob has, nothing more:
 //   Turn:  mouse wheel
 //   Press: middle click; held for half a second it's the knob's long press (back) instead
 //   Touch: left mouse button (tap, swipe; swipe right = back)
@@ -84,9 +85,13 @@ SOCKET listener = INVALID_SOCKET;
 SOCKET client = INVALID_SOCKET;
 std::string received;
 
+// The board the simulator pretends to be: --board <id> (see core/boards.cpp), the 1.28" CrowPanel by default.
+const Board* board = nullptr;
+
 void set_title(bool connected) {
-    lv_sdl_window_set_title(display, connected ? "Knob OS simulator - Knob Hub connected"
-                                               : "Knob OS simulator - waiting for Knob Hub on 127.0.0.1:5718");
+    std::string title = std::string("Knob OS simulator (") + board->name + ") - " +
+                        (connected ? "Knob Hub connected" : "waiting for Knob Hub on 127.0.0.1:5718");
+    lv_sdl_window_set_title(display, title.c_str());
 }
 
 void link_start() {
@@ -214,6 +219,30 @@ lv_obj_t* dimmer = nullptr;
 
 }  // namespace
 
+const Board& hal_board() { return *board; }
+
+// The simulator has no motors: it prints what they'd do, in the log window.
+void hal_motor_feel(const haptics::Feel& feel, int strength) {
+    static const char* const Detents[] = {"fine", "medium", "firm"};
+    std::printf("motor: %d positions, at %d, %s, %s detents, %d%%\n", feel.positions, feel.position,
+                feel.wrap ? "wraps" : feel.bounded() ? "end stops" : "endless", Detents[static_cast<int>(feel.detent)],
+                strength);
+    std::fflush(stdout);
+}
+
+void hal_vibrate(haptics::Effect effect, int strength) {
+    static const char* const Effects[] = {"tick", "bump", "click", "alert"};
+    std::printf("vibration: %s, %d%%\n", Effects[static_cast<int>(effect)], strength);
+    std::fflush(stdout);
+}
+
+void hal_set_leds(const uint32_t* colors, int count, int arc_start, int arc_sweep) {
+    std::printf("leds:");
+    for (int i = 0; i < count; i++) std::printf(" #%06X", static_cast<unsigned>(colors[i]));
+    std::printf(" (arc from %d, %d degrees)\n", arc_start, arc_sweep);
+    std::fflush(stdout);
+}
+
 bool hal_local_time(std::tm& out) {
     std::time_t now = std::time(nullptr);
     std::tm* local = std::localtime(&now);
@@ -306,17 +335,30 @@ void tuck_away_own_console() {
     SetWindowPlacement(console, &placement);
 }
 
-int main(int, char**) {
+int main(int argc, char** argv) {
+    int count = 0;
+    board = &boards::all(count)[0];
+    for (int i = 1; i + 1 < argc; i++) {
+        if (std::string(argv[i]) != "--board") continue;
+        board = boards::find(argv[i + 1]);
+        if (!board) {
+            std::fprintf(stderr, "Unknown board %s. Boards:", argv[i + 1]);
+            for (int b = 0; b < count; b++) std::fprintf(stderr, " %s", boards::all(count)[b].id);
+            std::fprintf(stderr, "\n");
+            return 1;
+        }
+    }
+
     SDL_SetMainReady();
     lv_init();
     lv_tick_set_cb([]() -> uint32_t { return SDL_GetTicks(); });
 
     // SDL's Direct3D 11 renderer washes the colours out on some PCs (0x07080A shows as 0x1D2129); software is exact.
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
-    display = lv_sdl_window_create(240, 240);
+    display = lv_sdl_window_create(board->size, board->size);
     lv_sdl_window_set_zoom(display, 2);
-    // The knob's screen is a fixed 240 x 240: resizing would make LVGL's display bigger than the knob's, putting
-    // touches (and what's mirrored to Knob Hub) in the wrong place.
+    // The knob's screen is a fixed size: resizing would make LVGL's display bigger than the knob's, putting touches
+    // (and what's mirrored to Knob Hub) in the wrong place.
     if (SDL_Window* window = SDL_GetWindowFromID(1)) SDL_SetWindowResizable(window, SDL_FALSE);
     place_window();
     tuck_away_own_console();

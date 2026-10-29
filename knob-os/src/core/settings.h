@@ -11,8 +11,10 @@ struct KnobSettings {
     int led_mode = 0;          // 0 level meter, 1 app colour, 2 off
     int timeout = 1;           // index into the timeout choices (15 s, 30 s, 1 min, 5 min, never)
     bool dim_idle = true;
-    bool leds_idle_off = true;
+    bool leds_idle_off = true;  // Lights > "When dimmed": off while the screen is dimmed (always off with the screen)
     bool clock_24h = false;    // the Home clock: 12-hour with AM/PM, or 24-hour
+    bool vibration = true;     // boards with a vibration motor
+    int haptics = 1;           // 0 light, 1 medium, 2 strong: the knob motor's detents and the vibration
     std::string name = "knob-7f3a";
 };
 

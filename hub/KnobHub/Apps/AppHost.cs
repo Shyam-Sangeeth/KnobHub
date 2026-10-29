@@ -25,6 +25,8 @@ internal sealed class AppHost(AppEntry entry, KnobSession session, Dispatcher ui
 
     public int Setting(string id) => AppManager.GetSetting(entry, id);
 
+    public int ScreenSize => session.ScreenSize;
+
     private void Run(Action action)
     {
         if (ui.CheckAccess()) action();

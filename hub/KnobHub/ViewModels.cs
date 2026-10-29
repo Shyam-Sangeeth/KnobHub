@@ -40,6 +40,10 @@ internal sealed class MainViewModel : Observable
         session.StateChanged += Refresh;
         session.SettingsChanged += Refresh;
         session.Preview.BrightnessChanged += () => OnPropertyChanged(nameof(DimOpacity));
+        session.Preview.BoardChanged += Refresh;
+        session.Preview.MotorFeelChanged += () => OnPropertyChanged(nameof(HapticsText));
+        session.Preview.Vibrated += effect => Vibrated?.Invoke(effect);
+        session.Preview.LedsChanged += () => LedsChanged?.Invoke();
         session.Apps.Changed += RefreshApps;
         session.Apps.Entries.CollectionChanged += (_, _) => RefreshApps();
     }
@@ -55,10 +59,13 @@ internal sealed class MainViewModel : Observable
     // --- Knob page ---
 
     public WriteableBitmap Screen => _session.Preview.Screen;
+    /// <summary>The preview's screen size in pixels: always 480.</summary>
+    public int ScreenSize => _session.Preview.Size;
+    public KnobBoard Board => _session.Board;
     public string KnobName => _session.KnobSettings.Name;
     public bool IsConnected => _session.KnobConnected;
     public string Status => IsConnected ? $"Connected to {_session.ConnectionKind}" : "No knob connected";
-    public string Details => string.IsNullOrEmpty(_session.OsVersion) ? "" : $"Knob OS {_session.OsVersion}";
+    public string Details => string.IsNullOrEmpty(_session.OsVersion) ? "" : $"Knob OS {_session.OsVersion} · {Board.Name}";
     public string PreviewMode => IsConnected ? "Mirroring the knob" : "Virtual knob: works like the real one";
     public string? PreviewError => _session.Preview.Error;
     /// <summary>The preview dims like the knob's screen (Knob OS's 5% is about 80% dark).</summary>
@@ -67,8 +74,37 @@ internal sealed class MainViewModel : Observable
     /// <summary>0 turn right, 1 turn left, 2 press, 3 back.</summary>
     public void PreviewInput(int input) => _session.PreviewInput(input);
 
-    /// <summary>A touch on the preview, in screen pixels (0-239).</summary>
+    /// <summary>Whether the preview is on show (it only keeps up with the knob while it isn't).</summary>
+    public void ShowPreview(bool shown) => _session.Preview.Shown = shown;
+
+    /// <summary>A touch on the preview, in screen pixels (0 to <see cref="ScreenSize"/> - 1).</summary>
     public void PreviewTouch(int x, int y, bool down) => _session.PreviewTouch(x, y, down);
+
+    /// <summary>The preview's knob has a vibration motor or a motor on the knob: show what they do.</summary>
+    public bool ShowsHaptics => _session.Preview.Board.HasHaptics;
+
+    /// <summary>What the motor on the knob is doing, in words (boards with one), e.g. "Motor: 51 fine detents, end
+    /// stops".</summary>
+    public string HapticsText
+    {
+        get
+        {
+            if (!_session.Preview.Board.Motor) return "Vibration motor: each effect flashes the ring";
+            if (_session.Preview.MotorFeel is not { } feel) return "Motor: free";
+            string detent = feel.Detent switch { 0 => "fine", 2 => "firm", _ => "medium" };
+            if (feel.Positions == 0) return $"Motor: endless {detent} detents";
+            return $"Motor: {feel.Positions} {detent} detents, " + (feel.Wrap ? "round and round" : $"end stops (at {feel.Position + 1})");
+        }
+    }
+
+    /// <summary>The preview knob's vibration motor played an effect: 0 tick, 1 bump, 2 click, 3 alert.</summary>
+    public event Action<int>? Vibrated;
+
+    /// <summary>The preview knob's LEDs (boards with LEDs), in order round the ring; empty for none.</summary>
+    public Color[] Leds => _session.Preview.Leds;
+    /// <summary>The screen's arc to show the LEDs along: start (degrees clockwise from 3 o'clock) and sweep.</summary>
+    public (int Start, int Sweep) LedArc => _session.Preview.LedArc;
+    public event Action? LedsChanged;
 
     // --- Apps page ---
 
@@ -158,6 +194,33 @@ internal sealed class MainViewModel : Observable
     public int Timeout { get => Knob.Timeout; set { Knob.Timeout = value; Changed(); } }
     public bool DimIdle { get => Knob.DimIdle; set { Knob.DimIdle = value; Changed(); } }
     public bool LedsIdleOff { get => Knob.LedsIdleOff; set { Knob.LedsIdleOff = value; Changed(); } }
+    public bool Vibration { get => Knob.Vibration; set { Knob.Vibration = value; Changed(); } }
+    public int Haptics { get => Knob.Haptics; set { Knob.Haptics = value; Changed(); } }
+
+    /// <summary>Settings only some boards have: their sections show for the knob in use.</summary>
+    public bool HasLeds => Board.Leds > 0;
+    public bool HasHaptics => Board.HasHaptics;
+    public bool HasVibration => Board.Vibration;
+    public bool HasNoBoardSettings => !HasLeds && !HasHaptics;
+
+    /// <summary>What the knob in use has, e.g. "360 x 360 round touch screen, 1 RGB LED".</summary>
+    public string BoardDetails
+    {
+        get
+        {
+            var b = Board;
+            var parts = new List<string> { $"{b.Size} x {b.Size} round {(b.Touch ? "touch screen" : "screen")}" };
+            if (b.Leds > 0) parts.Add(b.Leds == 1 ? "1 RGB LED" : $"{b.Leds} RGB LEDs");
+            if (b.Motor) parts.Add("a motor on the knob (clicks and end stops)");
+            if (b.Vibration) parts.Add("a vibration motor");
+            return string.Join(", ", parts);
+        }
+    }
+
+    public string BoardSource => IsConnected
+        ? "The connected knob's board, as it reported it."
+        : "No knob connected: this is the last knob's board, which the preview is until a knob connects.";
+    public string[] HapticStrengths => KnobSettings.HapticStrengths;
 
     public string Name
     {

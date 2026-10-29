@@ -9,6 +9,7 @@
 // Turning moves the focus over the tiles and pills. Pressing a tile reports press (item); pressing a pill reports
 // tap (item = pill id): a toggle flips (delta = 1 on, 0 off), a segment moves to its next option (delta = new index).
 // Tapping on screen does the same.
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -21,10 +22,10 @@ namespace {
 constexpr uint32_t ArcTrack = 0x22252B;
 constexpr uint32_t SegmentOnText = 0x101114;
 constexpr uint32_t Unset = 0xFFFFFFFF;  // a colour the app didn't send
-constexpr int TileSize = 58, PillHeight = 22, IconSize = 12;
-constexpr int RowGap = 11;      // between the rows: title, tiles, each pill, hint
-constexpr int BadgeBelow = 10;  // how far a badge hangs below its circle
-constexpr int OutlineRoom = 2;  // a focus outline's reach outside its pill
+constexpr int TileSize = 58, PillHeight = 22, IconSize = 12;  // design px
+constexpr int RowGap = 11;      // between the rows: title, tiles, each pill, hint (design px)
+constexpr int BadgeBelow = 10;  // how far a badge hangs below its circle (design px)
+constexpr int OutlineRoom = 2;  // a focus outline's reach outside its pill (design px)
 
 struct Tile {
     std::string id, label, icon, tag, tag_icon, detail;
@@ -74,6 +75,23 @@ public:
                 break;
             case KnobInput::Back: emit("back"); break;
         }
+    }
+
+    // The tile in focus: its colour and value (none while muted). A pill: the accent, no level.
+    lights::Glow glow() const override {
+        if (focus_ < 0 || focus_ >= static_cast<int>(tiles_.size())) return {accent_, -1};
+        const Tile& t = tiles_[focus_];
+        return {t.color, t.muted ? 0 : t.value};
+    }
+
+    // A click per tile or pill, round and round.
+    haptics::Feel feel() const override {
+        haptics::Feel f;
+        f.positions = std::max(1, count());
+        f.position = focus_;
+        f.wrap = true;
+        f.detent = haptics::Detent::Medium;
+        return f;
     }
 
 private:
@@ -132,68 +150,73 @@ private:
         lv_obj_t* r = root();
 
         // The rows' heights, so they can be laid out the same gap apart and centred together.
-        const int line = lv_font_get_line_height(&knob_font_12);
+        const int line = lv_font_get_line_height(ui::font(12));
+        const int tile_size = ui::px(TileSize), pill_height = ui::px(PillHeight);
+        const int row_gap = ui::px(RowGap), outline_room = ui::px(OutlineRoom);
+        const int badge_below = ui::px(BadgeBelow);
         bool badges = false, tags = false;
         for (const Tile& t : tiles_) {
             badges |= !t.tag_icon.empty();
             tags |= !t.tag.empty();
         }
-        const int below = tags ? (badges ? BadgeBelow + 1 : 3) + line : (badges ? BadgeBelow : 0);  // under the circles
-        int height = (title_.empty() ? 0 : line + RowGap) + TileSize + below;
-        for (size_t i = 0; i < pills_.size(); i++) height += RowGap + PillHeight;
-        if (!hint_.empty()) height += RowGap + line;
-        int y = (ui::Size - height) / 2;
+        const int below = tags ? (badges ? badge_below + ui::px(1) : ui::px(3)) + line : (badges ? badge_below : 0);  // under the circles
+        int height = (title_.empty() ? 0 : line + row_gap) + tile_size + below;
+        for (size_t i = 0; i < pills_.size(); i++) height += row_gap + pill_height;
+        if (!hint_.empty()) height += row_gap + line;
+        int y = (ui::size() - height) / 2;
 
         if (!title_.empty()) {
-            lv_obj_t* title = ui::label(r, title_.c_str(), &knob_font_12, theme::TextSecondary);
-            lv_obj_set_style_text_letter_space(title, 2, 0);
+            lv_obj_t* title = ui::label(r, title_.c_str(), ui::font(12), theme::TextSecondary);
+            lv_obj_set_style_text_letter_space(title, ui::px(2), 0);
             lv_obj_align(title, LV_ALIGN_TOP_MID, 0, y);
-            y += line + RowGap;
+            y += line + row_gap;
         }
 
-        static const int X3[] = {46, 120, 194}, X2[] = {74, 166}, X1[] = {120};  // 16 px between tiles
+        const int X3[] = {ui::px(46), ui::px(120), ui::px(194)}, X2[] = {ui::px(74), ui::px(166)}, X1[] = {ui::px(120)};  // 16 px between tiles
         const int* xs = tiles_.size() == 3 ? X3 : tiles_.size() == 2 ? X2 : X1;
-        for (size_t i = 0; i < tiles_.size(); i++) build_tile(tiles_[i], xs[i], y + TileSize / 2, static_cast<int>(i));
-        y += TileSize + below;
+        for (size_t i = 0; i < tiles_.size(); i++) build_tile(tiles_[i], xs[i], y + tile_size / 2, static_cast<int>(i));
+        y += tile_size + below;
 
         // One pill per line: the round screen is too narrow for two side by side.
         lv_obj_t* column = ui::plain(r);
-        lv_obj_set_size(column, 220, LV_SIZE_CONTENT);
-        lv_obj_set_pos(column, 10, y + RowGap - OutlineRoom);
+        lv_obj_set_size(column, ui::px(220), LV_SIZE_CONTENT);
+        lv_obj_set_pos(column, ui::px(10), y + row_gap - outline_room);
         lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(column, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_row(column, RowGap, 0);
-        lv_obj_set_style_pad_ver(column, OutlineRoom, 0);  // room for the focus outline, which the column would clip
+        lv_obj_set_style_pad_row(column, row_gap, 0);
+        lv_obj_set_style_pad_ver(column, outline_room, 0);  // room for the focus outline, which the column would clip
         for (size_t i = 0; i < pills_.size(); i++) build_pill(column, pills_[i], static_cast<int>(tiles_.size() + i));
-        y += static_cast<int>(pills_.size()) * (RowGap + PillHeight);
+        y += static_cast<int>(pills_.size()) * (row_gap + pill_height);
 
         if (!hint_.empty()) {
-            lv_obj_t* hint = ui::label(r, hint_.c_str(), &knob_font_12, theme::TextMuted);
-            ui::one_line(hint, 160);
-            lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, y + RowGap);
+            lv_obj_t* hint = ui::label(r, hint_.c_str(), ui::font(12), theme::TextMuted);
+            ui::one_line(hint, ui::px(160));
+            lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, y + row_gap);
         }
 
         show_focus();
     }
 
     void build_tile(const Tile& t, int cx, int Cy, int index) {
-        constexpr int D = TileSize;
-        constexpr int DetailWidth = 34;  // what fits inside the ring at that height
-        constexpr int StackGap = -1;  // the labels' line height already leaves room above the letters
+        const int D = ui::px(TileSize);
+        const int DetailWidth = ui::px(34);  // what fits inside the ring at that height
+        const int StackGap = ui::px(-1);     // the labels' line height already leaves room above the letters
+        const int icon_size = ui::px(IconSize);
+        const int badge_below = ui::px(BadgeBelow);
         lv_obj_t* tile = ui::circle(root(), D, theme::Surface, 0, 0);
         lv_obj_set_pos(tile, cx - D / 2, Cy - D / 2);
         make_target(tile, index);
 
         // A thin ring in the tile's colour, filled by a thicker arc as far as the value.
-        lv_obj_t* ring = ui::arc(tile, D, 5, 270, 360, t.color, t.color);
-        lv_obj_set_style_arc_width(ring, 2, LV_PART_MAIN);
+        lv_obj_t* ring = ui::arc(tile, D, ui::px(5), 270, 360, t.color, t.color);
+        lv_obj_set_style_arc_width(ring, ui::px(2), LV_PART_MAIN);
         lv_obj_set_style_arc_opa(ring, LV_OPA_50, LV_PART_MAIN);
         lv_obj_set_style_arc_rounded(ring, true, LV_PART_INDICATOR);
         lv_arc_set_value(ring, t.value);
         lv_obj_center(ring);
         if (t.busy) {
             // Busy (e.g. switching device): a white quarter arc goes round and round the ring.
-            lv_obj_t* spin = ui::arc(tile, D, 5, 270, 360, theme::Text, theme::Text);
+            lv_obj_t* spin = ui::arc(tile, D, ui::px(5), 270, 360, theme::Text, theme::Text);
             lv_obj_set_style_arc_opa(spin, LV_OPA_TRANSP, LV_PART_MAIN);
             lv_obj_set_style_arc_rounded(spin, true, LV_PART_INDICATOR);
             lv_arc_set_angles(spin, 0, 90);
@@ -216,53 +239,53 @@ private:
         lv_obj_set_flex_align(stack, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_row(stack, StackGap, 0);
         lv_obj_t* icon_box = ui::plain(stack);
-        lv_obj_set_size(icon_box, IconSize, IconSize);
+        lv_obj_set_size(icon_box, icon_size, icon_size);
         lv_obj_add_flag(icon_box, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-        lv_obj_center(ui::icon(icon_box, t.icon, IconSize, t.color));
-        if (t.muted) ui::cross_out(icon_box, IconSize, t.color, theme::Surface);
-        ui::label(stack, t.label.c_str(), &knob_font_12, theme::Text);
+        lv_obj_center(ui::icon(icon_box, t.icon, icon_size, t.color));
+        if (t.muted) ui::cross_out(icon_box, icon_size, t.color, theme::Surface);
+        ui::label(stack, t.label.c_str(), ui::font(12), theme::Text);
         if (t.detail.empty()) {
-            lv_obj_t* value = ui::label(stack, "", &knob_font_12, theme::TextSecondary);
+            lv_obj_t* value = ui::label(stack, "", ui::font(12), theme::TextSecondary);
             lv_label_set_text_fmt(value, "%d%%", t.value);
         } else {
-            lv_obj_t* detail = ui::label(stack, t.detail.c_str(), &knob_font_8, theme::Text);  // small and white
+            lv_obj_t* detail = ui::label(stack, t.detail.c_str(), ui::font(8), theme::Text);  // small and white
             ui::marquee(detail, DetailWidth);
         }
 
         bool badge = !t.tag_icon.empty();
-        if (badge) ui::badge(root(), t.tag_icon, cx, Cy + D / 2 + 2, t.color);  // on the ring, at the bottom
+        if (badge) ui::badge(root(), t.tag_icon, cx, Cy + D / 2 + ui::px(2), t.color);  // on the ring, at the bottom
         if (t.tag.empty()) return;
-        lv_obj_t* tag = ui::label(root(), t.tag.c_str(), &knob_font_12, theme::TextSecondary);
-        ui::one_line(tag, 66);
-        lv_obj_set_pos(tag, cx - lv_obj_get_width(tag) / 2, Cy + D / 2 + (badge ? BadgeBelow + 1 : 3));
+        lv_obj_t* tag = ui::label(root(), t.tag.c_str(), ui::font(12), theme::TextSecondary);
+        ui::one_line(tag, ui::px(66));
+        lv_obj_set_pos(tag, cx - lv_obj_get_width(tag) / 2, Cy + D / 2 + (badge ? badge_below + ui::px(1) : ui::px(3)));
     }
 
     void build_pill(lv_obj_t* row, Pill& p, int index) {
         p.obj = ui::plain(row);
         p.parts.clear();
-        lv_obj_set_size(p.obj, LV_SIZE_CONTENT, PillHeight);
+        lv_obj_set_size(p.obj, LV_SIZE_CONTENT, ui::px(PillHeight));
         lv_obj_set_style_radius(p.obj, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(p.obj, 1, 0);
+        lv_obj_set_style_border_width(p.obj, ui::px(1), 0);
         lv_obj_set_style_bg_opa(p.obj, LV_OPA_COVER, 0);
         lv_obj_set_flex_flow(p.obj, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(p.obj, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         make_target(p.obj, index);
         if (p.kind == "segment") {
-            lv_obj_set_style_pad_all(p.obj, 2, 0);
+            lv_obj_set_style_pad_all(p.obj, ui::px(2), 0);
             for (const std::string& option : p.options) {
                 lv_obj_t* part = ui::plain(p.obj);
-                lv_obj_set_size(part, LV_SIZE_CONTENT, 18);
-                lv_obj_set_style_pad_hor(part, 8, 0);
+                lv_obj_set_size(part, LV_SIZE_CONTENT, ui::px(18));
+                lv_obj_set_style_pad_hor(part, ui::px(8), 0);
                 lv_obj_set_style_radius(part, LV_RADIUS_CIRCLE, 0);
-                lv_obj_t* text = ui::label(part, option.c_str(), &knob_font_12, theme::TextSecondary);
+                lv_obj_t* text = ui::label(part, option.c_str(), ui::font(12), theme::TextSecondary);
                 lv_obj_center(text);
                 p.parts.push_back(part);
             }
         } else {
-            lv_obj_set_style_pad_hor(p.obj, 11, 0);
-            lv_obj_set_style_pad_column(p.obj, 5, 0);
-            p.icon_obj = p.icon.empty() ? nullptr : ui::icon(p.obj, p.icon, 12, theme::TextMuted);
-            p.text = ui::label(p.obj, p.label.c_str(), &knob_font_12, theme::TextSecondary);
+            lv_obj_set_style_pad_hor(p.obj, ui::px(11), 0);
+            lv_obj_set_style_pad_column(p.obj, ui::px(5), 0);
+            p.icon_obj = p.icon.empty() ? nullptr : ui::icon(p.obj, p.icon, ui::px(12), theme::TextMuted);
+            p.text = ui::label(p.obj, p.label.c_str(), ui::font(12), theme::TextSecondary);
         }
         style_pill(p);
     }
@@ -306,7 +329,7 @@ private:
     void show_focus() {
         for (int i = 0; i < static_cast<int>(targets_.size()); i++) {
             bool on = i == focus_;
-            lv_obj_set_style_outline_width(targets_[i], on ? 2 : 0, 0);
+            lv_obj_set_style_outline_width(targets_[i], on ? ui::px(2) : 0, 0);
             lv_obj_set_style_outline_color(targets_[i], theme::color(theme::Text), 0);
             lv_obj_set_style_outline_pad(targets_[i], 0, 0);  // close round it
         }

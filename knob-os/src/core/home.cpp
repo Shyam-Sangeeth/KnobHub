@@ -22,10 +22,9 @@ struct Page {
     AppInfo app;  // for App pages; name/icon/colour for the others too
 };
 
-constexpr int Size = ui::Size;
 constexpr int SlideMs = 220;
 constexpr uint32_t PeekIcon = 0xC9CDD4;
-constexpr int PageIconSize = 28, PeekIconSize = 12;
+constexpr int PageIconSize = 28, PeekIconSize = 12;  // design sizes
 
 class HomeScreen;
 HomeScreen* home = nullptr;
@@ -57,6 +56,23 @@ public:
         }
     }
 
+    // The page in focus's colour.
+    lights::Glow glow() const override {
+        lights::Glow g;
+        if (!pages_.empty()) g.color = pages_[current_].app.color;
+        return g;
+    }
+
+    // A firm click per page, round and round.
+    haptics::Feel feel() const override {
+        haptics::Feel f;
+        f.positions = count();
+        f.position = current_;
+        f.wrap = true;
+        f.detent = haptics::Detent::Firm;
+        return f;
+    }
+
     void refresh() {
         std::string id = current_id();
         rebuild_pages();
@@ -79,7 +95,10 @@ private:
     // page is where Home starts and where a long press goes back to.
     void rebuild_pages() {
         const Page clock{PageKind::Clock, {"clock", "Clock", "", "clock", theme::Text}};
-        const Page settings{PageKind::Settings, {"settings", "Settings", "Display, Lights, Connection", "settings", theme::Settings}};
+        const Board& board = hal_board();
+        const char* groups = board.leds > 0 ? "Display, Lights, Connection"
+                           : board.vibration || board.motor ? "Display, Haptics, Connection" : "Display, Connection";
+        const Page settings{PageKind::Settings, {"settings", "Settings", groups, "settings", theme::Settings}};
         std::vector<Page> rest;
         for (const AppInfo& app : apps::list()) rest.push_back({PageKind::App, app});
 
@@ -136,7 +155,7 @@ private:
     }
 
     void build_clock(lv_obj_t* parent) {
-        lv_obj_t* arc = ui::arc(parent, 232, 2, 270, 360, theme::Track, theme::Text);
+        lv_obj_t* arc = ui::arc(parent, ui::px(232), ui::px(2), 270, 360, theme::Track, theme::Text);
         lv_obj_set_style_arc_opa(arc, LV_OPA_80, LV_PART_INDICATOR);
         lv_obj_center(arc);
         // The time, and AM/PM after it in 12-hour mode; centred together.
@@ -144,13 +163,13 @@ private:
         lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
-        lv_obj_set_style_pad_column(row, 5, 0);
-        lv_obj_align(row, LV_ALIGN_CENTER, 0, -14);
-        lv_obj_t* time = ui::label(row, "", &knob_font_48, theme::Text);
-        clock_ampm_ = ui::label(row, "", &knob_font_16, theme::TextSecondary);
-        lv_obj_set_style_pad_bottom(clock_ampm_, 12, 0);  // onto the time's baseline
-        lv_obj_t* date = ui::label(parent, "", &knob_font_14, theme::TextSecondary);
-        lv_obj_align(date, LV_ALIGN_CENTER, 0, 22);
+        lv_obj_set_style_pad_column(row, ui::px(5), 0);
+        lv_obj_align(row, LV_ALIGN_CENTER, 0, ui::px(-14));
+        lv_obj_t* time = ui::label(row, "", ui::font(48), theme::Text);
+        clock_ampm_ = ui::label(row, "", ui::font(16), theme::TextSecondary);
+        lv_obj_set_style_pad_bottom(clock_ampm_, ui::px(12), 0);  // onto the time's baseline
+        lv_obj_t* date = ui::label(parent, "", ui::font(14), theme::TextSecondary);
+        lv_obj_align(date, LV_ALIGN_CENTER, 0, ui::px(22));
         clock_page_ = parent;
         clock_time_ = time;
         clock_date_ = date;
@@ -172,30 +191,30 @@ private:
 
     void build_app(lv_obj_t* parent, const AppInfo& app) {
         lv_obj_t* ring = ui::plain(parent);
-        lv_obj_set_size(ring, 226, 226);
+        lv_obj_set_size(ring, ui::px(226), ui::px(226));
         lv_obj_center(ring);
         lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(ring, 2, 0);
+        lv_obj_set_style_border_width(ring, ui::px(2), 0);
         lv_obj_set_style_border_color(ring, theme::color(app.color), 0);
         lv_obj_set_style_border_opa(ring, LV_OPA_40, 0);
 
         // The icon, the name and the subtitle, a fixed gap apart (by the letters, not their lines) and centred.
-        constexpr int Circle = 76, Gap = 14;
-        const lv_font_t* name_font = &knob_font_24;
-        const lv_font_t* subtitle_font = &knob_font_12;
-        int height = Circle + Gap + ui::ink_height(name_font) + (app.subtitle.empty() ? 0 : Gap - 4 + ui::ink_height(subtitle_font));
-        int y = (Size - height) / 2;
-        lv_obj_t* icon = ui::circle(parent, Circle, ui::tint(app.color), app.color, 2);
+        const int Circle = ui::px(76), Gap = ui::px(14), SubtitleGap = ui::px(10);
+        const lv_font_t* name_font = ui::font(24);
+        const lv_font_t* subtitle_font = ui::font(12);
+        int height = Circle + Gap + ui::ink_height(name_font) + (app.subtitle.empty() ? 0 : SubtitleGap + ui::ink_height(subtitle_font));
+        int y = (ui::size() - height) / 2;
+        lv_obj_t* icon = ui::circle(parent, Circle, ui::tint(app.color), app.color, ui::px(2));
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, y);
         y += Circle + Gap;
         ui::press_feedback(icon, 88);  // pressed along with its page (see on_page_touch)
         lv_obj_set_user_data(parent, icon);
-        lv_obj_t* glyph = ui::icon(icon, app.icon, PageIconSize, theme::Text);
+        lv_obj_t* glyph = ui::icon(icon, app.icon, ui::px(PageIconSize), theme::Text);
         lv_obj_center(glyph);
 
         lv_obj_t* name = ui::label(parent, app.name.c_str(), name_font, theme::Text);
         lv_obj_align(name, LV_ALIGN_TOP_MID, 0, y - ui::ink_top(name_font));
-        y += ui::ink_height(name_font) + Gap - 4;  // the subtitle belongs with the name: a bit closer
+        y += ui::ink_height(name_font) + SubtitleGap;  // the subtitle belongs with the name: a bit closer
         lv_obj_t* subtitle = ui::label(parent, app.subtitle.c_str(), subtitle_font, theme::TextSecondary);
         lv_obj_align(subtitle, LV_ALIGN_TOP_MID, 0, y - ui::ink_top(subtitle_font));
     }
@@ -204,10 +223,11 @@ private:
 
     void build_overlay() {
         overlay_ = ui::plain(root());
-        lv_obj_set_size(overlay_, Size, Size);
+        const int size = ui::size(), peek_size = ui::px(24), edge = ui::px(11);
+        lv_obj_set_size(overlay_, size, size);
         for (int side = 0; side < 2; side++) {
-            lv_obj_t* peek = ui::circle(overlay_, 24, theme::Surface, theme::Border, 1);
-            lv_obj_set_pos(peek, side == 0 ? 11 : Size - 11 - 24, Size / 2 - 12);
+            lv_obj_t* peek = ui::circle(overlay_, peek_size, theme::Surface, theme::Border, ui::px(1));
+            lv_obj_set_pos(peek, side == 0 ? edge : size - edge - peek_size, size / 2 - peek_size / 2);
             lv_obj_set_style_opa(peek, LV_OPA_40, 0);
             peeks_[side] = peek;
         }
@@ -217,7 +237,7 @@ private:
     void show_peek(int side, const AppInfo& app) {
         if (peek_ids_[side] == app.id && peek_icons_[side]) return;
         if (peek_icons_[side]) lv_obj_delete(peek_icons_[side]);
-        peek_icons_[side] = ui::icon(peeks_[side], app.icon, PeekIconSize, PeekIcon);
+        peek_icons_[side] = ui::icon(peeks_[side], app.icon, ui::px(PeekIconSize), PeekIcon);
         lv_obj_center(peek_icons_[side]);
         peek_ids_[side] = app.id;
     }
@@ -236,14 +256,15 @@ private:
     void update_overlay() {
         if (dots_.size() != pages_.size()) rebuild_dots();
         // Dots along the bottom arc, first page on the left.
-        constexpr double Radius = 98, StepDegrees = 8.5;
+        constexpr double StepDegrees = 8.5;
+        const double radius = 98.0 * ui::size() / ui::DesignSize;
         for (int i = 0; i < count(); i++) {
             bool on = i == current_;
-            int size = on ? 7 : 5;
+            int size = ui::px(on ? 7 : 5);
             double degrees = 180 - (i - (count() - 1) / 2.0) * StepDegrees;
             double rad = degrees * 3.14159265 / 180;
-            int cx = static_cast<int>(std::lround(Size / 2 + Radius * std::sin(rad)));
-            int cy = static_cast<int>(std::lround(Size / 2 - Radius * std::cos(rad)));
+            int cx = static_cast<int>(std::lround(ui::size() / 2 + radius * std::sin(rad)));
+            int cy = static_cast<int>(std::lround(ui::size() / 2 - radius * std::cos(rad)));
             lv_obj_set_size(dots_[i], size, size);
             lv_obj_set_pos(dots_[i], cx - size / 2, cy - size / 2);
             lv_obj_set_style_bg_color(dots_[i], theme::color(on ? theme::Text : theme::DotOff), 0);
@@ -297,7 +318,7 @@ private:
 
     lv_obj_t* make_page(int index) {
         lv_obj_t* obj = ui::plain(root());
-        lv_obj_set_size(obj, Size, Size);
+        lv_obj_set_size(obj, ui::size(), ui::size());
         if (pages_[index].kind != PageKind::Clock) {
             // The whole page is the button; its icon shows the touch.
             lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
@@ -344,8 +365,8 @@ private:
         lv_obj_move_foreground(overlay_);
         update_overlay();
         if (old && direction != 0) {
-            slide(page_, direction * Size, 0, false);
-            slide(old, lv_obj_get_x(old), -direction * Size, true);
+            slide(page_, direction * ui::size(), 0, false);
+            slide(old, lv_obj_get_x(old), -direction * ui::size(), true);
         } else if (old) {
             lv_obj_delete(old);
         }
@@ -392,8 +413,8 @@ void home_refresh() {
 
 void home_fetch_icons() {
     for (const AppInfo& app : apps::list()) {
-        icons::fetch(app.icon, PageIconSize);
-        icons::fetch(app.icon, PeekIconSize);
+        icons::fetch(app.icon, ui::px(PageIconSize));
+        icons::fetch(app.icon, ui::px(PeekIconSize));
     }
 }
 

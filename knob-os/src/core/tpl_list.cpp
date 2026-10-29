@@ -17,8 +17,8 @@ namespace {
 constexpr uint32_t RowIcon = 0xC9CDD4;
 constexpr uint32_t DangerText = 0xFCA5A5;
 constexpr int Visible = 3;
-constexpr int RowWidth = 184, RowHeight = 38, NoteHeight = 18;
-constexpr int Gap = 8;  // between everything: title, note, each row, position, hint
+constexpr int RowWidth = 184, RowHeight = 38, NoteHeight = 18;  // design px
+constexpr int Gap = 8;  // between everything: title, note, each row, position, hint (design px)
 
 struct Row {
     std::string id, label, detail, value, icon;
@@ -51,6 +51,14 @@ public:
                 break;
             case KnobInput::Back: emit("back"); break;
         }
+    }
+
+    // A click per row, with end stops at the first and the last.
+    haptics::Feel feel() const override {
+        haptics::Feel f;
+        f.positions = std::max<int>(1, static_cast<int>(rows_.size()));
+        f.position = focus_;
+        return f;
     }
 
 private:
@@ -89,51 +97,53 @@ private:
     void build() {
         lv_obj_clean(root());
         lv_obj_t* r = root();
-        const int cap_top = ui::ink_top(&knob_font_12), cap_height = ui::ink_height(&knob_font_12);
+        const lv_font_t* small = ui::font(12);
+        const int cap_top = ui::ink_top(small), cap_height = ui::ink_height(small);
+        const int gap = ui::px(Gap), row_height = ui::px(RowHeight), note_height = ui::px(NoteHeight);
         const int n = static_cast<int>(rows_.size());
         const int shown = std::min(n, Visible);
 
         int height = cap_height;  // the title
-        if (!note_.empty()) height += Gap + NoteHeight;
-        if (shown) height += Gap + shown * RowHeight + (shown - 1) * Gap;
-        if (n > Visible) height += Gap + cap_height;
-        if (!hint_.empty()) height += Gap + cap_height;
-        int y = (ui::Size - height) / 2;
+        if (!note_.empty()) height += gap + note_height;
+        if (shown) height += gap + shown * row_height + (shown - 1) * gap;
+        if (n > Visible) height += gap + cap_height;
+        if (!hint_.empty()) height += gap + cap_height;
+        int y = (ui::size() - height) / 2;
 
-        lv_obj_t* title = ui::label(r, title_.c_str(), &knob_font_12, color_);
-        lv_obj_set_style_text_letter_space(title, 2, 0);
+        lv_obj_t* title = ui::label(r, title_.c_str(), small, color_);
+        lv_obj_set_style_text_letter_space(title, ui::px(2), 0);
         lv_obj_align(title, LV_ALIGN_TOP_MID, 0, y - cap_top);
-        y += cap_height + Gap;
+        y += cap_height + gap;
 
         if (!note_.empty()) {
             lv_obj_t* note = ui::plain(r);
-            lv_obj_set_size(note, LV_SIZE_CONTENT, NoteHeight);
-            lv_obj_set_style_pad_hor(note, 8, 0);
+            lv_obj_set_size(note, LV_SIZE_CONTENT, note_height);
+            lv_obj_set_style_pad_hor(note, ui::px(8), 0);
             lv_obj_set_style_radius(note, LV_RADIUS_CIRCLE, 0);
             lv_obj_set_style_bg_color(note, theme::color(ui::tint(color_)), 0);
             lv_obj_set_style_bg_opa(note, LV_OPA_COVER, 0);
-            lv_obj_t* text = ui::label(note, note_.c_str(), &knob_font_12, theme::Text);
-            ui::one_line(text, 160);
+            lv_obj_t* text = ui::label(note, note_.c_str(), small, theme::Text);
+            ui::one_line(text, ui::px(160));
             lv_obj_center(text);
             lv_obj_align(note, LV_ALIGN_TOP_MID, 0, y);
-            y += NoteHeight + Gap;
+            y += note_height + gap;
         }
 
         int first = std::max(0, std::min(focus_ - 1, n - Visible));
         for (int i = first; i < first + shown; i++) {
             build_row(rows_[i], i, y);
-            y += RowHeight + Gap;
+            y += row_height + gap;
         }
 
         if (n > Visible) {
-            lv_obj_t* position = ui::label(r, "", &knob_font_12, theme::TextMuted);
+            lv_obj_t* position = ui::label(r, "", small, theme::TextMuted);
             lv_label_set_text_fmt(position, "%d / %d", focus_ + 1, n);
             lv_obj_align(position, LV_ALIGN_TOP_MID, 0, y - cap_top);
-            y += cap_height + Gap;
+            y += cap_height + gap;
         }
 
         if (!hint_.empty()) {
-            lv_obj_t* hint = ui::label(r, hint_.c_str(), &knob_font_12, theme::TextMuted);
+            lv_obj_t* hint = ui::label(r, hint_.c_str(), small, theme::TextMuted);
             ui::one_line(hint, width_at(y + cap_height));  // as wide as the round screen is down there
             lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, y - cap_top);
         }
@@ -141,20 +151,21 @@ private:
 
     // How wide the round screen is at height y, less a margin.
     static int width_at(int y) {
-        const int radius = ui::Size / 2, dy = std::abs(y - radius);
-        return dy >= radius ? 0 : 2 * static_cast<int>(std::sqrt(static_cast<float>(radius * radius - dy * dy))) - 24;
+        const int radius = ui::size() / 2, dy = std::abs(y - radius);
+        return dy >= radius ? 0 : 2 * static_cast<int>(std::sqrt(static_cast<float>(radius * radius - dy * dy))) - ui::px(24);
     }
 
     void build_row(const Row& row, int index, int y) {
         bool focused = index == focus_;
         lv_obj_t* obj = ui::plain(root());
-        lv_obj_set_size(obj, RowWidth, RowHeight);
-        lv_obj_set_pos(obj, (ui::Size - RowWidth) / 2, y);
-        lv_obj_set_style_radius(obj, 10, 0);
+        const int row_width = ui::px(RowWidth), row_height = ui::px(RowHeight);
+        lv_obj_set_size(obj, row_width, row_height);
+        lv_obj_set_pos(obj, (ui::size() - row_width) / 2, y);
+        lv_obj_set_style_radius(obj, ui::px(10), 0);
         lv_obj_set_style_bg_color(obj, theme::color(focused ? theme::SurfaceRaised : theme::Surface), 0);
         lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
         if (focused) {
-            lv_obj_set_style_border_width(obj, 2, 0);
+            lv_obj_set_style_border_width(obj, ui::px(2), 0);
             lv_obj_set_style_border_color(obj, theme::color(color_), 0);
         }
         lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
@@ -162,22 +173,24 @@ private:
         lv_obj_set_user_data(obj, reinterpret_cast<void*>(static_cast<intptr_t>(index)));
         lv_obj_add_event_cb(obj, on_click, LV_EVENT_CLICKED, this);
 
-        int text_x = 10;
+        int text_x = ui::px(10);
         if (!row.icon.empty()) {
-            lv_obj_t* icon = ui::icon(obj, row.icon, 12, row.danger ? DangerText : RowIcon);
-            lv_obj_align(icon, LV_ALIGN_LEFT_MID, 9, 0);
-            text_x = 28;
+            lv_obj_t* icon = ui::icon(obj, row.icon, ui::px(12), row.danger ? DangerText : RowIcon);
+            lv_obj_align(icon, LV_ALIGN_LEFT_MID, ui::px(9), 0);
+            text_x = ui::px(28);
         }
         // The label comes first: the tick or value on the right gets what the label leaves (shortened with "..." if
         // that's not enough, never below a short minimum), and the detail line goes under the label.
-        constexpr int RightPad = 10, ValueGap = 6, MinValue = 36;
-        const int space = RowWidth - text_x - RightPad;
-        lv_obj_t* label = ui::label(obj, row.label.c_str(), &knob_font_14, row.danger ? DangerText : theme::Text);
+        const int RightPad = ui::px(10), ValueGap = ui::px(6), MinValue = ui::px(36);
+        const lv_font_t* label_font = ui::font(14);
+        const lv_font_t* small = ui::font(12);
+        const int space = row_width - text_x - RightPad;
+        lv_obj_t* label = ui::label(obj, row.label.c_str(), label_font, row.danger ? DangerText : theme::Text);
         lv_obj_update_layout(label);
         int text_width = space;
         if (row.selected || !row.value.empty()) {
-            lv_obj_t* end = row.selected ? ui::label(obj, LV_SYMBOL_OK, &knob_font_12, color_)
-                                         : ui::label(obj, row.value.c_str(), &knob_font_12, theme::TextSecondary);
+            lv_obj_t* end = row.selected ? ui::label(obj, LV_SYMBOL_OK, small, color_)
+                                         : ui::label(obj, row.value.c_str(), small, theme::TextSecondary);
             lv_obj_update_layout(end);
             int end_width = lv_obj_get_width(end);
             int label_room = std::min<int>(lv_obj_get_width(label), space - ValueGap - std::min(end_width, MinValue));
@@ -189,18 +202,18 @@ private:
         ui::one_line(label, text_width);
 
         // Placed by their letters, so one line sits in the middle and two sit evenly with a fixed gap.
-        constexpr int LineGap = 5;
-        const int label_top = ui::ink_top(&knob_font_14), label_height = ui::ink_height(&knob_font_14);
+        const int LineGap = ui::px(5);
+        const int label_top = ui::ink_top(label_font), label_height = ui::ink_height(label_font);
         if (row.detail.empty()) {
-            lv_obj_set_pos(label, text_x, (RowHeight - label_height) / 2 - label_top);
+            lv_obj_set_pos(label, text_x, (row_height - label_height) / 2 - label_top);
             return;
         }
-        const int detail_height = ui::ink_height(&knob_font_12);
-        const int top = (RowHeight - (label_height + LineGap + detail_height)) / 2 - 1;  // a little up: room for g, p, y
+        const int detail_height = ui::ink_height(small);
+        const int top = (row_height - (label_height + LineGap + detail_height)) / 2 - ui::px(1);  // a little up: room for g, p, y
         lv_obj_set_pos(label, text_x, top - label_top);
-        lv_obj_t* detail = ui::label(obj, row.detail.c_str(), &knob_font_12, theme::TextSecondary);
+        lv_obj_t* detail = ui::label(obj, row.detail.c_str(), small, theme::TextSecondary);
         ui::one_line(detail, text_width);
-        lv_obj_set_pos(detail, text_x, top + label_height + LineGap - ui::ink_top(&knob_font_12));
+        lv_obj_set_pos(detail, text_x, top + label_height + LineGap - ui::ink_top(small));
     }
 
     static void on_click(lv_event_t* e) {

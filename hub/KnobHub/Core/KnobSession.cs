@@ -36,6 +36,14 @@ internal sealed class KnobSession : IDisposable
     /// <summary>The Knob OS version of the knob in use (real or preview).</summary>
     public string OsVersion { get; private set; } = "";
 
+    /// <summary>The board of the knob in use: the real knob's (from its hello), or the one the preview is.</summary>
+    public KnobBoard Board => _knob.IsConnected ? _knobBoard : Preview.Board;
+    private KnobBoard _knobBoard = KnobBoard.Default;
+
+    /// <summary>The screen size of the knob in use, which apps draw their pictures for: the connected knob's, else the
+    /// preview's (always 480 px).</summary>
+    public int ScreenSize => _knob.IsConnected ? _knobBoard.Size : Preview.Size;
+
     /// <summary>The connection or the knob's details changed.</summary>
     public event Action? StateChanged;
     /// <summary>The knob changed its settings (on the knob itself).</summary>
@@ -48,8 +56,7 @@ internal sealed class KnobSession : IDisposable
         Apps.Changed += SendApps;
 
         Preview.Sent += OnPreviewLine;
-        if (Preview.Start()) Preview.LinkConnected(true);
-        else Log(Preview.Error!);
+        StartPreview(KnobBoard.Find(_settings.PreviewBoard));
 
         _knob.LineReceived += OnKnobLine;
         _knob.ConnectedChanged += OnKnobConnected;
@@ -62,10 +69,33 @@ internal sealed class KnobSession : IDisposable
     private void Send(JsonObject msg)
     {
         KnobText.FitAll(msg);
+        MarkPictures(msg, ScreenSize);
         string line = msg.ToJsonString(Json.Link);
         if (_knob.IsConnected) _knob.Send(line);
         Preview.LinkLine(line);
     }
+
+    /// <summary>Adds the screen size pictures (album art, drawn text) were drawn for, so a knob of another size scales
+    /// them: the preview mirroring a bigger knob.</summary>
+    private static void MarkPictures(JsonNode? node, int screen)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                if (obj.ContainsKey("w") && obj.ContainsKey("h") && (obj.ContainsKey("rgb565") || obj.ContainsKey("a8")))
+                    obj["screen"] = screen;
+                foreach (var (_, value) in obj.ToList()) MarkPictures(value, screen);
+                break;
+            case JsonArray array:
+                foreach (var item in array) MarkPictures(item, screen);
+                break;
+        }
+    }
+
+    /// <summary>A touch position (x or y) on one screen size moved to another: the knob's and the preview's differ
+    /// when the knob is bigger.</summary>
+    private static int Rescale(int at, int from, int to) =>
+        from == to ? at : Math.Clamp((int)((at + 0.5) * to / from), 0, to - 1);
 
     private void SendApps()
     {
@@ -99,11 +129,26 @@ internal sealed class KnobSession : IDisposable
 
     private static readonly string[] InputNames = ["right", "left", "press", "back"];
 
-    /// <summary>A touch on the preview at screen pixels (0-239). With a real knob connected it's done on the knob,
-    /// which reports it back.</summary>
+    /// <summary>Starts the preview as the board (again, if it was another): it says hello and gets everything
+    /// again.</summary>
+    private void StartPreview(KnobBoard board)
+    {
+        if (Preview.Start(board)) Preview.LinkConnected(true);
+        else Log(Preview.Error!);
+    }
+
+    /// <summary>A touch on the preview at its screen pixels (0 to 479). With a real knob connected it's done on the
+    /// knob (at its own screen's pixels), which reports it back.</summary>
     public void PreviewTouch(int x, int y, bool down)
     {
-        if (_knob.IsConnected) _knob.Send(new JsonObject { ["t"] = "touch", ["x"] = x, ["y"] = y, ["down"] = down }.ToJsonString());
+        if (_knob.IsConnected)
+        {
+            int size = _knobBoard.Size;
+            _knob.Send(new JsonObject
+            {
+                ["t"] = "touch", ["x"] = Rescale(x, Preview.Size, size), ["y"] = Rescale(y, Preview.Size, size), ["down"] = down,
+            }.ToJsonString());
+        }
         else Preview.Touch(x, y, down);
     }
 
@@ -137,7 +182,9 @@ internal sealed class KnobSession : IDisposable
     private void OnKnobConnected(bool connected)
     {
         Log(connected ? $"Knob connected ({_knob.Kind})" : "Knob disconnected: the preview is the knob now");
-        // Disconnected: the preview already shows what the knob showed and takes over from there.
+        // Disconnected: the preview already shows what the knob showed and takes over from there, timing its own screen
+        // timeout again.
+        if (!connected) Preview.LinkLine(new JsonObject { ["t"] = "idle", ["follow"] = false }.ToJsonString());
         StateChanged?.Invoke();
     }
 
@@ -151,10 +198,15 @@ internal sealed class KnobSession : IDisposable
                 if (input >= 0) Preview.Input(input);
                 return;
             case "touch":
-                Preview.Touch(msg.Int("x"), msg.Int("y"), msg["down"] is JsonValue d && d.TryGetValue(out bool down) && down);
+                Preview.Touch(Rescale(msg.Int("x"), _knobBoard.Size, Preview.Size), Rescale(msg.Int("y"), _knobBoard.Size, Preview.Size),
+                    msg["down"] is JsonValue d && d.TryGetValue(out bool down) && down);
                 return;
             case "icon_request":
                 SendIcon(msg, toKnob: true);
+                return;
+            case "idle":
+                // The preview follows the knob's screen state, so an input that only wakes the knob doesn't act on it.
+                Preview.LinkLine(new JsonObject { ["t"] = "idle", ["state"] = msg.Str("state"), ["follow"] = true }.ToJsonString());
                 return;
         }
         Handle(msg, fromKnob: true);
@@ -203,7 +255,7 @@ internal sealed class KnobSession : IDisposable
     {
         string name = request.Str("name");
         int size = request.Int("size");
-        if (size is < 1 or > 64) return;
+        if (size is < 1 or > 128) return;
         var icon = AppIcon(name) ?? KnobIcons.BuiltIn.GetValueOrDefault(name);
         if (icon == null)
         {
@@ -247,6 +299,16 @@ internal sealed class KnobSession : IDisposable
         OsVersion = msg.Str("os");
         if (fromKnob)
         {
+            // The preview mirrors the knob, so it becomes the same board (starting again if it wasn't; its screen
+            // stays 480 px), and stays it when the knob goes.
+            _knobBoard = KnobBoard.FromHello(msg);
+            Log($"The knob is a {_knobBoard.Name} ({_knobBoard.Size} px)");
+            if (KnobBoard.Known.Contains(_knobBoard) && _knobBoard.Id != _settings.PreviewBoard)
+            {
+                _settings.PreviewBoard = _knobBoard.Id;
+                _settings.Save();
+            }
+            if (_knobBoard.Id != Preview.Board.Id) StartPreview(KnobBoard.Find(_knobBoard.Id));
             // Bring the preview to where the knob is; the knob reopens its app by itself.
             Preview.LinkLine(new JsonObject { ["t"] = "sync", ["page"] = msg.Str("page"), ["app"] = msg.Str("app") }.ToJsonString());
         }

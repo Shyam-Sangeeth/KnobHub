@@ -5,10 +5,61 @@
 #include <map>
 #include <cstring>
 
+#include "hal.h"
 #include "icons.h"
 #include "theme.h"
 
 namespace ui {
+
+namespace {
+
+// This screen's fonts: the set made for its size, or the nearest one.
+const fonts::Set& font_set() {
+    static const fonts::Set* set = nullptr;
+    if (!set) {
+        int count = 0;
+        const fonts::Set* sets = fonts::sets(count);
+        set = &sets[0];
+        for (int i = 1; i < count; i++) {
+            if (std::abs(sets[i].diameter - size()) < std::abs(set->diameter - size())) set = &sets[i];
+        }
+    }
+    return *set;
+}
+
+const lv_font_t* find(const fonts::Entry* entries, int count, int design) {
+    for (int i = 0; i < count; i++) {
+        if (entries[i].design >= design) return entries[i].font;
+    }
+    return entries[count - 1].font;
+}
+
+// The font for an icon of size pixels: the smallest from 12 (design) up that's at least as big.
+const lv_font_t* font_for(int size) {
+    const fonts::Set& set = font_set();
+    for (int i = 0; i < set.text_count; i++) {
+        if (set.text[i].design >= 12 && set.text[i].px >= size) return set.text[i].font;
+    }
+    return set.text[set.text_count - 1].font;
+}
+
+}  // namespace
+
+int size() { return hal_board().size; }
+
+int px(int design) {
+    return (design * size() + (design >= 0 ? DesignSize / 2 : -DesignSize / 2)) / DesignSize;
+}
+
+int picture_px(int length, int drawn_for) {
+    if (drawn_for <= 0 || drawn_for == size()) return length;
+    int scaled = (length * size() + drawn_for / 2) / drawn_for;
+    return scaled > 0 ? scaled : 1;
+}
+
+const lv_font_t* font(int design_size) { return find(font_set().text, font_set().text_count, design_size); }
+
+const lv_font_t* digits(int design_size) { return find(font_set().digits, font_set().digit_count, design_size); }
 
 lv_obj_t* plain(lv_obj_t* parent) {
     lv_obj_t* obj = lv_obj_create(parent);
@@ -20,7 +71,7 @@ lv_obj_t* plain(lv_obj_t* parent) {
 
 lv_obj_t* screen_root(lv_obj_t* parent) {
     lv_obj_t* root = plain(parent);
-    lv_obj_set_size(root, Size, Size);
+    lv_obj_set_size(root, size(), size());
     lv_obj_set_style_bg_color(root, theme::color(theme::Screen), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
     // Touches anywhere in it land here when nothing else takes them, and swipes on anything in it stop here (LVGL
@@ -60,36 +111,22 @@ int ink_height(const lv_font_t* font, uint32_t letter) {
 }
 
 lv_obj_t* badge(lv_obj_t* parent, const std::string& icon_name, int center_x, int center_y, uint32_t color) {
-    constexpr int Size = 15;
-    lv_obj_t* badge = circle(parent, Size, theme::Screen, color, 1);
-    lv_obj_set_pos(badge, center_x - Size / 2, center_y - Size / 2);
-    lv_obj_center(icon(badge, icon_name, 11, color));
+    const int diameter = px(15);
+    lv_obj_t* badge = circle(parent, diameter, theme::Screen, color, px(1));
+    lv_obj_set_pos(badge, center_x - diameter / 2, center_y - diameter / 2);
+    lv_obj_center(icon(badge, icon_name, px(11), color));
     return badge;
 }
-
-namespace {
-
-const lv_font_t* font_for(int size) {
-    if (size <= 12) return &knob_font_12;
-    if (size <= 14) return &knob_font_14;
-    if (size <= 16) return &knob_font_16;
-    if (size <= 20) return &knob_font_20;
-    if (size <= 24) return &knob_font_24;
-    if (size <= 28) return &knob_font_28;
-    return &knob_font_48;
-}
-
-}  // namespace
 
 void cross_out(lv_obj_t* box, int size, uint32_t color, uint32_t background) {
     // A line keeps a pointer to its points, so each size's slash stays in this table.
     static std::map<int, std::array<lv_point_precise_t, 2>> slashes;
     auto& slash = slashes[size];
-    slash = {lv_point_precise_t{-1, -1}, lv_point_precise_t{size + 1, size + 1}};
+    slash = {lv_point_precise_t{-px(1), -px(1)}, lv_point_precise_t{size + px(1), size + px(1)}};
     for (int i = 0; i < 2; i++) {
         lv_obj_t* line = lv_line_create(box);
         lv_line_set_points(line, slash.data(), 2);
-        lv_obj_set_style_line_width(line, i == 0 ? 5 : 2, 0);
+        lv_obj_set_style_line_width(line, px(i == 0 ? 5 : 2), 0);
         lv_obj_set_style_line_color(line, theme::color(i == 0 ? background : color), 0);
         lv_obj_set_style_line_rounded(line, true, 0);
     }
@@ -155,7 +192,7 @@ void marquee(lv_obj_t* label, int max_width) {
     const lv_font_t* font = lv_obj_get_style_text_font(label, 0);
     int round = text_width + 3 * lv_font_get_glyph_width(font, ' ', ' ');  // LVGL's gap: three spaces
     lv_obj_set_style_anim(label, &pause, 0);
-    lv_obj_set_style_anim_duration(label, static_cast<uint32_t>(round * 1000 / MarqueeSpeed), 0);
+    lv_obj_set_style_anim_duration(label, static_cast<uint32_t>(round * 1000 / px(MarqueeSpeed)), 0);
     lv_obj_set_size(label, max_width, lv_font_get_line_height(font));
     lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 }
@@ -246,6 +283,7 @@ const char* symbol(const std::string& icon) {
     if (icon == "trash") return LV_SYMBOL_TRASH;
     if (icon == "refresh" || icon == "restart") return LV_SYMBOL_REFRESH;
     if (icon == "check") return LV_SYMBOL_OK;
+    if (icon == "haptics") return LV_SYMBOL_BELL;
     return nullptr;
 }
 

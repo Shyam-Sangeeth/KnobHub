@@ -2,7 +2,7 @@
 
 <p align="center">
   A turnable, touchable knob for your PC, with apps that run on the PC.<br />
-  Built on the Elecrow CrowPanel 1.28" ESP32-S3 rotary display.
+  Built on round ESP32-S3 knob displays: the Elecrow CrowPanel 1.28" or 1.46".
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 
 ---
 
-The knob is a round 240 x 240 touch screen inside a ring you turn and press, with 5 RGB LEDs and Wi-Fi. Its firmware,
+The knob is a round touch screen inside a ring you turn and press, with RGB LEDs and Wi-Fi. Its firmware,
 **Knob OS**, is a small launcher: a ring of pages (Clock, your apps, Settings) that you turn through. The apps
 themselves run on the PC inside **Knob Hub**, a tray app that sends the knob what to draw and gets back what you did.
 [AudioDesk](https://github.com/Shyam-Sangeeth/AudioDesk) was the first app; anyone can write more.
@@ -23,6 +23,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 ## Contents
 
 - [How it works](#how-it-works)
+- [Knobs](#knobs)
 - [The knob](#the-knob)
   - [Home ring](#home-ring)
   - [AudioDesk](#audiodesk)
@@ -67,6 +68,33 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 
 The link is newline-delimited JSON, one message per line; every message is documented in
 [`knob-os/src/core/link.h`](knob-os/src/core/link.h).
+
+## Knobs
+
+Knob OS runs on round ESP32-S3 knob displays of different sizes. A knob tells Knob Hub which board it is when it
+connects; Knob Hub's Board page then shows only the settings that board has, and its preview takes on the board's
+LEDs and motors (its screen is always 480 px).
+
+| Board | Screen | Has |
+|---|---|---|
+| Elecrow CrowPanel 1.28" | 240 x 240 | Touch, rotary encoder with press, 5 RGB LEDs |
+| Elecrow CrowPanel 1.46" | 360 x 360 | Touch, rotary encoder with press, 1 RGB LED |
+| Motor knob (planned, your own build) | 240 x 240 | Touch, a motor on the knob, a vibration motor, LEDs |
+
+- **Screens scale.** Every screen is designed at 240 px and drawn at the knob's size, with fonts made for that size,
+  so a 360 px knob shows the same layout, sharper. Apps don't change: they send the same screens to every knob.
+- **Haptics,** on knobs that have them. A motor on the knob (like
+  [SmartKnob](https://github.com/scottbez1/smartknob)) gives it clicks and end stops in software, set by each screen:
+  firm clicks round the Home ring, a click per row with a stop at each end of a list, fine clicks with a hard stop at
+  0 and 100% on a dial, a firm click per option on a picker. When a value changes on the PC (say the volume), the
+  knob can turn itself to match. A vibration motor gives a click when you press and a buzz for alerts (and ticks and
+  bumps when there's no motor on the knob). Settings > Haptics sets the strength and turns vibration on or off.
+- **Lights,** on knobs with LEDs. In **Level meter** mode they fill up, in order round the ring, with the level on the
+  screen: a dial's or a channel's volume, how far a song has played. A single LED gets brighter instead. Screens
+  without a level (Home, lists) light them all. In **App colour** mode they all show the colour of the open app, or of
+  the Home page in focus. LED brightness sets how bright.
+- **Adding a board** takes an entry in `knob-os/src/core/boards.cpp` (and `hub/KnobHub/Core/KnobBoard.cs`), fonts for
+  its screen size (`knob-os/fonts/make_fonts.py`), and a file with its pins in `knob-os/src/hal/esp32/boards/`.
 
 ## The knob
 
@@ -149,10 +177,18 @@ counts; each new lap fills in a new random bright colour over the last one.
 
 ### Settings
 
-The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode), Connection (USB,
-Wi-Fi setup) and About. Knob Hub's Settings page has them too. The knob keeps its settings itself, so it starts with
+The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode, on knobs with LEDs),
+Haptics (strength and vibration, on knobs with a motor or a vibration motor), Connection (USB, Wi-Fi setup) and
+About. Knob Hub's Settings page has them too. The knob keeps its settings itself, so it starts with
 them before Knob Hub connects; once connected, Knob Hub's saved settings win, and a change on either side shows on the
 other.
+
+**Screen timeout:** after the chosen time with nothing done on the knob, the screen turns off. The next turn, press or
+touch only wakes it; it doesn't act. A message from Knob Hub (e.g. "Sonar is off") wakes it too, and the timeout starts
+again; apps updating their screens don't. With **Dim when idle** on, the screen dims to a quarter of its brightness
+halfway to the timeout (after a minute when the timeout is Never); while it's dimmed the knob works as usual. The LEDs
+go off with the screen; with Lights > **When dimmed** set to off, they go off already when it dims. Knob Hub's preview
+goes dark with the knob.
 
 <table>
   <tr>
@@ -185,15 +221,24 @@ Every screen, state and message is in [`design/screenshots/`](design/screenshots
 | Tap | | Tap a control |
 | Swipe left / right | Turn pages | Swipe right: back |
 
+While the screen is off (see [Settings](#settings)), the first turn, press or touch only wakes it.
+
 ## Knob Hub on the PC
 
-Knob Hub lives in the tray. Its window has three pages, and works without a knob: the preview is then a virtual knob.
+Knob Hub lives in the tray. Its window has four pages, and works without a knob: the preview is then a virtual knob.
+While the window is closed, minimized or on another page, the preview keeps up with the knob without drawing, so it
+costs next to nothing and shows the knob's current screen as soon as you open it.
 
 ![Knob Hub: Knob page with the live preview](docs/screenshots/hub-knob.png)
 
-**Knob:** the knob's name, whether it's connected, and a **live preview** of its screen. While a knob (or the
-simulator) is connected, the preview mirrors it, and what you do in the preview happens on the knob. Scroll to turn,
-middle-click to press (hold for back), click or drag to touch, swipe right for back.
+**Knob:** the knob's name, whether it's connected, its board, and a **live preview** of its screen. While a knob (or
+the simulator) is connected, the preview mirrors it, and what you do in the preview happens on the knob. Scroll to
+turn, middle-click to press (hold for back), click or drag to touch, swipe right for back. The preview is always
+480 px, one pixel per screen pixel, drawn the way a 480 px knob would be: the same layout as every knob, sharp. Apart
+from that it's the same board as the connected knob (or the last one). The knob's LEDs glow round it: a single LED as
+a halo, several along the screen's progress arc, from where it starts to where it ends, one part per LED, so a level
+fills the glow like the arc on the screen (the more LEDs, the finer). On a knob with haptics it says what the motor is
+doing (e.g. "Motor: 51 fine detents, end stops") and its ring flashes when the knob would vibrate.
 
 ![Knob Hub: Apps page](docs/screenshots/hub-apps.png)
 
@@ -209,10 +254,17 @@ says **Update**. Install or update one from the list, or use **Install from file
 Updates and removals take effect right away, without restarting Knob Hub. Knob Hub asks before
 installing anything, because apps run with Knob Hub's permissions: only install apps you trust.
 
+![Knob Hub: Board page](docs/screenshots/hub-board.png)
+
+**Board:** which board the knob is and what it has (screen size, LEDs, motors), and the settings only some knobs
+have: Lights (LED brightness and mode) on knobs with LEDs, and Haptics (strength, vibration) on knobs with a motor or
+a vibration motor. The preview always has the board of the last knob that connected (the CrowPanel 1.28" until one
+does). To try another board, run the simulator as it (see [Simulator](#simulator)): Knob Hub's preview follows.
+
 ![Knob Hub: Settings page](docs/screenshots/hub-settings.png)
 
-**Settings:** the knob's screen and LED brightness, LED mode, screen timeout, idle behaviour and name, the
-connection, and Start with Windows.
+**Settings:** the knob's screen brightness, screen timeout, idle behaviour and name, the connection, and Start with
+Windows.
 
 ## Apps
 
@@ -238,7 +290,8 @@ file name) and `type` (full name of the `KnobApp` subclass).
 
 **The app** derives from `KnobHub.Sdk.KnobApp`: override `Open` to show the first screen and `Input` to react
 (optionally `Start`, `Stop` and `Closed`). It talks to the knob through `IKnobHost`: `Show`, `Update`, `Close`,
-`Toast` and `Log`.
+`Toast` and `Log`. Knobs come in different sizes, but screens scale by themselves; only a picture an app draws itself
+needs sizing, for a 240 px screen times `Host.ScreenSize / 240.0`.
 
 **Screens** are templates the knob already knows:
 
@@ -287,7 +340,9 @@ pio run -e sim -t exec
 ```
 
 Build output goes to `%USERPROFILE%\.cache\knob-os`. In the simulator, the mouse wheel turns, middle click presses
-(held half a second = back), the left button touches (tap, swipe), and swiping right goes back.
+(held half a second = back), the left button touches (tap, swipe), and swiping right goes back. It's the CrowPanel
+1.28" unless you pick another board: run `program.exe --board crowpanel-1.46` (or `motor-knob`) from
+`%USERPROFILE%\.cache\knob-os\build\sim`. It prints what a knob's motors and LEDs would do in its log window.
 
 ### Knob Hub
 
@@ -304,17 +359,20 @@ app. Knob Hub connects to the simulator on 127.0.0.1:5718 and retries every 2 se
 ### The real knob
 
 ```bash
-pio run -e crowpanel
+pio run -e crowpanel-128    # CrowPanel 1.28"
+pio run -e crowpanel-146    # CrowPanel 1.46"
 ```
 
-builds Knob OS for the CrowPanel. The board-specific parts (display, touch, encoder, LEDs, USB and Wi-Fi) are still
-to be written; see [Status](#status).
+builds Knob OS for one board (its pins are in `knob-os/src/hal/esp32/boards/`). The board-specific parts (display,
+touch, encoder, LEDs, haptics, USB and Wi-Fi) are still to be written; see [Status](#status).
 
 ### Fonts
 
 `knob-os/fonts/make_fonts.py` builds `src/core/fonts/knob_font_*.c` (Montserrat Medium, LVGL symbols, Latin-1,
-Latin Extended-A and typographic punctuation) and digits-only fonts for big numbers
-(`knob_font_digits_36/60/72/96`) with `npx lv_font_conv@1.5.3`. It needs Node.js.
+Latin Extended-A and typographic punctuation) and digits-only fonts for big numbers, at every size the screens use
+for each screen size (240 and 360 px, and 480 for Knob Hub's preview), with `npx lv_font_conv@1.5.3`, plus
+`fonts.cpp`, which maps a screen's design size to the font for the knob's screen. A knob's build keeps only its own
+screen size's fonts. It needs Node.js.
 
 ## Files
 
@@ -339,10 +397,11 @@ USB serial and Wi-Fi aren't written yet. The plan:
 ```
 KnobHub/
 ├─ knob-os/                 Knob OS firmware (PlatformIO, LVGL 9.2, C++17)
-│  ├─ src/core/             Shared UI and logic: Home ring, templates, settings, link, icon cache
+│  ├─ src/core/             Shared UI and logic: Home ring, templates, settings, link, icon cache, boards, haptics,
+│  │                        LEDs, screen timeout
 │  ├─ src/hal/sim/          Simulator (SDL2 window)
 │  ├─ src/hal/preview/      knob_preview.dll for Knob Hub's live preview
-│  ├─ src/hal/esp32/        The real knob (to be finished with the board)
+│  ├─ src/hal/esp32/        The real knob (to be finished with the boards); boards/ has each board's pins
 │  └─ fonts/                make_fonts.py
 ├─ hub/                     Knob Hub (WPF, .NET 10); KnobHub.slnx
 │  ├─ KnobHub.Sdk/          Class library for apps
@@ -357,4 +416,6 @@ KnobHub/
 ## Status
 
 Working: the simulator, Knob Hub with the live preview, apps from GitHub, and the Media, AudioDesk and Counter
-apps. Next: the USB and Wi-Fi connection and the real board.
+apps, on both CrowPanel sizes and the planned motor knob (in the simulator and the preview), with haptics, the LEDs'
+modes and the screen timeout worked out in Knob OS. Next: the USB and Wi-Fi connection and the real boards (display,
+touch, encoder, backlight, LED and motor drivers).

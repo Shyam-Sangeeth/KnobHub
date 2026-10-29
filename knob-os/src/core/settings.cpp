@@ -1,4 +1,5 @@
-// The Settings app: four groups (Display, Lights, Connection, About), each a list page, plus dials for brightness.
+// The Settings app: groups (Display, Lights, Haptics, Connection, About; Lights and Haptics only on boards with LEDs
+// or haptics), each a list page, plus dials for brightness.
 // Pages are built with the same templates as Knob Hub apps, fed from here instead of from the PC.
 #include "settings.h"
 
@@ -7,7 +8,9 @@
 #include <cstring>
 #include <string>
 
+#include "haptics.h"
 #include "hal.h"
+#include "idle.h"
 #include "knob_os.h"
 #include "link.h"
 #include "screens.h"
@@ -25,9 +28,11 @@ const char* const TimeoutNames[] = {"15 s", "30 s", "1 min", "5 min", "Never"};
 constexpr int TimeoutCount = 5;
 const char* const LedModeNames[] = {"Level meter", "App colour", "Off"};
 constexpr int LedModeCount = 3;
+const char* const StrengthNames[] = {"Light", "Medium", "Strong"};
+constexpr int StrengthCount = 3;
 constexpr uint32_t Brightness = 0xF2C14E;
 
-enum class Page { None, Categories, Display, Lights, Connection, About, Dial };
+enum class Page { None, Categories, Display, Lights, Haptics, Connection, About, Dial };
 Page page = Page::None;           // the Settings page on top, if any
 TemplateScreen* page_screen = nullptr;
 Page dial_parent = Page::None;    // the page a brightness dial was opened from
@@ -42,6 +47,8 @@ void save() {
     d["dim_idle"] = values.dim_idle;
     d["leds_idle_off"] = values.leds_idle_off;
     d["clock_24h"] = values.clock_24h;
+    d["vibration"] = values.vibration;
+    d["haptics"] = values.haptics;
     d["name"] = values.name;
     std::string s;
     serializeJson(d, s);
@@ -56,11 +63,14 @@ void apply_values(JsonObjectConst msg) {
     if (msg["dim_idle"].is<bool>()) values.dim_idle = msg["dim_idle"];
     if (msg["leds_idle_off"].is<bool>()) values.leds_idle_off = msg["leds_idle_off"];
     if (msg["clock_24h"].is<bool>()) values.clock_24h = msg["clock_24h"];
+    if (msg["vibration"].is<bool>()) values.vibration = msg["vibration"];
+    if (msg["haptics"].is<int>()) values.haptics = std::min(StrengthCount - 1, std::max(0, msg["haptics"].as<int>()));
     if (msg["name"].is<const char*>()) values.name = msg["name"].as<const char*>();
 }
 
 void changed() {
-    hal_set_brightness(values.brightness);
+    idle::refresh();
+    haptics::reapply();
     save();
     send_all();
 }
@@ -76,12 +86,24 @@ void fill_categories(JsonDocument& d) {
     display["icon"] = "sun";
     std::snprintf(detail, sizeof detail, "%d%%, %s", values.brightness, TimeoutNames[values.timeout]);
     display["detail"] = detail;
-    JsonObject lights = items.add<JsonObject>();
-    lights["id"] = "lights";
-    lights["label"] = "Lights";
-    lights["icon"] = "lights";
-    std::snprintf(detail, sizeof detail, "%d%%, %s", values.led_brightness, LedModeNames[values.led_mode]);
-    lights["detail"] = detail;
+    const Board& board = hal_board();
+    if (board.leds > 0) {
+        JsonObject lights = items.add<JsonObject>();
+        lights["id"] = "lights";
+        lights["label"] = "Lights";
+        lights["icon"] = "lights";
+        std::snprintf(detail, sizeof detail, "%d%%, %s", values.led_brightness, LedModeNames[values.led_mode]);
+        lights["detail"] = detail;
+    }
+    if (board.vibration || board.motor) {
+        JsonObject feel = items.add<JsonObject>();
+        feel["id"] = "haptics";
+        feel["label"] = "Haptics";
+        feel["icon"] = "haptics";
+        std::snprintf(detail, sizeof detail, board.vibration ? "%s, vibration %s" : "%s", StrengthNames[values.haptics],
+                      values.vibration ? "on" : "off");
+        feel["detail"] = detail;
+    }
     JsonObject connection = items.add<JsonObject>();
     connection["id"] = "connection";
     connection["label"] = "Connection";
@@ -124,7 +146,12 @@ void fill_page(Page p, JsonDocument& d) {
             std::snprintf(value, sizeof value, "%d%%", values.led_brightness);
             add_row(items, "led_brightness", "LED brightness", "lights", value);
             add_row(items, "led_mode", "LED mode", "lights", LedModeNames[values.led_mode]);
-            add_row(items, "leds_idle", "LEDs when idle", "lights", values.leds_idle_off ? "Off" : "On");
+            add_row(items, "leds_idle", "When dimmed", "lights", values.leds_idle_off ? "Off" : "On");
+            break;
+        case Page::Haptics:
+            d["title"] = "HAPTICS";
+            add_row(items, "strength", "Strength", "haptics", StrengthNames[values.haptics]);
+            if (hal_board().vibration) add_row(items, "vibration", "Vibration", "haptics", values.vibration ? "On" : "Off");
             break;
         case Page::Connection:
             d["title"] = "CONNECTION";
@@ -203,6 +230,7 @@ void on_row(const TemplateEvent& ev) {
     if (page == Page::Categories) {
         if (id == "display") show(Page::Display, true);
         else if (id == "lights") show(Page::Lights, true);
+        else if (id == "haptics") show(Page::Haptics, true);
         else if (id == "connection") show(Page::Connection, true);
         else if (id == "about") show(Page::About, true);
         return;
@@ -214,6 +242,8 @@ void on_row(const TemplateEvent& ev) {
     else if (id == "clock") values.clock_24h = !values.clock_24h;
     else if (id == "led_mode") values.led_mode = (values.led_mode + 1) % LedModeCount;
     else if (id == "leds_idle") values.leds_idle_off = !values.leds_idle_off;
+    else if (id == "strength") values.haptics = (values.haptics + 1) % StrengthCount;
+    else if (id == "vibration") values.vibration = !values.vibration;
     else if (id == "pairing" || id == "forget" || id == "wifi") {
         toast_show(hub_link::connected() ? "Wi-Fi setup needs the real knob" : "Pair over USB first");
         return;
@@ -246,7 +276,6 @@ void load() {
     JsonDocument doc;
     if (deserializeJson(doc, data.data(), data.size())) return;
     apply_values(doc.as<JsonObjectConst>());
-    hal_set_brightness(values.brightness);
 }
 
 KnobSettings& get() { return values; }
@@ -260,7 +289,8 @@ void refresh() {
 void apply_from_hub(JsonObjectConst msg) {
     apply_values(msg);
     save();
-    hal_set_brightness(values.brightness);
+    idle::refresh();
+    haptics::reapply();
     if (page == Page::Dial && page_screen) {
         JsonDocument d;
         fill_dial(d);
@@ -285,6 +315,8 @@ void send_all() {
     d["dim_idle"] = values.dim_idle;
     d["leds_idle_off"] = values.leds_idle_off;
     d["clock_24h"] = values.clock_24h;
+    d["vibration"] = values.vibration;
+    d["haptics"] = values.haptics;
     d["name"] = values.name;
     hub_link::send(d);
 }

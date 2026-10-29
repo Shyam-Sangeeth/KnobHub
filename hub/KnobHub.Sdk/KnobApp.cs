@@ -97,6 +97,11 @@ public interface IKnobHost
 
     /// <summary>One of the app's <see cref="KnobApp.Settings"/>: the chosen option's index.</summary>
     int Setting(string id);
+
+    /// <summary>The knob's round screen, its diameter in pixels: 240 on the 1.28" CrowPanel, 360 on the 1.46" (480
+    /// with no knob connected: Knob Hub's preview's). Knob OS scales screens to it by itself; this is only for pictures an app
+    /// draws (sized for 240, times <c>ScreenSize / 240.0</c>).</summary>
+    int ScreenSize { get; }
 }
 
 /// <summary>Something done on one of the app's screens.</summary>

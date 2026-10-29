@@ -27,7 +27,7 @@ internal sealed class MediaApp : KnobApp
     };
 
     private const string Screen = "now";
-    private const int ArtSize = 80;
+    private const int ArtSize = 80;  // on a 240 px screen (Knob OS's design size)
     private const double SeekStep = 5;  // seconds per click of the knob, as the knob shows it
     private static readonly TimeSpan SeekWindow = TimeSpan.FromSeconds(2);
 
@@ -223,7 +223,8 @@ internal sealed class MediaApp : KnobApp
 
         // Read every time: apps (Spotify, Chrome) often add or replace the thumbnail a moment after the track starts.
         byte[]? thumbnail = await Thumbnail(media);
-        string key = thumbnail == null ? "" : Convert.ToHexString(SHA256.HashData(thumbnail));
+        // The screen's size is part of it: a knob of another size needs the art drawn again.
+        string key = thumbnail == null ? "" : Convert.ToHexString(SHA256.HashData(thumbnail)) + "@" + Scaled(ArtSize);
         bool changed = key != _artKey;
         if (changed)
         {
@@ -234,8 +235,11 @@ internal sealed class MediaApp : KnobApp
         return screen;
     }
 
-    private static KnobImage Picture(string text, double size, bool semibold = false) =>
-        KnobText.CanDraw(text) ? KnobImage.None : TextPicture.Draw(text, size, TextPicture.MaxWidth, semibold);
+    private KnobImage Picture(string text, double size, bool semibold = false) =>
+        KnobText.CanDraw(text) ? KnobImage.None : TextPicture.Draw(text, size * Host.ScreenSize / 240.0, TextPicture.MaxWidth, semibold);
+
+    /// <summary>A length on a 240 px screen, on this knob's.</summary>
+    private int Scaled(int length) => (int)Math.Round(length * Host.ScreenSize / 240.0);
 
     private static void Playback(GlobalSystemMediaTransportControlsSession session, MediaScreen screen)
     {
@@ -293,11 +297,12 @@ internal sealed class MediaApp : KnobApp
             int side = Math.Min(frame.PixelWidth, frame.PixelHeight);
             BitmapSource square = new CroppedBitmap(frame, new System.Windows.Int32Rect(
                 (frame.PixelWidth - side) / 2, (frame.PixelHeight - side) / 2, side, side));
-            double scale = (double)ArtSize / side;
+            int artSize = Scaled(ArtSize);
+            double scale = (double)artSize / side;
             var scaled = new TransformedBitmap(square, new ScaleTransform(scale, scale));
             var bgra = new FormatConvertedBitmap(scaled, PixelFormats.Bgra32, null, 0);
 
-            int w = Math.Min(ArtSize, bgra.PixelWidth), h = Math.Min(ArtSize, bgra.PixelHeight);
+            int w = Math.Min(artSize, bgra.PixelWidth), h = Math.Min(artSize, bgra.PixelHeight);
             var pixels = new byte[w * h * 4];
             bgra.CopyPixels(new System.Windows.Int32Rect(0, 0, w, h), pixels, w * 4, 0);
             return KnobImage.FromBgra32(pixels, w, h, w * 4);

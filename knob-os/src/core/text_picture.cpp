@@ -5,14 +5,17 @@
 
 namespace {
 constexpr int MaxWidth = 1024, MaxHeight = 64;
-constexpr int Gap = 24;  // between the end of the text and its start coming round again
+constexpr int Gap = 24;  // design px between the end of the text and its start coming round again
 }
 
 TextPicture::TextPicture(lv_obj_t* parent, int max_width) : max_width_(max_width), box_(ui::plain(parent)) {
     lv_obj_add_flag(box_, LV_OBJ_FLAG_HIDDEN);
     image_ = lv_image_create(box_);
     copy_ = lv_image_create(box_);
-    for (lv_obj_t* image : {image_, copy_}) lv_obj_set_style_image_recolor_opa(image, LV_OPA_COVER, 0);
+    for (lv_obj_t* image : {image_, copy_}) {
+        lv_obj_set_style_image_recolor_opa(image, LV_OPA_COVER, 0);
+        lv_image_set_pivot(image, 0, 0);  // scaled from its top left, where it's placed
+    }
 }
 
 TextPicture::~TextPicture() {
@@ -40,8 +43,12 @@ bool TextPicture::set(JsonObjectConst picture) {
     dsc_.header.stride = w;
     dsc_.data_size = static_cast<uint32_t>(pixels_.size());
     dsc_.data = pixels_.data();
-    lv_image_set_src(image_, &dsc_);
-    lv_image_set_src(copy_, &dsc_);
+    w_ = ui::picture_px(w, picture["screen"] | 0);
+    h_ = ui::picture_px(h, picture["screen"] | 0);
+    for (lv_obj_t* image : {image_, copy_}) {
+        lv_image_set_src(image, &dsc_);
+        lv_image_set_scale(image, w_ == w ? LV_SCALE_NONE : static_cast<uint32_t>(LV_SCALE_NONE * w_ / w));
+    }
     return true;
 }
 
@@ -58,7 +65,7 @@ void TextPicture::show(bool visible, int center_x, int center_y) {
     }
     if (shown_) return;  // already on show (and maybe scrolling)
     shown_ = true;
-    int w = dsc_.header.w, h = dsc_.header.h;
+    int w = w_, h = h_;
     int box_width = w < max_width_ ? w : max_width_;
     lv_obj_set_size(box_, box_width, h);
     lv_obj_set_pos(box_, center_x - box_width / 2, center_y - h / 2);
@@ -70,14 +77,14 @@ void TextPicture::show(bool visible, int center_x, int center_y) {
     }
     // Scroll round: the picture moves left by its width and the gap while the copy comes in behind it.
     lv_obj_remove_flag(copy_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_pos(copy_, w + Gap, 0);
+    lv_obj_set_pos(copy_, w + ui::px(Gap), 0);
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, image_);
     lv_anim_set_user_data(&a, this);
     lv_anim_set_custom_exec_cb(&a, scroll);
-    lv_anim_set_values(&a, 0, -(w + Gap));
-    lv_anim_set_duration(&a, static_cast<uint32_t>((w + Gap) * 1000 / ui::MarqueeSpeed));
+    lv_anim_set_values(&a, 0, -(w + ui::px(Gap)));
+    lv_anim_set_duration(&a, static_cast<uint32_t>((w + ui::px(Gap)) * 1000 / ui::px(ui::MarqueeSpeed)));
     lv_anim_set_delay(&a, ui::MarqueePauseMs);
     lv_anim_set_repeat_delay(&a, ui::MarqueePauseMs);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
@@ -87,7 +94,7 @@ void TextPicture::show(bool visible, int center_x, int center_y) {
 void TextPicture::scroll(lv_anim_t* a, int32_t x) {
     auto* self = static_cast<TextPicture*>(lv_anim_get_user_data(a));
     lv_obj_set_x(self->image_, x);
-    lv_obj_set_x(self->copy_, x + self->dsc_.header.w + Gap);
+    lv_obj_set_x(self->copy_, x + self->w_ + ui::px(Gap));
 }
 
 void TextPicture::stop() { lv_anim_delete(image_, nullptr); }

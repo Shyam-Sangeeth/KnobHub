@@ -6,8 +6,9 @@
 #include <vector>
 
 // Text that Knob Hub drew because the knob's fonts can't (Malayalam, Hindi, Japanese...): an alpha-only picture shown
-// in a colour, in place of a label. Sent as {w, h, a8: base64 of w*h alpha bytes, row by row}; anything else, such
-// as {}, means "no picture: use the label". A picture wider than the space scrolls round like ui::marquee.
+// in a colour, in place of a label. Sent as {w, h, a8: base64 of w*h alpha bytes, row by row, screen: the screen size
+// it was drawn for}; anything else, such as {}, means "no picture: use the label". A picture drawn for another screen
+// size is scaled (ui::picture_px). A picture wider than the space scrolls round like ui::marquee.
 class TextPicture {
 public:
     TextPicture(lv_obj_t* parent, int max_width);
@@ -32,5 +33,6 @@ private:
     lv_obj_t* copy_;    // follows the picture round while it scrolls
     std::vector<uint8_t> pixels_;
     lv_image_dsc_t dsc_ = {};
+    int w_ = 0, h_ = 0;  // as shown: scaled when drawn for another screen size
     bool shown_ = false;
 };

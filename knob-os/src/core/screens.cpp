@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "haptics.h"
+
 namespace screens {
 namespace {
 
@@ -72,8 +74,18 @@ Screen* top() { return stack.empty() ? nullptr : stack.back(); }
 
 int depth() { return static_cast<int>(stack.size()); }
 
+// Turning ticks when it changed something and bumps at an end stop; pressing (or a long press) clicks.
 void input(KnobInput in) {
-    if (Screen* s = top()) s->input(in);
+    Screen* s = top();
+    if (!s) return;
+    bool turn = in == KnobInput::TurnRight || in == KnobInput::TurnLeft;
+    haptics::Feel before = s->feel();
+    int depth_before = depth();
+    s->input(in);
+    if (!turn) haptics::play(haptics::Effect::Click);
+    else if (top() != s || depth() != depth_before) haptics::turned(true);  // it opened or closed a screen
+    else haptics::turned(!before.bounded() || s->feel().position != before.position);
+    if (Screen* now = top()) haptics::apply(now->feel());
 }
 
 }  // namespace screens

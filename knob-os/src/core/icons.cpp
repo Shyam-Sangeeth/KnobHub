@@ -14,7 +14,7 @@
 namespace icons {
 namespace {
 
-constexpr int MaxSize = 64;
+constexpr int MaxSize = 128;
 constexpr const char* CacheFile = "icons.bin";
 constexpr uint32_t CacheMagic = 0x3143494B;  // "KIC1"
 constexpr uint32_t SaveDelayMs = 1500;       // icons come in bursts: saved once they stop

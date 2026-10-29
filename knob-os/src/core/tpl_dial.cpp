@@ -13,23 +13,23 @@ namespace {
 constexpr uint32_t ArcTrack = 0x22252B;
 constexpr uint32_t ButtonText = 0xD5D8DE;
 constexpr int Step = 2;  // percent per click of the knob, shown right away; the app confirms with an update
-constexpr int IconSize = 16;
-constexpr int Gap = 10;  // between the icon, the label, the value and the button
+constexpr int IconSize = 16;  // design px
+constexpr int Gap = 10;  // between the icon, the label, the value and the button (design px)
 
 class DialScreen : public TemplateScreen {
 public:
     DialScreen(JsonObjectConst data, TemplateSink sink) : TemplateScreen(ui::screen_root(screens::parent()), std::move(sink)) {
         lv_obj_t* r = root();
-        arc_ = ui::arc(r, 214, 9, 135, 270, ArcTrack, color_);
+        arc_ = ui::arc(r, ui::px(214), ui::px(9), 135, 270, ArcTrack, color_);
         lv_obj_center(arc_);
-        level_ = ui::arc(r, 190, 3, 135, 270, ArcTrack, color_);
+        level_ = ui::arc(r, ui::px(190), ui::px(3), 135, 270, ArcTrack, color_);
         lv_obj_center(level_);
         lv_obj_set_style_arc_opa(level_, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_arc_opa(level_, LV_OPA_40, LV_PART_INDICATOR);
 
-        name_ = ui::label(r, "", &knob_font_12, theme::TextSecondary);
-        lv_obj_set_style_text_letter_space(name_, 1, 0);
-        value_ = ui::label(r, "", &knob_font_48, theme::Text);
+        name_ = ui::label(r, "", ui::font(12), theme::TextSecondary);
+        lv_obj_set_style_text_letter_space(name_, ui::px(1), 0);
+        value_ = ui::label(r, "", ui::font(48), theme::Text);
 
         button_ = ui::plain(r);
         lv_obj_add_flag(button_, LV_OBJ_FLAG_CLICKABLE);
@@ -37,20 +37,20 @@ public:
         lv_obj_set_size(button_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_set_style_bg_color(button_, theme::color(theme::Surface), 0);
         lv_obj_set_style_bg_opa(button_, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(button_, 6, 0);
-        lv_obj_set_style_pad_hor(button_, 8, 0);
-        lv_obj_set_style_pad_ver(button_, 5, 0);
+        lv_obj_set_style_radius(button_, ui::px(6), 0);
+        lv_obj_set_style_pad_hor(button_, ui::px(8), 0);
+        lv_obj_set_style_pad_ver(button_, ui::px(5), 0);
         lv_obj_set_flex_flow(button_, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(button_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(button_, 5, 0);
-        button_label_ = ui::label(button_, "", &knob_font_12, ButtonText);
-        ui::label(button_, LV_SYMBOL_DOWN, &knob_font_12, theme::TextMuted);
+        lv_obj_set_style_pad_column(button_, ui::px(5), 0);
+        button_label_ = ui::label(button_, "", ui::font(12), ButtonText);
+        ui::label(button_, LV_SYMBOL_DOWN, ui::font(12), theme::TextMuted);
         lv_obj_add_event_cb(button_, on_button, LV_EVENT_CLICKED, this);
         lv_obj_add_flag(button_, LV_OBJ_FLAG_HIDDEN);  // until the app gives it a label
 
         // Just below the arc ends, where the screen is still about 146 px wide.
-        hint_ = ui::label(r, "", &knob_font_12, theme::TextMuted);
-        lv_obj_align(hint_, LV_ALIGN_TOP_MID, 0, 201);
+        hint_ = ui::label(r, "", ui::font(12), theme::TextMuted);
+        lv_obj_align(hint_, LV_ALIGN_TOP_MID, 0, ui::px(201));
 
         update(data);
     }
@@ -75,6 +75,18 @@ public:
         }
     }
 
+    // The value as the level meter (none while muted), along the dial's arc.
+    lights::Glow glow() const override { return {color_, muted_ ? 0 : value_now_, 135, 270}; }
+
+    // A fine click per step, with end stops at 0 and 100.
+    haptics::Feel feel() const override {
+        haptics::Feel f;
+        f.positions = 100 / Step + 1;
+        f.position = value_now_ / Step;
+        f.detent = haptics::Detent::Fine;
+        return f;
+    }
+
     void update(JsonObjectConst data) override {
         bool icon_changed = false;
         if (data["color"].is<const char*>()) {
@@ -89,7 +101,7 @@ public:
         if (icon_changed) {
             // A picture or a font symbol, so it's made again rather than changed.
             if (icon_) lv_obj_delete(icon_);
-            icon_ = ui::icon(root(), icon_name_, IconSize, color_);
+            icon_ = ui::icon(root(), icon_name_, ui::px(IconSize), color_);
         }
         if (data["label"].is<const char*>()) lv_label_set_text(name_, data["label"]);
         if (data["unit"].is<const char*>()) unit_ = data["unit"].as<const char*>();
@@ -98,12 +110,12 @@ public:
         if (data["level"].is<float>()) lv_arc_set_value(level_, static_cast<int>(data["level"].as<float>() * 100));
         if (data["hint"].is<const char*>()) {
             lv_label_set_text(hint_, data["hint"]);
-            ui::one_line(hint_, 146);
+            ui::one_line(hint_, ui::px(146));
         }
         if (data["button"].is<JsonObjectConst>()) {
             button_id_ = data["button"]["id"] | "";
             lv_label_set_text(button_label_, data["button"]["label"] | "");
-            ui::one_line(button_label_, 120);  // the button stays inside the arc
+            ui::one_line(button_label_, ui::px(120));  // the button stays inside the arc
             lv_obj_remove_flag(button_, LV_OBJ_FLAG_HIDDEN);
         } else if (data["button"].is<bool>()) {  // "button": false hides it
             lv_obj_add_flag(button_, LV_OBJ_FLAG_HIDDEN);
@@ -121,26 +133,27 @@ private:
     // The icon, the label, the value and the button (when shown), a fixed gap apart (by what's drawn: a label's letters
     // sit inside its line) and centred on the screen together; the hint stays below the arc's ends.
     void lay_out() {
-        const lv_font_t* small = &knob_font_12;
-        const lv_font_t* big = &knob_font_48;
+        const lv_font_t* small = ui::font(12);
+        const lv_font_t* big = ui::font(48);
+        const int icon_size = ui::px(IconSize), gap = ui::px(Gap);
         bool button = !lv_obj_has_flag(button_, LV_OBJ_FLAG_HIDDEN);
         int button_height = 0;
         if (button) {
             lv_obj_update_layout(button_);
             button_height = lv_obj_get_height(button_);
         }
-        int height = (icon_ ? IconSize + Gap : 0) + ui::ink_height(small) + Gap + ui::ink_height(big, '0') +
-                     (button ? Gap + button_height : 0);
-        int y = (ui::Size - height) / 2;
+        int height = (icon_ ? icon_size + gap : 0) + ui::ink_height(small) + gap + ui::ink_height(big, '0') +
+                     (button ? gap + button_height : 0);
+        int y = (ui::size() - height) / 2;
         if (icon_) {
             lv_obj_update_layout(icon_);
-            lv_obj_align(icon_, LV_ALIGN_TOP_MID, 0, y + (IconSize - lv_obj_get_height(icon_)) / 2);
-            y += IconSize + Gap;
+            lv_obj_align(icon_, LV_ALIGN_TOP_MID, 0, y + (icon_size - lv_obj_get_height(icon_)) / 2);
+            y += icon_size + gap;
         }
         lv_obj_align(name_, LV_ALIGN_TOP_MID, 0, y - ui::ink_top(small));
-        y += ui::ink_height(small) + Gap;
+        y += ui::ink_height(small) + gap;
         lv_obj_align(value_, LV_ALIGN_TOP_MID, 0, y - ui::ink_top(big, '0'));
-        y += ui::ink_height(big, '0') + Gap;
+        y += ui::ink_height(big, '0') + gap;
         if (button) lv_obj_align(button_, LV_ALIGN_TOP_MID, 0, y);
     }
 

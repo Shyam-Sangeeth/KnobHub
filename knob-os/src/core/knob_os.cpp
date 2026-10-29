@@ -7,10 +7,12 @@
 #include "apps.h"
 #include "home.h"
 #include "icons.h"
+#include "idle.h"
 #include "link.h"
 #include "screens.h"
 #include "settings.h"
 #include "theme.h"
+#include "ui.h"
 
 namespace {
 void read_remote_touch(lv_indev_t*, lv_indev_data_t* data);
@@ -24,7 +26,7 @@ void knob_os_start() {
     // The panel itself is round; everything is drawn inside this circle, so the simulator looks the same.
     lv_obj_t* circle = lv_obj_create(screen);
     lv_obj_remove_style_all(circle);
-    lv_obj_set_size(circle, 240, 240);
+    lv_obj_set_size(circle, ui::size(), ui::size());
     lv_obj_center(circle);
     lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_clip_corner(circle, true, 0);
@@ -42,7 +44,16 @@ void knob_os_start() {
     lv_indev_t* remote = lv_indev_create();
     lv_indev_set_type(remote, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(remote, read_remote_touch);
-    hal_set_brightness(settings::get().brightness);
+    idle::init();
+
+    // A screen's feel and glow also change without the knob being turned (an app updates it, a screen opens, a
+    // setting changes): the motor and the LEDs follow them.
+    lv_timer_create([](lv_timer_t*) {
+        if (Screen* s = screens::top()) {
+            haptics::apply(s->feel());
+            lights::apply(s->glow());
+        }
+    }, 50, nullptr);
 }
 
 namespace {
@@ -62,6 +73,7 @@ bool knob_input_parse(const char* name, KnobInput& out) {
 }
 
 void knob_os_input(KnobInput input) {
+    if (idle::input()) return;  // it only woke the screen
     JsonDocument key;
     key["t"] = "key";
     key["input"] = knob_input_name(input);

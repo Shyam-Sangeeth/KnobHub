@@ -28,11 +28,11 @@ constexpr uint32_t DetailText = 0xB8BDC6;  // lighter than secondary text: it si
 constexpr uint32_t Unset = 0xFFFFFFFF;     // a colour the app didn't send
 constexpr uint32_t PickerRestMs = 600;     // the picker picks once the knob has rested this long
 constexpr uint32_t DoublePressMs = 350;    // a second press within this reports press
-constexpr int IconSize = 16, IconBox = IconSize + 12, CardWidth = 156, CardHeight = 46, TextWidth = 134;
-constexpr int ToggleHeight = 24;
-constexpr int RowGap = 12;      // between the icon, the name, the toggle, the card and the number
-constexpr int ContentTop = 26;  // just inside the ring
-constexpr int ValueTop = 173;   // the number sits in the gap at the bottom of the ring
+constexpr int IconSize = 16, IconBox = IconSize + 12, CardWidth = 156, CardHeight = 46, TextWidth = 134;  // design px
+constexpr int ToggleHeight = 24;  // design px
+constexpr int RowGap = 12;      // between the icon, the name, the toggle, the card and the number (design px)
+constexpr int ContentTop = 26;  // just inside the ring (design px)
+constexpr int ValueTop = 173;   // the number sits in the gap at the bottom of the ring (design px)
 
 struct Option {
     std::string id, name, detail;
@@ -44,52 +44,52 @@ class ControlsScreen : public TemplateScreen {
 public:
     ControlsScreen(JsonObjectConst data, TemplateSink sink) : TemplateScreen(ui::screen_root(screens::parent()), std::move(sink)) {
         lv_obj_t* r = root();
-        arc_ = ui::arc(r, 214, 9, 135, 270, ArcTrack, color_);
+        arc_ = ui::arc(r, ui::px(214), ui::px(9), 135, 270, ArcTrack, color_);
         lv_obj_center(arc_);
 
         // The icon (tap: press) and the name.
         icon_box_ = ui::plain(r);
-        lv_obj_set_size(icon_box_, IconBox, IconBox);  // a bigger target than the icon
+        lv_obj_set_size(icon_box_, ui::px(IconBox), ui::px(IconBox));  // a bigger target than the icon
         lv_obj_add_flag(icon_box_, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(icon_box_, on_icon, LV_EVENT_CLICKED, this);
         ui::press_feedback(icon_box_, 88);
-        name_ = ui::label(r, "", &knob_font_12, theme::TextSecondary);
-        lv_obj_set_style_text_letter_space(name_, 1, 0);
+        name_ = ui::label(r, "", ui::font(12), theme::TextSecondary);
+        lv_obj_set_style_text_letter_space(name_, ui::px(1), 0);
 
         // The toggle: a pill with an optional icon.
         toggle_ = ui::plain(r);
-        lv_obj_set_size(toggle_, LV_SIZE_CONTENT, ToggleHeight);
+        lv_obj_set_size(toggle_, LV_SIZE_CONTENT, ui::px(ToggleHeight));
         lv_obj_set_style_radius(toggle_, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(toggle_, 1, 0);
+        lv_obj_set_style_border_width(toggle_, ui::px(1), 0);
         lv_obj_set_style_bg_opa(toggle_, LV_OPA_COVER, 0);
-        lv_obj_set_style_pad_hor(toggle_, 11, 0);
-        lv_obj_set_style_pad_column(toggle_, 5, 0);
+        lv_obj_set_style_pad_hor(toggle_, ui::px(11), 0);
+        lv_obj_set_style_pad_column(toggle_, ui::px(5), 0);
         lv_obj_set_flex_flow(toggle_, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(toggle_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        toggle_text_ = ui::label(toggle_, "", &knob_font_12, theme::TextSecondary);
+        toggle_text_ = ui::label(toggle_, "", ui::font(12), theme::TextSecondary);
         touchable(toggle_, Toggle);
 
         // The picker: the option's name and detail on a card, both scrolling when long.
         card_ = ui::plain(r);
-        lv_obj_set_size(card_, CardWidth, CardHeight);
-        lv_obj_set_style_radius(card_, 12, 0);
+        lv_obj_set_size(card_, ui::px(CardWidth), ui::px(CardHeight));
+        lv_obj_set_style_radius(card_, ui::px(12), 0);
         lv_obj_set_style_bg_color(card_, theme::color(theme::Surface), 0);
         lv_obj_set_style_bg_opa(card_, LV_OPA_COVER, 0);
         touchable(card_, Picker);
-        option_name_ = ui::label(card_, "", &knob_font_14, theme::Text);
-        option_detail_ = ui::label(card_, "", &knob_font_12, DetailText);
+        option_name_ = ui::label(card_, "", ui::font(14), theme::Text);
+        option_detail_ = ui::label(card_, "", ui::font(12), DetailText);
         for (int side = 0; side < 2; side++) {  // turning picks: shown while the card is selected
-            arrows_[side] = ui::label(card_, side == 0 ? LV_SYMBOL_LEFT : LV_SYMBOL_RIGHT, &knob_font_12, theme::TextMuted);
-            lv_obj_align(arrows_[side], side == 0 ? LV_ALIGN_LEFT_MID : LV_ALIGN_RIGHT_MID, side == 0 ? 4 : -4, 0);
+            arrows_[side] = ui::label(card_, side == 0 ? LV_SYMBOL_LEFT : LV_SYMBOL_RIGHT, ui::font(12), theme::TextMuted);
+            lv_obj_align(arrows_[side], side == 0 ? LV_ALIGN_LEFT_MID : LV_ALIGN_RIGHT_MID, side == 0 ? ui::px(4) : -ui::px(4), 0);
         }
 
         // The number (or the muted text) in the space at the bottom of the ring.
         value_box_ = ui::plain(r);
-        lv_obj_set_size(value_box_, 96, 34);
-        lv_obj_align(value_box_, LV_ALIGN_TOP_MID, 0, ValueTop);
-        lv_obj_set_style_radius(value_box_, 10, 0);
+        lv_obj_set_size(value_box_, ui::px(96), ui::px(34));
+        lv_obj_align(value_box_, LV_ALIGN_TOP_MID, 0, ui::px(ValueTop));
+        lv_obj_set_style_radius(value_box_, ui::px(10), 0);
         touchable(value_box_, Value);
-        value_ = ui::label(value_box_, "", &knob_font_28, theme::Text);
+        value_ = ui::label(value_box_, "", ui::font(28), theme::Text);
         lv_obj_center(value_);
 
         update(data);
@@ -106,6 +106,32 @@ public:
             case KnobInput::Press: press(); break;
             case KnobInput::Back: emit("back"); break;
         }
+    }
+
+    // The value as the level meter (none while muted), along the value's arc, whichever control is in focus.
+    lights::Glow glow() const override { return {color_, muted_ ? 0 : value_now_, 135, 270}; }
+
+    // The focused control's feel: fine steps for the value, firm clicks for the toggle and the picker.
+    haptics::Feel feel() const override {
+        if (!available(focus_)) return {};
+        haptics::Feel f;
+        if (focus_ == Value) {
+            f.positions = 100 / step_ + 1;
+            f.position = value_now_ / step_;
+            f.detent = haptics::Detent::Fine;
+        } else if (focus_ == Toggle) {
+            f.positions = 2;
+            f.position = toggle_on_ ? 1 : 0;
+            f.wrap = true;
+            f.detent = haptics::Detent::Firm;
+        } else if (focus_ == Picker) {
+            if (options_.empty()) return {};
+            f.positions = static_cast<int>(options_.size());
+            f.position = std::max(0, shown_);
+            f.wrap = true;
+            f.detent = haptics::Detent::Firm;
+        }
+        return f;
     }
 
     void update(JsonObjectConst data) override {
@@ -160,7 +186,7 @@ private:
             if (toggle_icon_) lv_obj_delete(toggle_icon_);
             toggle_icon_ = nullptr;
             if (!toggle_icon_name_.empty()) {
-                toggle_icon_ = ui::icon(toggle_, toggle_icon_name_, 12, theme::TextMuted);
+                toggle_icon_ = ui::icon(toggle_, toggle_icon_name_, ui::px(12), theme::TextMuted);
                 lv_obj_move_to_index(toggle_icon_, 0);  // before the label
             }
         }
@@ -274,16 +300,17 @@ private:
     // --- Drawing ---
 
     void draw_icon() {
+        const int icon_size = ui::px(IconSize);
         lv_obj_clean(icon_box_);
         uint32_t color = muted_ ? theme::TextMuted : color_;
-        lv_obj_t* icon = ui::icon(icon_box_, icon_name_, IconSize, color);
+        lv_obj_t* icon = ui::icon(icon_box_, icon_name_, icon_size, color);
         lv_obj_center(icon);
         if (muted_) {
             lv_obj_t* slash = ui::plain(icon_box_);  // the slash's box sits over the icon
-            lv_obj_set_size(slash, IconSize, IconSize);
+            lv_obj_set_size(slash, icon_size, icon_size);
             lv_obj_center(slash);
             lv_obj_add_flag(slash, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-            ui::cross_out(slash, IconSize, color, theme::Screen);
+            ui::cross_out(slash, icon_size, color, theme::Screen);
         }
     }
 
@@ -297,10 +324,10 @@ private:
         lv_obj_set_style_arc_color(arc_, theme::color(muted_ ? theme::TextMuted : color_), LV_PART_INDICATOR);
 
         if (muted_) {
-            lv_obj_set_style_text_font(value_, &knob_font_20, 0);
+            lv_obj_set_style_text_font(value_, ui::font(20), 0);
             lv_label_set_text(value_, muted_text_.c_str());
         } else {
-            lv_obj_set_style_text_font(value_, &knob_font_28, 0);
+            lv_obj_set_style_text_font(value_, ui::font(28), 0);
             lv_label_set_text_fmt(value_, "%d%s", value_now_, unit_.c_str());
         }
 
@@ -317,15 +344,15 @@ private:
         }
 
         const Option* o = shown_ >= 0 && shown_ < static_cast<int>(options_.size()) ? &options_[shown_] : nullptr;
-        set_text(option_name_, o ? o->name.c_str() : empty_text_.c_str(), 6);
-        set_text(option_detail_, o ? o->detail.c_str() : "", -6);
+        set_text(option_name_, o ? o->name.c_str() : empty_text_.c_str(), ui::px(6));
+        set_text(option_detail_, o ? o->detail.c_str() : "", -ui::px(6));
         for (lv_obj_t* arrow : arrows_) set_hidden(arrow, !(focus_ == Picker && options_.size() > 1));
 
         // The selected control's outline; the value needs none (the ring and the number are the value).
         lv_obj_t* controls[] = {value_box_, toggle_, card_};
         for (int i = 0; i < 3; i++) {
             bool on = i == focus_ && i != Value;
-            lv_obj_set_style_outline_width(controls[i], on ? 2 : 0, 0);
+            lv_obj_set_style_outline_width(controls[i], on ? ui::px(2) : 0, 0);
             lv_obj_set_style_outline_color(controls[i], theme::color(theme::Text), 0);
             lv_obj_set_style_outline_pad(controls[i], 0, 0);  // close round it
         }
@@ -335,19 +362,23 @@ private:
     // the number's digits (so the gap down to them comes out the same too). Spaced by what's drawn: a label's letters
     // sit inside its line, and the icon inside its bigger tap box.
     void lay_out() {
-        const int name_top = ui::ink_top(&knob_font_12), name_height = ui::ink_height(&knob_font_12);
-        const int digits_top = ValueTop + (34 - lv_font_get_line_height(&knob_font_28)) / 2 + ui::ink_top(&knob_font_28, '0');
-        int height = IconSize + RowGap + name_height;
-        if (has_toggle_) height += RowGap + ToggleHeight;
-        if (has_picker_) height += RowGap + CardHeight;
-        int y = ContentTop + (digits_top - ContentTop - height) / 2;
-        lv_obj_align(icon_box_, LV_ALIGN_TOP_MID, 0, y - (IconBox - IconSize) / 2);
-        y += IconSize + RowGap;
+        const lv_font_t* font_12 = ui::font(12);
+        const lv_font_t* font_28 = ui::font(28);
+        const int icon_size = ui::px(IconSize), row_gap = ui::px(RowGap);
+        const int toggle_height = ui::px(ToggleHeight);
+        const int name_top = ui::ink_top(font_12), name_height = ui::ink_height(font_12);
+        const int digits_top = ui::px(ValueTop) + (ui::px(34) - lv_font_get_line_height(font_28)) / 2 + ui::ink_top(font_28, '0');
+        int height = icon_size + row_gap + name_height;
+        if (has_toggle_) height += row_gap + toggle_height;
+        if (has_picker_) height += row_gap + ui::px(CardHeight);
+        int y = ui::px(ContentTop) + (digits_top - ui::px(ContentTop) - height) / 2;
+        lv_obj_align(icon_box_, LV_ALIGN_TOP_MID, 0, y - (ui::px(IconBox) - icon_size) / 2);
+        y += icon_size + row_gap;
         lv_obj_align(name_, LV_ALIGN_TOP_MID, 0, y - name_top);
-        y += name_height + RowGap;
+        y += name_height + row_gap;
         if (has_toggle_) {
             lv_obj_align(toggle_, LV_ALIGN_TOP_MID, 0, y);
-            y += ToggleHeight + RowGap;
+            y += toggle_height + row_gap;
         }
         if (has_picker_) lv_obj_align(card_, LV_ALIGN_TOP_MID, 0, y);
     }
@@ -356,7 +387,7 @@ private:
     static void set_text(lv_obj_t* label, const char* text, int y) {
         if (std::string(lv_label_get_text(label)) != text) {
             lv_label_set_text(label, text);
-            ui::marquee(label, TextWidth);
+            ui::marquee(label, ui::px(TextWidth));
         }
         lv_obj_align(label, y > 0 ? LV_ALIGN_TOP_MID : LV_ALIGN_BOTTOM_MID, 0, y);
     }

@@ -8,10 +8,27 @@
 
 #include <string>
 
-// Small helpers shared by Knob OS's screens. Sizes are at the knob's real 240x240 scale.
+// Small helpers shared by Knob OS's screens.
+//
+// Screens are designed for a 240 px screen and scaled to the board's (360 px on the 1.46" CrowPanel): every length in
+// a screen's code is a design length passed through px(), and fonts come from font() and digits() by design size.
+// Lengths measured at run time (a label's width, a font's line height) are real pixels already. The helpers below
+// take real pixels.
 namespace ui {
 
-constexpr int Size = 240;
+constexpr int DesignSize = 240;
+
+// The round screen's diameter, pixels.
+int size();
+
+// A design length (at 240 px) on this screen, rounded.
+int px(int design);
+
+// Knob OS's font for a design size (8, 12, 14, 16, 20, 24, 28; 48 for big ASCII), scaled to this screen.
+const lv_font_t* font(int design_size);
+
+// The digits-only font for a design size (36, 60, 72, 96), for big numbers.
+const lv_font_t* digits(int design_size);
 
 // A full-size container for a screen inside the round display.
 lv_obj_t* screen_root(lv_obj_t* parent);
@@ -35,7 +52,7 @@ int ink_top(const lv_font_t* font, uint32_t letter = 'M');
 int ink_height(const lv_font_t* font, uint32_t letter = 'M');
 
 // The marquee's speed and pause, shared with pictures of text that scroll the same way.
-constexpr int MarqueeSpeed = 30;        // pixels per second
+constexpr int MarqueeSpeed = 30;        // design pixels per second (px(MarqueeSpeed) on this screen)
 constexpr int MarqueePauseMs = 1500;
 
 // A filled circle with an optional border.
@@ -57,6 +74,11 @@ uint32_t light(uint32_t color);
 // let go. Big objects (list rows) want a smaller change than buttons.
 void press_feedback(lv_obj_t* obj, int scale_percent = 92);
 
+// A length of a picture Knob Hub drew (album art, text) on this screen. Pictures carry the screen size they were drawn
+// for ("screen"; 0 when missing, meaning this one's): Knob Hub's preview shows the connected knob's, which may be
+// another size.
+int picture_px(int length, int drawn_for);
+
 // Decodes base64 (e.g. an image Knob Hub sent); stops at the first character that isn't base64.
 std::vector<uint8_t> base64_decode(const char* text);
 
@@ -75,7 +97,8 @@ void cross_out(lv_obj_t* box, int size, uint32_t color, uint32_t background);
 // Changes an icon's colour (a picture or a font symbol, as made by icon).
 void set_icon_color(lv_obj_t* icon, uint32_t color);
 
-// A small round badge with an icon in it, 15 px, centred at (center_x, center_y) in parent: e.g. on a tile's ring.
+// A small round badge with an icon in it, 15 px (design), centred at (center_x, center_y) in parent: e.g. on a tile's
+// ring.
 lv_obj_t* badge(lv_obj_t* parent, const std::string& icon, int center_x, int center_y, uint32_t color);
 
 }  // namespace ui

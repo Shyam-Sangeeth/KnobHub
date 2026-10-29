@@ -1,7 +1,9 @@
 #pragma once
 #include <lvgl.h>
 
+#include "haptics.h"
 #include "input.h"
+#include "lights.h"
 
 // A full-screen view inside the round display: Home, an app screen, a Settings page, a message.
 class Screen {
@@ -12,6 +14,12 @@ public:
     Screen& operator=(const Screen&) = delete;
 
     virtual void input(KnobInput) {}
+    // How turning the knob should feel on this screen right now (on boards with a motor on the knob): its detents
+    // and end stops, from what the screen shows. The default is endless medium clicks.
+    virtual haptics::Feel feel() const { return {}; }
+    // What the LEDs show on this screen (on boards with LEDs): its colour and level. The default is the open app's
+    // colour with no level.
+    virtual lights::Glow glow() const { return {}; }
     lv_obj_t* root() const { return root_; }
 
 private:
