@@ -81,14 +81,17 @@ powershell -ExecutionPolicy Bypass -File Plugins\pack-release.ps1 [-NoPublish]  
 
 Editing `platformio.ini` wipes PlatformIO's build folders, so rebuild both `sim` and `preview` afterwards.
 
-There are no unit tests. Check changes in the **simulator** and in Knob Hub's **live preview** (a virtual knob when no
-simulator is connected), and keep `design/screenshots/` current when screens change.
+There are no unit tests. Check changes with the scripts in `tools/` (see its README), in the **simulator** and in
+Knob Hub's **live preview** (a virtual knob when no simulator is connected), and keep `design/screenshots/` current
+when screens change.
 
-- **Pixel checks:** drive `knob_preview.dll` from a script (ctypes): `kp_screen(240)` or `kp_screen(360)`, `kp_board`,
-  `kp_start`, then send link messages and read `kp_frame`. Screens at 240 must stay identical pixel for pixel unless
-  the change is meant to show.
-- **Without the user's mouse or focus:** post `WM_MOUSEWHEEL` (turn) and `WM_MBUTTONDOWN`/`UP` (press) to the
-  simulator's window (it can stay minimized), and capture Knob Hub with `PrintWindow`. Knob OS's own Settings >
+- **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout) through the preview
+  DLL. Add a check there when you add behaviour.
+- **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical
+  pixel for pixel unless the change is meant to show.
+- **Without the user's mouse or focus:** `tools/sim-capture.ps1` posts wheel and middle-button messages to the
+  simulator's window (it can stay minimized), and `tools/hub-shots.ps1` captures Knob Hub with `PrintWindow` (it
+  backs up and restores the settings). Knob OS's own Settings >
   Display > Brightness is a dial that's safe to open. Don't open apps that act on the PC (AudioDesk, Media) to test.
 
 ## Layout

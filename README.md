@@ -356,6 +356,12 @@ KnobHub\bin\Debug\net10.0-windows10.0.19041.0\KnobHub.exe
 Building Knob Hub also builds `knob_preview.dll` (`pio run -e preview`) if it's missing and copies it next to the
 app. Knob Hub connects to the simulator on 127.0.0.1:5718 and retries every 2 seconds.
 
+### Checks
+
+`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout) through
+the preview DLL, without a knob. `tools/tour.py` and `tools/compare.py` show whether a change altered any screen. See
+[`tools/README.md`](tools/README.md).
+
 ### The real knob
 
 ```bash
@@ -410,7 +416,8 @@ KnobHub/
 ├─ design/
 │  ├─ screenshots/          Every knob screen, by app
 │  └─ recreated/            The screens recreated in HTML/CSS, one page per app
-└─ docs/screenshots/        Knob Hub screenshots for this README
+├─ docs/screenshots/        Knob Hub screenshots for this README
+└─ tools/                   Checks through the preview DLL, screen tours, simulator and Knob Hub screenshots
 ```
 
 ## Status
