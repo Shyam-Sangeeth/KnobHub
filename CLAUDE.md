@@ -1,8 +1,9 @@
 # Knob Hub
 
-A PC controller on a round ESP32-S3 knob display: the Elecrow CrowPanel 1.28" (240 x 240) or 1.46" (360 x 360)
-rotary displays, and later the user's own knob with a motor (SmartKnob style). Screens are always round and boards
-always ESP32s. Two halves:
+A PC controller on round ESP32 knob displays. It isn't tied to one board: so far the Elecrow CrowPanel 1.28"
+(240 x 240) and 1.46" (360 x 360), later the user's own knob with a motor (SmartKnob style), and others (a friend may
+use another size). Screens are always round and boards always ESP32s; everything else (size, touch, LEDs, motors)
+varies. Two halves:
 
 - **`knob-os/`**: Knob OS, the firmware (PlatformIO, LVGL 9.2.2, ArduinoJson 7, C++17). A launcher that draws generic
   screens.
@@ -32,8 +33,11 @@ When an app needs something new, add a generic option to a template, or a new te
 
 ## Several boards
 
+Never assume a particular board: read the size from `ui::size()` and features from `hal_board()` (Knob OS) or the
+session's `KnobBoard` (Knob Hub), and keep board-specific code in the hardware layer and the pin files.
 `knob-os/src/core/boards.cpp` lists the boards (mirrored in `hub/KnobHub/Core/KnobBoard.cs`): screen size, touch,
-LED count, vibration motor, motor on the knob. A knob reports its board in `hello`; Knob Hub shows only the settings
+LED count, vibration motor, motor on the knob. Knob Hub builds an unknown board from its hello, so it doesn't break on
+one; the preview falls back to the default board then. A knob reports its board in `hello`; Knob Hub shows only the settings
 that board has and makes its preview the same board, but always at 480 px, one pixel per screen pixel (the user's
 choice: one preview size, only the settings and LEDs follow the board). `kp_screen(240 or 360)` renders as a real knob
 for pixel tests.
@@ -43,8 +47,9 @@ for pixel tests.
   widths, font metrics) are real pixels already: don't scale them. At 240 nothing may change, pixel for pixel.
 - **Fonts per size:** `knob-os/fonts/make_fonts.py` generates each diameter's set (`DIAMETERS`: the boards' 240 and
   360, and 480 for the preview) and `fonts.cpp`. A new board size needs adding there.
-- **A new board:** an entry in `boards.cpp` and `KnobBoard.cs`, its fonts, a pin file in `src/hal/esp32/boards/`, and
-  a `platformio.ini` env setting `KNOB_BOARD` and `KNOB_FONT_SET`.
+- **A new board:** an entry in `boards.cpp` and `KnobBoard.cs`, its fonts, a pin file in `src/hal/esp32/boards/`, a
+  `platformio.ini` env setting `KNOB_BOARD` and `KNOB_FONT_SET`, and drivers for any chip the ESP32 layer lacks
+  (steps in the README's "Adding a board").
 - **Haptics** (`haptics.h`): each screen's `feel()` says how turning should feel (detent positions, end stops, wrap,
   strength), derived from what it shows; Knob OS passes it to `hal_motor_feel` and plays `hal_vibrate` effects (tick,
   bump at an end stop, click, alert). Apps never deal with it.
@@ -69,7 +74,7 @@ for pixel tests.
 pio run -e sim -t exec      # simulator window (SDL2); Knob Hub connects to it on 127.0.0.1:5718
                             # program.exe --board crowpanel-1.46 (or motor-knob) for another board
 pio run -e preview          # knob_preview.dll for Knob Hub's live preview
-pio run -e crowpanel-128    # a real board, one env per board (hardware layer src/hal/esp32 still mostly stubs)
+pio run -e crowpanel-128    # a real board: one env per board (hardware layer src/hal/esp32 still mostly stubs)
 pio run -e crowpanel-146
 
 # hub
@@ -121,9 +126,13 @@ when screens change.
 
 **hub/KnobHub**
 - `Core/KnobSession.cs`: talks to one knob (apps, screens, icons).
-- `Core/KnobConnection.cs` (simulator TCP) and `Core/KnobPreview.cs` (the DLL, always 480 px; it loads a fresh copy
-  from %TEMP% to become another board, since Knob OS starts only once per DLL). While it isn't on show (`Shown`: the
-  window in the tray, minimized or on another page) it ticks 4 times a second and copies no frames.
+- `Core/KnobConnection.cs`: the links, highest priority first in `KnobLinks` (USB, then the simulator's TCP); lower
+  ones pause while a higher one is in use. A link counts as connected once the knob says hello (`LineConnection`).
+  USB looks only at COM ports with Espressif's vendor id (registry), opened with DTR on and RTS off (both would reset
+  the ESP32-S3).
+- `Core/KnobPreview.cs`: the DLL, always 480 px; it loads a fresh copy from %TEMP% to become another board, since
+  Knob OS starts only once per DLL. While it isn't on show (`Shown`: the window in the tray, minimized or on another
+  page) it ticks 4 times a second and copies no frames.
 - `Core/KnobBoard.cs`: the boards, and the board in a hello.
 - `Core/KnobIcons.cs`: draws A8 icons.
 - `Core/AppCatalog.cs`: the GitHub app list.

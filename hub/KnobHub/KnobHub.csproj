@@ -47,4 +47,8 @@
     <ProjectReference Include="..\KnobHub.Sdk\KnobHub.Sdk.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+  </ItemGroup>
+
 </Project>

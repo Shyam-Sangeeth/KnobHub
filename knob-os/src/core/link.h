@@ -3,6 +3,10 @@
 
 // The link to Knob Hub. Messages are JSON objects, one per line, with "t" naming the message.
 //
+// Over USB the knob is a USB serial port (the ESP32-S3's own USB). The link is up while Knob Hub has the port open
+// (DTR on): the knob then says hello, and Knob Hub only counts it as connected once it has. Anything else the knob
+// prints before (boot messages) is skipped, so log lines must never look like a hello.
+//
 // Knob Hub -> knob:
 //   apps    {items: [{id, name, subtitle, icon, color}],      the apps on the Home ring, and the ring's order (app ids,
 //            order: [...]}                                   "clock" and "settings"); sent when it connects, kept

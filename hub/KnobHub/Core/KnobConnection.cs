@@ -1,6 +1,9 @@
 using System.IO;
+using System.IO.Ports;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json.Nodes;
+using Microsoft.Win32;
 
 namespace KnobHub.Core;
 
@@ -10,42 +13,67 @@ internal interface IKnobConnection : IDisposable
     /// <summary>How it's connected, for the status line: "USB", "Wi-Fi", "the simulator".</summary>
     string Kind { get; }
     bool IsConnected { get; }
+    /// <summary>While paused it lets go of the knob and doesn't look for it (another link has priority).</summary>
+    bool Paused { get; set; }
     event Action<bool>? ConnectedChanged;
     event Action<string>? LineReceived;
     void Start();
     void Send(string line);
 }
 
-/// <summary>The Knob OS simulator (knob-os, pio run -e sim) standing in for the knob: it listens on 127.0.0.1:5718
-/// and Knob Hub keeps trying to connect.</summary>
-internal sealed class SimulatorConnection : IKnobConnection
+/// <summary>
+/// A link over a stream (a TCP socket, a serial port), opened again and again in a loop. It counts as connected once
+/// the knob has said hello: lines before that (an ESP32's boot messages) are skipped, and a stream that doesn't say
+/// hello within a few seconds is closed (<see cref="NoHello"/>).
+/// </summary>
+internal abstract class LineConnection : IKnobConnection
 {
-    private const int Port = 5718;
+    private static readonly TimeSpan HelloWithin = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan RetryEvery = TimeSpan.FromSeconds(2);
 
     private readonly SynchronizationContext _ui;
     private readonly CancellationTokenSource _stop = new();
     private readonly object _writeLock = new();
-    private StreamWriter? _writer;
+    private Stream? _writer;
+    private CancellationTokenSource? _current;  // the open stream's: cancelled to let go of it
+    private volatile bool _paused;
 
-    public SimulatorConnection()
+    protected LineConnection()
     {
         _ui = SynchronizationContext.Current ?? throw new InvalidOperationException("Create on the UI thread.");
     }
 
-    public string Kind => "the simulator";
+    public abstract string Kind { get; }
     public bool IsConnected { get; private set; }
     public event Action<bool>? ConnectedChanged;
     public event Action<string>? LineReceived;
 
+    public bool Paused
+    {
+        get => _paused;
+        set
+        {
+            _paused = value;
+            if (value) _current?.Cancel();
+        }
+    }
+
     public void Start() => Task.Run(() => RunAsync(_stop.Token));
+
+    /// <summary>Opens the stream to a knob, or returns null when there's none to try now. Disposing the owner closes
+    /// the stream.</summary>
+    protected abstract Task<(Stream Stream, IDisposable Owner)?> OpenAsync(CancellationToken stop);
+
+    /// <summary>The stream opened by the last <see cref="OpenAsync"/> didn't say hello in time.</summary>
+    protected virtual void NoHello() { }
 
     public void Send(string line)
     {
+        byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
         lock (_writeLock)
         {
-            try { _writer?.Write(line + "\n"); _writer?.Flush(); }
-            catch (IOException) { }
-            catch (ObjectDisposedException) { }
+            try { _writer?.Write(bytes); _writer?.Flush(); }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or TimeoutException) { }
         }
     }
 
@@ -53,28 +81,75 @@ internal sealed class SimulatorConnection : IKnobConnection
     {
         while (!stop.IsCancellationRequested)
         {
-            try
+            if (!_paused)
             {
-                using var client = new TcpClient { NoDelay = true };
-                await client.ConnectAsync("127.0.0.1", Port, stop);
-                using var stream = client.GetStream();
-                using var reader = new StreamReader(stream, new UTF8Encoding(false));
-                lock (_writeLock) _writer = new StreamWriter(stream, new UTF8Encoding(false));
+                try { await UseAsync(stop); }
+                catch (OperationCanceledException) when (stop.IsCancellationRequested) { return; }
+                catch (Exception) { }  // gone (unplugged, closed, let go of): look again shortly
+            }
+            try { await Task.Delay(RetryEvery, stop); } catch (OperationCanceledException) { return; }
+        }
+    }
+
+    private async Task UseAsync(CancellationToken stop)
+    {
+        if (await OpenAsync(stop) is not { } opened) return;
+        var (stream, owner) = opened;
+        using var current = CancellationTokenSource.CreateLinkedTokenSource(stop);
+        _current = current;
+        // Reads may not watch the token (a serial port's don't), so letting go closes the stream under them.
+        using var closeOnCancel = current.Token.Register(owner.Dispose);
+        try
+        {
+            using (owner)
+            {
+                if (_paused) return;
+                var reader = new StreamReader(stream, new UTF8Encoding(false));
+                string? hello = await WaitForHelloAsync(reader, current);
+                if (hello == null)
+                {
+                    if (!_paused && !stop.IsCancellationRequested) NoHello();
+                    return;
+                }
+                lock (_writeLock) _writer = stream;
                 Post(() => SetConnected(true));
-                while (await reader.ReadLineAsync(stop) is { } line)
+                Post(() => LineReceived?.Invoke(hello));
+                while (await reader.ReadLineAsync(current.Token) is { } line)
                 {
                     if (line.Length > 0) Post(() => LineReceived?.Invoke(line));
                 }
             }
-            catch (OperationCanceledException) { return; }
-            catch (Exception) { }  // not running, or it closed: try again shortly
-            finally
-            {
-                lock (_writeLock) _writer = null;
-                Post(() => SetConnected(false));
-            }
-            try { await Task.Delay(2000, stop); } catch (OperationCanceledException) { return; }
         }
+        finally
+        {
+            lock (_writeLock) _writer = null;
+            _current = null;
+            Post(() => SetConnected(false));
+        }
+    }
+
+    /// <summary>The first line that's a hello message, skipping anything else; null if none comes in time or the
+    /// stream ends.</summary>
+    private static async Task<string?> WaitForHelloAsync(StreamReader reader, CancellationTokenSource current)
+    {
+        using var timeout = new CancellationTokenSource(HelloWithin);
+        using var closeOnTimeout = timeout.Token.Register(current.Cancel);
+        try
+        {
+            while (await reader.ReadLineAsync(current.Token) is { } line)
+            {
+                if (IsHello(line)) return line;
+            }
+        }
+        catch (Exception) when (timeout.IsCancellationRequested) { }  // nothing in time: the stream was closed
+        return null;
+    }
+
+    private static bool IsHello(string line)
+    {
+        if (!line.StartsWith('{')) return false;
+        try { return JsonNode.Parse(line) is JsonObject msg && msg["t"]?.GetValue<string>() == "hello"; }
+        catch (Exception) { return false; }
     }
 
     private void SetConnected(bool connected)
@@ -86,5 +161,169 @@ internal sealed class SimulatorConnection : IKnobConnection
 
     private void Post(Action action) => _ui.Post(_ => action(), null);
 
-    public void Dispose() => _stop.Cancel();
+    public void Dispose()
+    {
+        _stop.Cancel();
+        _current?.Cancel();
+    }
+}
+
+/// <summary>The Knob OS simulator (knob-os, pio run -e sim) standing in for the knob: it listens on 127.0.0.1:5718
+/// and Knob Hub keeps trying to connect.</summary>
+internal sealed class SimulatorConnection : LineConnection
+{
+    private const int Port = 5718;
+
+    public override string Kind => "the simulator";
+
+    protected override async Task<(Stream Stream, IDisposable Owner)?> OpenAsync(CancellationToken stop)
+    {
+        var client = new TcpClient { NoDelay = true };
+        try
+        {
+            await client.ConnectAsync("127.0.0.1", Port, stop);
+            return (client.GetStream(), client);
+        }
+        catch (Exception)
+        {
+            client.Dispose();
+            return null;  // not running
+        }
+    }
+}
+
+/// <summary>
+/// A knob plugged in over USB: the ESP32-S3's own USB (Espressif's vendor id 303A), which Windows shows as a COM
+/// port. Ports are found by that id in the registry, so other serial devices are never opened. The port is opened
+/// with DTR on (Knob OS counts the link as up while it is) and RTS off (with both, the ESP32-S3 would reset).
+/// </summary>
+internal sealed class UsbConnection : LineConnection
+{
+    /// <summary>USB vendor ids of knobs' USB serial ports.</summary>
+    private static readonly string[] Vendors = ["303A"];
+    private static readonly TimeSpan RestAfterNoHello = TimeSpan.FromSeconds(30);
+
+    private readonly Dictionary<string, DateTime> _resting = [];  // ports that didn't say hello, until when
+    private string? _tried;
+
+    public override string Kind => "USB";
+
+    protected override Task<(Stream Stream, IDisposable Owner)?> OpenAsync(CancellationToken stop)
+    {
+        foreach (string name in KnobPorts())
+        {
+            if (_resting.TryGetValue(name, out var until) && until > DateTime.UtcNow) continue;
+            var port = new SerialPort(name, 115200)
+            {
+                DtrEnable = true,
+                RtsEnable = false,
+                Handshake = Handshake.None,
+                WriteTimeout = 2000,
+            };
+            try
+            {
+                port.Open();
+                _tried = name;
+                return Task.FromResult<(Stream, IDisposable)?>((port.BaseStream, port));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                port.Dispose();  // in use (e.g. a firmware upload) or gone
+            }
+        }
+        return Task.FromResult<(Stream, IDisposable)?>(null);
+    }
+
+    protected override void NoHello()
+    {
+        if (_tried != null) _resting[_tried] = DateTime.UtcNow + RestAfterNoHello;
+    }
+
+    /// <summary>The COM ports there now whose USB device has a knob's vendor id.</summary>
+    internal static List<string> KnobPorts()
+    {
+        var present = new HashSet<string>(SerialPort.GetPortNames(), StringComparer.OrdinalIgnoreCase);
+        var ports = new List<string>();
+        if (present.Count == 0) return ports;
+        try
+        {
+            using var usb = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Enum\USB");
+            if (usb == null) return ports;
+            foreach (string device in usb.GetSubKeyNames())
+            {
+                // e.g. VID_303A&PID_1001, or VID_303A&PID_1001&MI_00 for one interface of a composite device
+                if (!Vendors.Any(v => device.StartsWith($"VID_{v}&", StringComparison.OrdinalIgnoreCase))) continue;
+                using var deviceKey = usb.OpenSubKey(device);
+                if (deviceKey == null) continue;
+                foreach (string instance in deviceKey.GetSubKeyNames())
+                {
+                    using var parameters = deviceKey.OpenSubKey($@"{instance}\Device Parameters");
+                    if (parameters?.GetValue("PortName") is string name && present.Contains(name) && !ports.Contains(name))
+                        ports.Add(name);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { }
+        return ports;
+    }
+}
+
+/// <summary>
+/// Every way a knob can be connected, highest priority first (USB, then the simulator): the knob in use is the first
+/// one connected. While one is in use, the ones after it are paused, so when it goes the next one connects afresh
+/// and says hello again (Knob Hub learns its board).
+/// </summary>
+internal sealed class KnobLinks : IKnobConnection
+{
+    private readonly IKnobConnection[] _links;
+    private IKnobConnection? _active;
+
+    public KnobLinks(params IKnobConnection[] links)
+    {
+        _links = links;
+        foreach (var link in links)
+        {
+            link.ConnectedChanged += _ => Update();
+            link.LineReceived += line =>
+            {
+                if (link == _active) LineReceived?.Invoke(line);
+            };
+        }
+    }
+
+    public string Kind => _active?.Kind ?? "";
+    public bool IsConnected => _active != null;
+    public bool Paused { get; set; }
+    public event Action<bool>? ConnectedChanged;
+    public event Action<string>? LineReceived;
+
+    public void Start()
+    {
+        foreach (var link in _links) link.Start();
+    }
+
+    public void Send(string line) => _active?.Send(line);
+
+    private void Update()
+    {
+        var best = _links.FirstOrDefault(l => l.IsConnected);
+        int index = best == null ? _links.Length : Array.IndexOf(_links, best);
+        for (int i = 0; i < _links.Length; i++) _links[i].Paused = i > index;
+        if (best == _active) return;
+        if (_active != null)
+        {
+            _active = null;
+            ConnectedChanged?.Invoke(false);
+        }
+        if (best != null)
+        {
+            _active = best;
+            ConnectedChanged?.Invoke(true);
+        }
+    }
+
+    public void Dispose()
+    {
+        foreach (var link in _links) link.Dispose();
+    }
 }

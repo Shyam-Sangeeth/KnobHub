@@ -2,7 +2,7 @@
 
 <p align="center">
   A turnable, touchable knob for your PC, with apps that run on the PC.<br />
-  Built on round ESP32-S3 knob displays: the Elecrow CrowPanel 1.28" or 1.46".
+  Runs on round ESP32 knob displays of any size: ready-made ones like Elecrow's CrowPanel, or your own build.
 </p>
 
 <p align="center">
@@ -15,8 +15,8 @@
 
 ---
 
-The knob is a round touch screen inside a ring you turn and press, with RGB LEDs and Wi-Fi. Its firmware,
-**Knob OS**, is a small launcher: a ring of pages (Clock, your apps, Settings) that you turn through. The apps
+The knob is a round touch screen inside a ring you turn and press. Depending on the board it can also have RGB LEDs,
+a vibration motor or a motor on the knob itself (see [Knobs](#knobs)). Its firmware, **Knob OS**, is a small launcher: a ring of pages (Clock, your apps, Settings) that you turn through. The apps
 themselves run on the PC inside **Knob Hub**, a tray app that sends the knob what to draw and gets back what you did.
 [AudioDesk](https://github.com/Shyam-Sangeeth/AudioDesk) was the first app; anyone can write more.
 
@@ -24,6 +24,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 
 - [How it works](#how-it-works)
 - [Knobs](#knobs)
+  - [Adding a board](#adding-a-board)
 - [The knob](#the-knob)
   - [Home ring](#home-ring)
   - [AudioDesk](#audiodesk)
@@ -71,9 +72,19 @@ The link is newline-delimited JSON, one message per line; every message is docum
 
 ## Knobs
 
-Knob OS runs on round ESP32-S3 knob displays of different sizes. A knob tells Knob Hub which board it is when it
-connects; Knob Hub's Board page then shows only the settings that board has, and its preview takes on the board's
-LEDs and motors (its screen is always 480 px).
+Knob Hub isn't made for one piece of hardware. Knob OS runs on any round ESP32 knob display that's in its list of
+boards, and adding another is a small job (see [Adding a board](#adding-a-board)). Every knob has:
+
+- a **round screen**, of any size;
+- an **ESP32** (the boards so far are ESP32-S3s);
+- a **knob to turn and press**: a rotary encoder, or a motor knob;
+- a **touch screen** (some controls, such as Media's previous and next buttons, are touch only).
+
+What else it has differs from board to board: RGB LEDs (how many), a vibration motor, a motor on the knob. A knob
+tells Knob Hub which board it is and what it has when it connects. Knob Hub's Board page then shows only the settings
+that board has, and its preview takes on the board's LEDs and motors (its screen is always 480 px).
+
+The boards Knob OS knows now:
 
 | Board | Screen | Has |
 |---|---|---|
@@ -93,8 +104,25 @@ LEDs and motors (its screen is always 480 px).
   screen: a dial's or a channel's volume, how far a song has played. A single LED gets brighter instead. Screens
   without a level (Home, lists) light them all. In **App colour** mode they all show the colour of the open app, or of
   the Home page in focus. LED brightness sets how bright.
-- **Adding a board** takes an entry in `knob-os/src/core/boards.cpp` (and `hub/KnobHub/Core/KnobBoard.cs`), fonts for
-  its screen size (`knob-os/fonts/make_fonts.py`), and a file with its pins in `knob-os/src/hal/esp32/boards/`.
+
+### Adding a board
+
+Apps don't change for a new board, and Knob Hub works with a knob whose board it doesn't know (it takes the screen
+size, LEDs and motors from the knob's hello). To add one:
+
+1. **List it** in `knob-os/src/core/boards.cpp`: an id (e.g. `crowpanel-1.46`), a name, the screen's diameter, and
+   whether it has touch, how many LEDs, a vibration motor and a motor on the knob. Add the same line to
+   `hub/KnobHub/Core/KnobBoard.cs`, so Knob Hub knows its name, and rebuild the preview DLL (`pio run -e preview`)
+   so Knob Hub's preview can become it.
+2. **Fonts:** if its screen size is new, add the size to `DIAMETERS` in `knob-os/fonts/make_fonts.py` and run it (see
+   [Fonts](#fonts)).
+3. **Pins:** a file in `knob-os/src/hal/esp32/boards/` with its id and pins (copy `crowpanel_1_46.h`).
+4. **Build:** an env in `knob-os/platformio.ini` that extends `esp32` and sets `KNOB_BOARD` (the pin file) and
+   `KNOB_FONT_SET` (the screen size), like `crowpanel-146`.
+5. **Hardware layer:** if it uses a display, touch, LED or motor chip that `src/hal/esp32` doesn't drive yet, add a
+   driver for it there.
+
+Then try it in the simulator (`--board <id>`) and Knob Hub's preview before flashing.
 
 ## The knob
 
@@ -258,8 +286,8 @@ installing anything, because apps run with Knob Hub's permissions: only install 
 
 **Board:** which board the knob is and what it has (screen size, LEDs, motors), and the settings only some knobs
 have: Lights (LED brightness and mode) on knobs with LEDs, and Haptics (strength, vibration) on knobs with a motor or
-a vibration motor. The preview always has the board of the last knob that connected (the CrowPanel 1.28" until one
-does). To try another board, run the simulator as it (see [Simulator](#simulator)): Knob Hub's preview follows.
+a vibration motor. The preview always has the board of the last knob that connected (the first board in the list,
+the CrowPanel 1.28", until one does). To try another board, run the simulator as it (see [Simulator](#simulator)): Knob Hub's preview follows.
 
 ![Knob Hub: Settings page](docs/screenshots/hub-settings.png)
 
@@ -340,9 +368,9 @@ pio run -e sim -t exec
 ```
 
 Build output goes to `%USERPROFILE%\.cache\knob-os`. In the simulator, the mouse wheel turns, middle click presses
-(held half a second = back), the left button touches (tap, swipe), and swiping right goes back. It's the CrowPanel
-1.28" unless you pick another board: run `program.exe --board crowpanel-1.46` (or `motor-knob`) from
-`%USERPROFILE%\.cache\knob-os\build\sim`. It prints what a knob's motors and LEDs would do in its log window.
+(held half a second = back), the left button touches (tap, swipe), and swiping right goes back. It can be any board
+in the list: run `program.exe --board <id>` from `%USERPROFILE%\.cache\knob-os\build\sim`, with an id from
+[Knobs](#knobs) (`crowpanel-1.28`, the default, `crowpanel-1.46` or `motor-knob`). It prints what a knob's motors and LEDs would do in its log window.
 
 ### Knob Hub
 
@@ -369,14 +397,14 @@ pio run -e crowpanel-128    # CrowPanel 1.28"
 pio run -e crowpanel-146    # CrowPanel 1.46"
 ```
 
-builds Knob OS for one board (its pins are in `knob-os/src/hal/esp32/boards/`). The board-specific parts (display,
+builds Knob OS for one board: there's an env per board (its pins are in `knob-os/src/hal/esp32/boards/`). The board-specific parts (display,
 touch, encoder, LEDs, haptics, USB and Wi-Fi) are still to be written; see [Status](#status).
 
 ### Fonts
 
 `knob-os/fonts/make_fonts.py` builds `src/core/fonts/knob_font_*.c` (Montserrat Medium, LVGL symbols, Latin-1,
 Latin Extended-A and typographic punctuation) and digits-only fonts for big numbers, at every size the screens use
-for each screen size (240 and 360 px, and 480 for Knob Hub's preview), with `npx lv_font_conv@1.5.3`, plus
+for each screen size in `DIAMETERS` (the boards' 240 and 360 px, and 480 for Knob Hub's preview), with `npx lv_font_conv@1.5.3`, plus
 `fonts.cpp`, which maps a screen's design size to the font for the knob's screen. A knob's build keeps only its own
 screen size's fonts. It needs Node.js.
 
@@ -390,10 +418,14 @@ screen size's fonts. It needs Node.js.
 
 ## Connection
 
-USB serial and Wi-Fi aren't written yet. The plan:
+Knob Hub's side of USB is written; the knob's (and Wi-Fi) is still to come. How it works and the plan:
 
+- **USB:** the knob shows up as a USB serial port (the ESP32-S3's own USB). Knob Hub looks only at ports with
+  Espressif's USB vendor id (303A), so it never opens other serial devices, and counts a port as the knob once it
+  says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back in at any time.
+- USB always has priority: when the knob is plugged in, Knob Hub switches to it from the simulator (or Wi-Fi), and
+  back when it's unplugged.
 - The first time, USB only (it pairs the knob with Knob Hub).
-- USB always has priority when plugged in.
 - Otherwise Wi-Fi, once set up.
 - Wi-Fi is set up from the knob's Settings > Connection > Wi-Fi setup: in pairing mode the knob opens its own network
   and a setup page at knobhub.local, which switch off again once it's connected.
@@ -423,6 +455,7 @@ KnobHub/
 ## Status
 
 Working: the simulator, Knob Hub with the live preview, apps from GitHub, and the Media, AudioDesk and Counter
-apps, on both CrowPanel sizes and the planned motor knob (in the simulator and the preview), with haptics, the LEDs'
-modes and the screen timeout worked out in Knob OS. Next: the USB and Wi-Fi connection and the real boards (display,
-touch, encoder, backlight, LED and motor drivers).
+apps, on every board in the list (in the simulator and the preview), with haptics, the LEDs' modes and the screen
+timeout worked out in Knob OS, and Knob Hub's side of USB. No board runs Knob OS yet: the hardware layer is next
+(display, touch, encoder, backlight, LEDs, the USB link, then the motor drivers), starting with the CrowPanels, then
+Wi-Fi.

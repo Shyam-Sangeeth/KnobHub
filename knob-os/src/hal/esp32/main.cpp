@@ -1,8 +1,8 @@
 // Knob OS on a real knob: an ESP32-S3 round display. One build per board (see platformio.ini); the board's pins are
 // in boards/<board>.h, chosen by KNOB_BOARD.
 // Still to be written when the boards arrive: the display (SPI), touch (I2C), the rotary encoder and its press (short
-// press = KnobInput::Press, long press = KnobInput::Back), the LEDs (hal_set_leds), the link over USB serial (one JSON message per
-// line) and Wi-Fi; on boards that have them, the vibration motor (hal_vibrate) and the motor on the knob
+// press = KnobInput::Press, long press = KnobInput::Back), the LEDs (hal_set_leds), the link over USB serial (one JSON
+// message per line; up while DTR is on, see link.h) and Wi-Fi; on boards that have them, the vibration motor (hal_vibrate) and the motor on the knob
 // (hal_motor_feel: detents and end stops by field-oriented control, e.g. SimpleFOC, on its own core).
 #include <Arduino.h>
 #include <LittleFS.h>

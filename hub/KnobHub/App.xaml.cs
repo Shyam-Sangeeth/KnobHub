@@ -41,7 +41,7 @@ public partial class App : Application
         }) { IsBackground = true }.Start();
 
         var settings = HubSettings.Load();
-        _session = new KnobSession(settings, new SimulatorConnection(), Dispatcher);
+        _session = new KnobSession(settings, new KnobLinks(new UsbConnection(), new SimulatorConnection()), Dispatcher);
         _session.Logged += Log;
         var model = new MainViewModel(_session);
         _session.Start([(MediaApp.Manifest, () => new MediaApp())]);
