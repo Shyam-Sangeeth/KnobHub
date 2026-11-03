@@ -79,9 +79,16 @@ internal sealed class MediaApp : KnobApp
 
     public override async void Open()
     {
-        try { Host.Show(Screen, await Describe(newScreen: true)); }
-        catch (COMException) { Watch(null); }
-        catch (Exception ex) { Host.Log(ex.Message); }
+        // A screen is always shown: without one the knob stays on "Opening...".
+        MediaScreen screen;
+        try { screen = await Describe(newScreen: true); }
+        catch (Exception ex)
+        {
+            if (ex is COMException) Watch(null);
+            else Host.Log(ex.Message);
+            screen = NothingPlaying();
+        }
+        Host.Show(Screen, screen);
     }
 
     public override async void Input(KnobAppInput input)
@@ -187,18 +194,9 @@ internal sealed class MediaApp : KnobApp
     /// (otherwise the knob keeps what it has).</summary>
     private async Task<MediaScreen> Describe(bool newScreen)
     {
-        var screen = new MediaScreen { Color = Manifest.Color };
         var session = _session;
-        if (session == null)
-        {
-            screen.Title = "Nothing playing";
-            screen.Artist = "Play something on your PC";
-            screen.CanPrevious = screen.CanNext = screen.CanSeek = false;
-            _artKey = "";
-            _art = KnobImage.None;
-            screen.Art = _art;
-            return screen;
-        }
+        if (session == null) return NothingPlaying();
+        var screen = new MediaScreen { Color = Manifest.Color };
 
         GlobalSystemMediaTransportControlsSessionMediaProperties? media = null;
         try { media = await session.TryGetMediaPropertiesAsync(); }
@@ -233,6 +231,20 @@ internal sealed class MediaApp : KnobApp
         }
         if (newScreen || changed) screen.Art = _art;
         return screen;
+    }
+
+    private MediaScreen NothingPlaying()
+    {
+        _artKey = "";
+        _art = KnobImage.None;
+        return new MediaScreen
+        {
+            Color = Manifest.Color,
+            Title = "Nothing playing",
+            Artist = "Play something on your PC",
+            CanPrevious = false, CanNext = false, CanSeek = false,
+            Art = _art,
+        };
     }
 
     private KnobImage Picture(string text, double size, bool semibold = false) =>
