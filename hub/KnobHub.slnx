@@ -6,6 +6,9 @@
   <Folder Name="/Plugins/Counter/">
     <Project Path="Plugins/Counter/Counter.KnobApp.csproj" />
   </Folder>
+  <Folder Name="/Plugins/Displays/">
+    <Project Path="Plugins/Displays/Displays.KnobApp.csproj" />
+  </Folder>
   <Project Path="KnobHub.Sdk/KnobHub.Sdk.csproj" />
   <Project Path="KnobHub/KnobHub.csproj" />
 </Solution>

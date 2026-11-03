@@ -6,7 +6,8 @@ namespace KnobHub.Sdk;
 // built-in ones (music, play, game, headphones, speaker, settings, clock...) or the app's own (KnobApp.Icons).
 
 /// <summary>A screen for the knob: one of <see cref="DialScreen"/>, <see cref="TilesScreen"/>,
-/// <see cref="ListScreen"/>, <see cref="ControlsScreen"/>, <see cref="RingScreen"/>, <see cref="MediaScreen"/>.</summary>
+/// <see cref="ListScreen"/>, <see cref="ControlsScreen"/>, <see cref="RingScreen"/>, <see cref="CardsScreen"/>,
+/// <see cref="MediaScreen"/>.</summary>
 public abstract class KnobScreen
 {
     /// <summary>The Knob OS template that draws it.</summary>
@@ -168,6 +169,29 @@ public sealed class RingScreen : KnobScreen
     /// <summary>Small, above the text.</summary>
     public string? Label { get; set; }
 }
+
+/// <summary>One item at a time, drawn like an app's page on Home (its icon in a circle, its name under it), e.g. the
+/// displays to pick the main one from. Turning or swiping goes to the next or previous item, with end stops; pressing
+/// or tapping reports press with the item's id. An update keeps the item on show unless it sets
+/// <see cref="Focus"/>.</summary>
+public sealed class CardsScreen : KnobScreen
+{
+    /// <inheritdoc />
+    public override string Template => "cards";
+    /// <summary>The items' colour unless they have their own.</summary>
+    public string? Color { get; set; }
+    public List<Card> Items { get; set; } = [];
+    /// <summary>The item to show. When not set: the selected one on the first show, and after that the one on show (the
+    /// selected one if it's gone).</summary>
+    public string? Focus { get; set; }
+    /// <summary>Shown when there are no items.</summary>
+    public string? EmptyText { get; set; }
+}
+
+/// <summary>An item on a <see cref="CardsScreen"/>.</summary>
+/// <param name="Detail">A smaller line under the label.</param>
+/// <param name="Selected">The current choice: a green tick on its icon.</param>
+public sealed record Card(string Id, string Label, string Icon, string? Color = null, string? Detail = null, bool Selected = false);
 
 /// <summary>What's playing. Turning seeks 5 s per step (the knob shows the new position right away) and reports
 /// rotate +1/-1. Pressing, tapping the art or the play button reports tap "play"; the other buttons and swipes report

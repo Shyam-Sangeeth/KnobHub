@@ -8,6 +8,7 @@ TemplateScreen* make_list(JsonObjectConst data, TemplateSink sink);
 TemplateScreen* make_media(JsonObjectConst data, TemplateSink sink);
 TemplateScreen* make_controls(JsonObjectConst data, TemplateSink sink);
 TemplateScreen* make_ring(JsonObjectConst data, TemplateSink sink);
+TemplateScreen* make_cards(JsonObjectConst data, TemplateSink sink);
 
 TemplateScreen* make_template(const char* name, JsonObjectConst data, TemplateSink sink) {
     if (!name) return nullptr;
@@ -17,5 +18,6 @@ TemplateScreen* make_template(const char* name, JsonObjectConst data, TemplateSi
     if (std::strcmp(name, "media") == 0) return make_media(data, std::move(sink));
     if (std::strcmp(name, "controls") == 0) return make_controls(data, std::move(sink));
     if (std::strcmp(name, "ring") == 0) return make_ring(data, std::move(sink));
+    if (std::strcmp(name, "cards") == 0) return make_cards(data, std::move(sink));
     return nullptr;
 }

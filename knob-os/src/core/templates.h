@@ -37,5 +37,5 @@ private:
     TemplateSink sink_;
 };
 
-// "dial", "tiles", "list", "media", "controls" or "ring"; nullptr for an unknown template.
+// "dial", "tiles", "list", "media", "controls", "ring" or "cards"; nullptr for an unknown template.
 TemplateScreen* make_template(const char* name, JsonObjectConst data, TemplateSink sink);

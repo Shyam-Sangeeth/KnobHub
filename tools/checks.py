@@ -190,8 +190,41 @@ def check_haptics():
     expect("no motor, no vibration motor", (plain.motor(), plain.vibrations()), (None, []))
 
 
+def check_cards():
+    """Cards: start on the selected one, turn between them with end stops, press reports it, an update keeps it."""
+    k = Knob(board="motor-knob")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    items = [{"id": "a", "label": "A", "icon": "monitor"}, {"id": "b", "label": "B", "icon": "monitor", "selected": True},
+             {"id": "c", "label": "C", "icon": "monitor"}]
+    k.send({"t": "screen", "app": "demo", "screen": "c", "template": "cards", "data": {"color": "#2DD4BF", "items": items}}, wait=0.3)
+    expect("starts on the selected card: a firm click per card, end stops", k.motor(), (3, 1, False, "firm"))
+    expect("its colour", k.leds()[0][0] != 0, True)
+    k.take()
+    for _ in range(3):
+        k.turn_right(wait=0.3)
+    expect("turned past the last: stays there", k.motor(), (3, 2, False, "firm"))
+    expect("turning reports nothing", k.take("input"), [])
+    k.press()
+    expect("a press reports the card", [(m["kind"], m["item"]) for m in k.take("input")], [("press", "c")])
+    items[1]["selected"], items[2]["selected"] = False, True
+    k.send({"t": "update", "app": "demo", "screen": "c", "data": {"items": items}}, wait=0.3)
+    expect("an update keeps the card on show", k.motor(), (3, 2, False, "firm"))
+    k.send({"t": "update", "app": "demo", "screen": "c", "data": {"items": items, "focus": "a"}}, wait=0.3)
+    expect("unless it sends focus", k.motor(), (3, 0, False, "firm"))
+    k.send({"t": "update", "app": "demo", "screen": "c", "data": {"items": items[1:]}}, wait=0.3)
+    expect("the card on show is gone: on to the selected one", k.motor(), (2, 1, False, "firm"))
+    k.send({"t": "update", "app": "demo", "screen": "c", "data": {"items": [], "empty_text": "None"}}, wait=0.3)
+    k.press()
+    expect("no cards: a press reports nothing", k.take("input"), [])
+    k.send({"t": "update", "app": "demo", "screen": "c", "data": {"items": items}}, wait=0.3)
+    expect("cards again: on the selected one", k.motor(), (3, 2, False, "firm"))
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
-          "idle": check_idle}
+          "idle": check_idle, "cards": check_cards}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:

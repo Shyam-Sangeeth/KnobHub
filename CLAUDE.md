@@ -23,6 +23,7 @@ data**:
 | list | `tpl_list.cpp` |
 | controls | `tpl_controls.cpp` |
 | ring | `tpl_ring.cpp` |
+| cards | `tpl_cards.cpp` |
 | media | `tpl_media.cpp` |
 
 Templates are registered in `templates.cpp`. Colours, units, texts and icons all come in the data. The knob reports
@@ -90,14 +91,15 @@ There are no unit tests. Check changes with the scripts in `tools/` (see its REA
 Knob Hub's **live preview** (a virtual knob when no simulator is connected), and keep `design/screenshots/` current
 when screens change.
 
-- **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout) through the preview
+- **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout, cards) through the preview
   DLL. Add a check there when you add behaviour.
 - **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical
   pixel for pixel unless the change is meant to show.
 - **Without the user's mouse or focus:** `tools/sim-capture.ps1` posts wheel and middle-button messages to the
   simulator's window (it can stay minimized), and `tools/hub-shots.ps1` captures Knob Hub with `PrintWindow` (it
   backs up and restores the settings). Knob OS's own Settings >
-  Display > Brightness is a dial that's safe to open. Don't open apps that act on the PC (AudioDesk, Media) to test.
+  Display > Brightness is a dial that's safe to open. Don't open apps that act on the PC (AudioDesk, Media) to test,
+  and never press on a Displays card: it switches the real main display (turning through them is safe).
 
 ## Layout
 
@@ -151,6 +153,7 @@ when screens change.
 - `AudioDesk` talks to AudioDesk's local API (named pipe `AudioDesk.Api`, AudioDesk repo `LocalApi.cs`). Keep both
   sides in step.
 - `Counter` is the small example app.
+- `Displays` picks the main display (cards) through Windows' CCD API (`QueryDisplayConfig`, `SetDisplayConfig`).
 
 ## Things that bite
 

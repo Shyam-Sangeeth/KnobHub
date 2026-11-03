@@ -1,0 +1,12 @@
+{
+  "id": "displays",
+  "name": "Displays",
+  "subtitle": "Main display",
+  "description": "Picks which display is the main one",
+  "icon": "monitor",
+  "color": "#2DD4BF",
+  "version": "1.0.0",
+  "author": "Knob Hub",
+  "assembly": "Displays.KnobApp.dll",
+  "type": "Displays.KnobApp.DisplaysApp"
+}

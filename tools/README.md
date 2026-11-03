@@ -11,7 +11,7 @@ that you send link messages to, turn, press and tap, and read the screen, bright
 
 | Script | What it does |
 |---|---|
-| `checks.py` | Checks behaviour: LEDs, pictures from another screen size, haptics, toasts, the screen timeout. `--list` names them; pass names to run some. About a minute, since the timeout waits for real. Exits with 1 on a failure. |
+| `checks.py` | Checks behaviour: LEDs, pictures from another screen size, haptics, toasts, the screen timeout, cards. `--list` names them; pass names to run some. About a minute, since the timeout waits for real. Exits with 1 on a failure. |
 | `tour.py <dir>` | Saves every kind of screen as PNGs (`--board`, `--screen 240/360/480`). |
 | `compare.py <dir> --against <dir>` | Lists the screens that differ between two tours (exit 1 if any); `--sheet out.png` makes a contact sheet. |
 

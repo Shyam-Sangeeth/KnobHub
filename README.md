@@ -11,6 +11,7 @@
   <img src="design/screenshots/audiodesk/audiodesk-channel-controls.png" width="160" alt="An AudioDesk channel" />
   <img src="design/screenshots/media/media.png" width="160" alt="Media, now playing" />
   <img src="design/screenshots/counter/counter-25.png" width="160" alt="Counter" />
+  <img src="design/screenshots/displays/displays-main.png" width="160" alt="Displays, the main display" />
 </p>
 
 ---
@@ -30,6 +31,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
   - [AudioDesk](#audiodesk)
   - [Media](#media)
   - [Counter](#counter)
+  - [Displays](#displays)
   - [Settings](#settings)
   - [Alerts and messages](#alerts-and-messages)
   - [Using the knob](#using-the-knob)
@@ -203,6 +205,23 @@ counts; each new lap fills in a new random bright colour over the last one.
   </tr>
 </table>
 
+### Displays
+
+Picks the main display: the one with the Start menu, the taskbar's clock and where new windows open. Each display
+Windows shows the desktop on is a card with its monitor's name. The main display comes first, with a green tick,
+then the others left to right as they're arranged. Turn the knob to go through them and press it (or tap the card)
+to make the one on show the main display, like **Make this my main display** in Windows' Settings. The displays keep
+their places round it, and the new main display moves to the front with the knob still on it. Windows may black out
+the screens for a moment while it switches. Displays plugged in or out, or a main display chosen in Settings, show up
+while the app is open.
+
+<table>
+  <tr>
+    <td align="center"><img src="design/screenshots/displays/displays-main.png" width="200" /><br />The main display</td>
+    <td align="center"><img src="design/screenshots/displays/displays-other.png" width="200" /><br />Another display: press to make it the main one</td>
+  </tr>
+</table>
+
 ### Settings
 
 The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode, on knobs with LEDs),
@@ -301,6 +320,7 @@ Windows.
 | Media | Now playing in Windows, playback controls | Built into Knob Hub |
 | AudioDesk | AudioDesk's channels, volume, Sonar and output devices | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/AudioDesk`) |
 | Counter | Counts up and down as you turn | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Counter`) |
+| Displays | Picks the main display | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Displays`) |
 
 Apps are released in their own repository, [Shyam-Sangeeth/KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps),
 apart from Knob Hub's releases. Each release there is one version of one app, tagged `<id>-v<version>`, with
@@ -330,6 +350,7 @@ needs sizing, for a 240 px screen times `Host.ScreenSize / 240.0`.
 | `ListScreen` | Rows |
 | `ControlsScreen` | A value with a toggle and a picker (an AudioDesk channel) |
 | `RingScreen` | A number in the middle of a full ring, drawn as big as fits (Counter) |
+| `CardsScreen` | One item at a time, like an app's page on Home, with a tick on the current one (Displays) |
 | `MediaScreen` | Now playing |
 
 **Icons** are names. Knob Hub has common ones built in (music, play, pause, game, headphones, speaker, volume, mic,
@@ -386,7 +407,7 @@ app. Knob Hub connects to the simulator on 127.0.0.1:5718 and retries every 2 se
 
 ### Checks
 
-`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout) through
+`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout, cards) through
 the preview DLL, without a knob. `tools/tour.py` and `tools/compare.py` show whether a change altered any screen. See
 [`tools/README.md`](tools/README.md).
 
@@ -444,7 +465,7 @@ KnobHub/
 ├─ hub/                     Knob Hub (WPF, .NET 10); KnobHub.slnx
 │  ├─ KnobHub.Sdk/          Class library for apps
 │  ├─ KnobHub/              The tray app
-│  └─ Plugins/              AudioDesk and Counter apps, pack-release.ps1
+│  └─ Plugins/              AudioDesk, Counter and Displays apps, pack-release.ps1
 ├─ design/
 │  ├─ screenshots/          Every knob screen, by app
 │  └─ recreated/            The screens recreated in HTML/CSS, one page per app
@@ -454,8 +475,8 @@ KnobHub/
 
 ## Status
 
-Working: the simulator, Knob Hub with the live preview, apps from GitHub, and the Media, AudioDesk and Counter
-apps, on every board in the list (in the simulator and the preview), with haptics, the LEDs' modes and the screen
+Working: the simulator, Knob Hub with the live preview, apps from GitHub, and the Media, AudioDesk, Counter
+and Displays apps, on every board in the list (in the simulator and the preview), with haptics, the LEDs' modes and the screen
 timeout worked out in Knob OS, and Knob Hub's side of USB. No board runs Knob OS yet: the hardware layer is next
 (display, touch, encoder, backlight, LEDs, the USB link, then the motor drivers), starting with the CrowPanels, then
 Wi-Fi.
