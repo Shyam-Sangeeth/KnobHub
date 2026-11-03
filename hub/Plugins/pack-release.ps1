@@ -34,6 +34,7 @@ Write-Host "Gathered $($apps.Count) apps in $out"
 if ($NoPublish) { return }
 
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw "The GitHub CLI (gh) isn't installed: winget install GitHub.cli" }
+$published = $false
 foreach ($manifest in $apps) {
     $id = $manifest.id
     $name = "$id-$($manifest.version)"
@@ -45,7 +46,8 @@ foreach ($manifest in $apps) {
     $ErrorActionPreference = "Stop"
     if (-not $exists) {
         $notes = if ($manifest.description) { $manifest.description } else { $manifest.subtitle }
-        gh release create $id @files --repo $Repo --title $manifest.name --notes $notes
+        # GitHub marks one release "Latest": the All apps release keeps it (below).
+        gh release create $id @files --repo $Repo --title $manifest.name --notes $notes --latest=false
         if ($LASTEXITCODE -ne 0) { throw "gh couldn't publish $($manifest.name)" }
     } elseif ($assets -contains "$name.knobapp") {
         Write-Host "$($manifest.name) $($manifest.version) is already released: skipped (bump its version to publish an update)"
@@ -55,4 +57,33 @@ foreach ($manifest in $apps) {
         if ($LASTEXITCODE -ne 0) { throw "gh couldn't add $($manifest.name) $($manifest.version) to its release" }
     }
     Write-Host "Published $($manifest.name) $($manifest.version): https://github.com/$Repo/releases/tag/$id"
+    $published = $true
 }
+if (-not $published) { return }
+
+# The All apps release (tag "apps", no app files, so Add apps ignores it) lists every app and carries GitHub's "Latest"
+# mark, so the releases page's Latest leads to an overview instead of whichever app was released last.
+$rows = $apps | Sort-Object name | ForEach-Object {
+    "| [$($_.name)](https://github.com/$Repo/releases/tag/$($_.id)) | $(if ($_.description) { $_.description } else { $_.subtitle }) |"
+}
+$notes = @(
+    "Apps for [Knob Hub](https://github.com/Shyam-Sangeeth/KnobHub). Each app has its own release here, holding every version of it."
+    ""
+    "**To install or update an app, use Knob Hub:** open the **Apps** page and click **Add apps**. It lists the newest version of each app, and shows **Update** when a newer version is out."
+    ""
+    "| App | What it does |"
+    "|---|---|"
+) + $rows + @(
+    ""
+    "To install a version by hand, download its ``.knobapp`` from the app's release and use **Install from file...** on the Add apps page. More about each app is in the [README](https://github.com/$Repo#readme)."
+)
+$notesFile = Join-Path $out "all-apps.md"
+[System.IO.File]::WriteAllText($notesFile, ($notes -join "`n") + "`n", (New-Object System.Text.UTF8Encoding $false))
+$ErrorActionPreference = "Continue"
+gh release view apps --repo $Repo 2>$null | Out-Null
+$exists = $LASTEXITCODE -eq 0
+$ErrorActionPreference = "Stop"
+if ($exists) { gh release edit apps --repo $Repo --notes-file $notesFile --latest | Out-Null }
+else { gh release create apps --repo $Repo --title "All apps" --notes-file $notesFile --latest | Out-Null }
+if ($LASTEXITCODE -ne 0) { throw "gh couldn't update the All apps release" }
+Write-Host "Updated All apps: https://github.com/$Repo/releases/tag/apps"

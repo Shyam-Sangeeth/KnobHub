@@ -184,6 +184,9 @@ Apps are released in **Shyam-Sangeeth/KnobHub-Apps** (its own repo):
   tagged `<id>-v<version>`, with `<id>.knobapp`), so keep that working.
 - `pack-release.ps1` adds versions not yet released to their app's release (creating it for a new app), so bump
   `version` in an app's `app.json` to publish an update.
+- The **All apps** release (tag `apps`, no files) lists the apps and carries GitHub's "Latest" mark, which can't be
+  turned off. `pack-release.ps1` rewrites its notes after publishing and creates app releases with
+  `--latest=false`, so they don't take the mark.
 - Update that repo's README (with screenshots in its `docs/`) when an app changes.
 - The guide to making apps is that repo's **wiki** (`KnobHub-Apps.wiki.git`; pages such as Screens, How-apps-work and
   For-AI-agents, images in `images/`). Update it with the SDK: new screens or fields, input, app loading, packaging,
