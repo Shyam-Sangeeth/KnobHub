@@ -1,0 +1,77 @@
+<Window x:Class="KnobHub.WifiWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Wi-Fi"
+        Icon="Assets/KnobHub.ico"
+        Width="460" Height="620" MinWidth="400" MinHeight="480"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+    <!-- Opened from Settings > Connection and modal: the networks the knob can see, and joining one. -->
+    <Grid Margin="24,20,24,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel>
+            <Button DockPanel.Dock="Right" VerticalAlignment="Top" Padding="12,7" Click="Refresh_Click"
+                    ToolTip="Look for networks again" AutomationProperties.Name="Look again">
+                <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" FontSize="12" />
+            </Button>
+            <StackPanel>
+                <TextBlock Text="Connect the knob to Wi-Fi" Style="{StaticResource SectionTitle}" />
+                <TextBlock Text="Networks the knob can see. It uses 2.4 GHz Wi-Fi." Margin="0,4,0,0" TextWrapping="Wrap"
+                           Style="{StaticResource SecondaryText}" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="1" Margin="0,14,0,0">
+            <ListBox x:Name="Networks" SelectionChanged="Networks_SelectionChanged" AutomationProperties.Name="Networks"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel Margin="2,4">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="12" Margin="12,0,8,0"
+                                           VerticalAlignment="Center" Style="{StaticResource SecondaryText}" ToolTip="Needs a password"
+                                           Visibility="{Binding Secured, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBlock Text="{Binding Strength, Mode=OneWay}" Style="{StaticResource SecondaryText}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Ssid, Mode=OneWay}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock x:Name="ListNote" Margin="12" TextWrapping="Wrap" VerticalAlignment="Top" IsHitTestVisible="False"
+                       Style="{StaticResource SecondaryText}" />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="0,14,0,0">
+            <TextBlock Text="Network" Margin="0,0,0,4" />
+            <TextBox x:Name="NetworkBox" MaxLength="32" AutomationProperties.Name="Network" />
+            <TextBlock Text="Password" Margin="0,12,0,4" />
+            <Grid>
+                <PasswordBox x:Name="PasswordBox" MaxLength="63" AutomationProperties.Name="Password" />
+                <TextBox x:Name="PasswordText" MaxLength="63" Visibility="Collapsed" AutomationProperties.Name="Password" />
+            </Grid>
+            <CheckBox x:Name="ShowPassword" Content="Show password" Margin="0,8,0,0"
+                      Checked="ShowPassword_Changed" Unchecked="ShowPassword_Changed" />
+            <TextBlock x:Name="Status" Margin="0,12,0,0" TextWrapping="Wrap" MinHeight="20" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="ConnectButton" Content="Connect" IsDefault="True" Padding="18,7" Click="Connect_Click" />
+            <Button Content="Close" IsCancel="True" Padding="18,7" Margin="8,0,0,0" />
+        </StackPanel>
+
+        <DockPanel Grid.Row="4" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Right" Content="Use a phone" Padding="12,5" Margin="12,0,0,0" VerticalAlignment="Center"
+                    Click="Phone_Click" ToolTip="Pairing mode: the knob opens its own network, with a setup page at knobhub.local" />
+            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Style="{StaticResource SecondaryText}"
+                       Text="Or choose the network from a phone, on the knob's own setup page." />
+        </DockPanel>
+    </Grid>
+</Window>

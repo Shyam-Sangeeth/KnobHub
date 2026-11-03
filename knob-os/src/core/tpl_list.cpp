@@ -195,7 +195,9 @@ private:
             int end_width = lv_obj_get_width(end);
             int label_room = std::min<int>(lv_obj_get_width(label), space - ValueGap - std::min(end_width, MinValue));
             ui::one_line(end, space - ValueGap - label_room);
-            lv_obj_align(end, LV_ALIGN_RIGHT_MID, -RightPad, 0);
+            // A value is centred by its letters, like the label; the tick by its box.
+            if (row.selected) lv_obj_align(end, LV_ALIGN_RIGHT_MID, -RightPad, 0);
+            else lv_obj_align(end, LV_ALIGN_TOP_RIGHT, -RightPad, (row_height - ui::ink_height(small)) / 2 - ui::ink_top(small));
             lv_obj_update_layout(end);
             text_width = space - ValueGap - lv_obj_get_width(end);
         }

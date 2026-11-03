@@ -248,7 +248,39 @@ internal sealed class MainViewModel : Observable
 
     public string ConnectionText => IsConnected
         ? $"Connected to {_session.ConnectionKind}. The preview mirrors it."
-        : "No knob connected: the preview is a virtual knob. Start the Knob OS simulator to connect one.";
+        : "No knob connected: the preview is a virtual knob. Plug the knob in over USB, or start the Knob OS simulator.";
+
+    /// <summary>The knob's Wi-Fi, in words.</summary>
+    public string WifiText
+    {
+        get
+        {
+            string host = _session.PairedHost;
+            if (!IsConnected)
+                return host.Length > 0
+                    ? $"Paired with {host}: when it isn't plugged in, Knob Hub looks for it on Wi-Fi."
+                    : "Plug the knob in over USB once to pair it. After that it can connect over Wi-Fi too.";
+            return _session.WifiState switch
+            {
+                "off" => "Wi-Fi isn't set up on the knob.",
+                "connecting" => $"The knob is joining {_session.WifiNetwork}.",
+                "connected" => $"The knob is on {_session.WifiNetwork}, as {host}.local.",
+                "failed" => $"The knob can't join {_session.WifiNetwork}. Check the network, or set up Wi-Fi again.",
+                "setup" => $"Wi-Fi setup is on: join {_session.WifiSetupNetwork} (password {_session.WifiSetupPassword}) " +
+                           "on your phone or PC, then open knobhub.local and choose your network.",
+                "unsupported" => "This knob has no Wi-Fi.",
+                _ => "Update Knob OS on the knob to use Wi-Fi.",
+            };
+        }
+    }
+
+    public bool CanSetUpWifi => IsConnected && _session.WifiState is "off" or "connecting" or "connected" or "failed" or "setup";
+    /// <summary>While the knob is in pairing mode the button stops it; otherwise it opens the Wi-Fi window.</summary>
+    public bool InWifiSetup => _session.WifiState == "setup";
+    public string WifiSetupButton => InWifiSetup ? "Stop Wi-Fi setup" : "Set up Wi-Fi…";
+    public bool CanForgetWifi => IsConnected && _session.WifiState is "connecting" or "connected" or "failed";
+    public void StopWifiSetup() => _session.WifiAction("stop");
+    public void ForgetWifi() => _session.WifiAction("forget");
 
     public string FirmwareText => string.IsNullOrEmpty(_session.OsVersion)
         ? "Knob OS isn't running"

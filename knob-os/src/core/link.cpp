@@ -44,6 +44,13 @@ void set_connected(bool c) {
         hello["leds"] = board.leds;
         hello["vibration"] = board.vibration;
         hello["motor"] = board.motor;
+        KnobIdentity me = hal_identity();
+        if (!me.id.empty()) {
+            hello["id"] = me.id;
+            hello["host"] = me.host;
+            hello["key_id"] = me.key_id;
+        }
+        settings::describe_wifi(hello["wifi"].to<JsonObject>());
         send(hello);
     }
     apps::on_connected(c);
@@ -65,6 +72,7 @@ void receive(const char* line) {
     else if (std::strcmp(t, "icons") == 0) icons::check(msg);
     else if (std::strcmp(t, "toast") == 0) toast_show(msg["text"] | "");
     else if (std::strcmp(t, "settings") == 0) settings::apply_from_hub(msg);
+    else if (std::strcmp(t, "wifi") == 0) settings::wifi_action(msg);
     else if (std::strcmp(t, "key") == 0) {
         KnobInput input;
         if (knob_input_parse(msg["input"] | "", input)) knob_os_input(input);

@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include "busy.h"
 #include "hal.h"
 #include "home.h"
 #include "link.h"
@@ -30,8 +31,12 @@ const AppInfo* find(const std::string& id) {
     return nullptr;
 }
 
+// The open app's busy spinner, as its screen's data says ("busy"; a new screen isn't busy unless it says so).
+void show_busy(bool on) { busy::set(on); }
+
 void show_message(const std::string& icon, const std::string& title, const std::string& text, const std::string& hint) {
     current = nullptr;
+    show_busy(false);
     screens::replace(new MessageScreen(icon, title, text, hint, [] { close(); }));
 }
 
@@ -124,17 +129,21 @@ void show_screen(JsonObjectConst msg) {
     current = screen;
     current_screen = screen_id;
     screens::replace(screen);
+    show_busy(msg["data"]["busy"] | false);
 }
 
 void update_screen(JsonObjectConst msg) {
     std::string app = msg["app"] | "";
     std::string screen = msg["screen"] | "";
-    if (current && app == open_app && screen == current_screen) current->update(msg["data"]);
+    if (!current || app != open_app || screen != current_screen) return;
+    current->update(msg["data"]);
+    if (msg["data"]["busy"].is<bool>()) show_busy(msg["data"]["busy"]);
 }
 
 void close(const std::string& app_id) {
     if (open_app.empty()) return;  // e.g. a stray "close" while Settings is open
     if (!app_id.empty() && app_id != open_app) return;
+    show_busy(false);
     open_app.clear();
     current = nullptr;
     current_screen.clear();

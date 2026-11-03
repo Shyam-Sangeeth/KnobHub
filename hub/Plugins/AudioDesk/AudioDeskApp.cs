@@ -9,6 +9,8 @@ namespace AudioDesk.KnobApp;
 /// Theater; pressing a channel opens its controls: volume, its own Sonar on/off and its output device (the knob's
 /// press moves between them, turning changes them; tapping the icon mutes). Everything goes through AudioDesk, which
 /// has to be running on the PC; if it stops, the app waits and comes back to the same screen once it's running again.
+/// While AudioDesk is switching something (a device, Sonar, Headset | Home Theater) the knob shows its busy spinner, and
+/// only Back works.
 /// </summary>
 public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
 {
@@ -24,6 +26,9 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
     private string? _resume;      // the screen on show when AudioDesk went away: shown again once it's back
     private double _volumeTarget;  // quick turns build on the last target, not on AudioDesk's slightly older state
     private DateTime _lastTurn;
+    // A switch was asked for and AudioDesk hasn't reported on it yet: busy already, so nothing else can be started.
+    private DateTime? _asked;
+    private static readonly TimeSpan AnswerWait = TimeSpan.FromMilliseconds(300), AnswerGiveUp = TimeSpan.FromSeconds(2);
 
     public override void Start()
     {
@@ -40,6 +45,7 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
     {
         _screen = "";
         _resume = null;
+        _asked = null;
     }
 
     // The channels' icons and Sonar's logo (Knob Hub has "music" built in).
@@ -83,14 +89,16 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             return;
         }
 
+        if (Busy(state) && input.Kind != InputKind.Back) return;  // the knob lets only Back through too
+
         if (_screen == Channels)
         {
             switch (input.Kind, input.Item)
             {
                 case (InputKind.Back, _): Host.Close(); break;
                 case (InputKind.Press, var channel) when ChannelIds.Contains(channel): Show(VolumePrefix + channel); break;
-                case (InputKind.Tap, "sonar"): _client.SetSonar(input.Delta == 1); break;
-                case (InputKind.Tap, "output"): _client.SetProfile(input.Delta == 1 ? "home_theater" : "headset"); break;
+                case (InputKind.Tap, "sonar"): Switch(() => _client.SetSonar(input.Delta == 1)); break;
+                case (InputKind.Tap, "output"): Switch(() => _client.SetProfile(input.Delta == 1 ? "home_theater" : "headset")); break;
             }
             return;
         }
@@ -110,10 +118,31 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
                     if (channel.Muted) _client.SetMuted(id, false);  // like turning a volume knob up from mute
                     break;
                 case (InputKind.Press, _): _client.SetMuted(id, !channel.Muted); break;
-                case (InputKind.Tap, "sonar"): _client.SetChannelSonar(id, input.Delta == 1); break;
-                case (InputKind.Select, var device) when device != channel.Device: _client.SetDevice(id, device); break;
+                case (InputKind.Tap, "sonar"): Switch(() => _client.SetChannelSonar(id, input.Delta == 1)); break;
+                case (InputKind.Select, var device) when device != channel.Device: Switch(() => _client.SetDevice(id, device)); break;
             }
         }
+    }
+
+    // --- Busy ---
+
+    private bool Busy(AudioDeskState state) => _asked != null || state.Channels.Any(c => c.Switching);
+
+    /// <summary>Asks AudioDesk for something that takes a while: the spinner comes on at once, and stays until AudioDesk
+    /// has reported on it (it says the channels are switching straight away, and not any more once they've switched).</summary>
+    private void Switch(Action send)
+    {
+        var asked = DateTime.UtcNow;
+        _asked = asked;
+        send();
+        Host.Update(_screen, new { busy = true });
+        // AudioDesk didn't answer (or had nothing to do): not busy for ever.
+        _ = Task.Delay(AnswerGiveUp).ContinueWith(_ =>
+        {
+            if (_asked != asked) return;
+            _asked = null;
+            OnChanged();
+        });
     }
 
     // --- Screens ---
@@ -147,6 +176,8 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             Show(Offline);
             return;
         }
+        // A state that came this soon after asking may have been on its way already; later ones have the answer.
+        if (_asked is { } asked && (state.Channels.Any(c => c.Switching) || DateTime.UtcNow - asked > AnswerWait)) _asked = null;
         if (_screen == Offline)
         {
             Show(_resume ?? Channels);
@@ -159,23 +190,22 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             // While the knob is turning it shows its own value; AudioDesk catches up.
             bool turning = DateTime.UtcNow - _lastTurn < TurnWindow;
             Host.Update(_screen, turning
-                ? new { controls.Muted, controls.Toggle, controls.Picker }
-                : new { controls.Value, controls.Muted, controls.Toggle, controls.Picker });
+                ? new { controls.Muted, controls.Toggle, controls.Picker, controls.Busy }
+                : new { controls.Value, controls.Muted, controls.Toggle, controls.Picker, controls.Busy });
         }
     }
 
-    private static TilesScreen ChannelsScreen(AudioDeskState state)
+    private TilesScreen ChannelsScreen(AudioDeskState state)
     {
-        var screen = new TilesScreen { Title = "AUDIODESK", Color = Accent, Selected = "media" };
+        var screen = new TilesScreen { Title = "AUDIODESK", Color = Accent, Selected = "media", Busy = Busy(state) };
         foreach (var channel in state.Channels)
         {
             var (label, icon, color) = Look(channel.Id);
-            // The ring is the volume (spinning while the channel switches device); inside, the icon (crossed out when
-            // muted) and the device it plays on (Sonar's output while it goes through Sonar); Sonar's badge at the bottom.
-            // No text under the circle.
+            // The ring is the volume; inside, the icon (crossed out when muted) and the device it plays on (Sonar's output
+            // while it goes through Sonar); Sonar's badge at the bottom. No text under the circle.
             string? badge = channel.ThroughSonar ? SonarIcon : null;
             screen.Items.Add(new Tile(channel.Id, label, icon, color, channel.Muted ? 0 : Percent(channel.Volume), null, badge,
-                                      Short(channel.DeviceName, 60), channel.Switching, channel.Muted));
+                                      Short(channel.DeviceName, 60), Muted: channel.Muted));
         }
         if (state.SonarAvailable) screen.Pills.Add(Pill.Toggle("sonar", "Sonar", state.Sonar, SonarIcon, SonarOn, SonarOff));
         screen.Pills.Add(Pill.Segment("output", ["Headset", "Home Theater"], state.Profile switch
@@ -191,6 +221,7 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
     // device (the picker; while it goes through Sonar, the devices Sonar can play it on).
     private ControlsScreen ChannelControls(ChannelState channel)
     {
+        var state = _client.State;
         var (label, icon, color) = Look(channel.Id);
         string? via = channel.ThroughSonar ? "Sonar" : null;
         return new ControlsScreen
@@ -201,11 +232,10 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             Value = Percent(channel.Volume),
             Step = StepPercent,
             Muted = channel.Muted,
+            Busy = state != null && Busy(state),
             Toggle = new ControlToggle("sonar", "Sonar", channel.ThroughSonar, SonarIcon, SonarOn, SonarOff, Hidden: !channel.SonarAvailable),
             Picker = new ControlPicker(channel.Device, channel.Devices
-                .Select(d => new PickerOption(d.Id, d.Name, channel.Switching && d.Id == channel.Device
-                    ? "Switching..."
-                    : string.Join(" · ", new[] { via, d.Format }.Where(p => !string.IsNullOrEmpty(p)))))
+                .Select(d => new PickerOption(d.Id, d.Name, string.Join(" · ", new[] { via, d.Format }.Where(p => !string.IsNullOrEmpty(p)))))
                 .ToList(), EmptyText: "No device"),
         };
     }

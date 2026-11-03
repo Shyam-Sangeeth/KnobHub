@@ -14,6 +14,7 @@
 //   rotate - turned the knob where the turn itself is the value (a dial); delta = +1 / -1 per step
 //   select - picked an option (on a controls screen's picker); item = its id
 //   back   - long press; the app decides where that goes
+// Any template's data can also say busy: true (in a screen or an update): see busy.h.
 struct TemplateEvent {
     const char* kind;
     std::string item;

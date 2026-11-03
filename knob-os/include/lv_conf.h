@@ -10,7 +10,8 @@
 #define LV_COLOR_DEPTH 16
 #endif
 
-/* The system allocator: the round screen's clipping layer alone needs 115 KB (the knob has 8 MB of PSRAM). */
+/* The system allocator: the simulator's and the preview's round clipping layer alone needs 115 KB, and the knob has
+   8 MB of PSRAM. */
 #define LV_USE_STDLIB_MALLOC LV_STDLIB_CLIB
 
 #define LV_DEF_REFR_PERIOD 16

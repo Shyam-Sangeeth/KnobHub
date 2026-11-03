@@ -91,7 +91,7 @@ The boards Knob OS knows now:
 | Board | Screen | Has |
 |---|---|---|
 | Elecrow CrowPanel 1.28" | 240 x 240 | Touch, rotary encoder with press, 5 RGB LEDs |
-| Elecrow CrowPanel 1.46" | 360 x 360 | Touch, rotary encoder with press, 1 RGB LED |
+| Elecrow CrowPanel 1.46" | 360 x 360 | Touch, rotary encoder with press, a ring of 8 RGB LEDs |
 | Motor knob (planned, your own build) | 240 x 240 | Touch, a motor on the knob, a vibration motor, LEDs |
 
 - **Screens scale.** Every screen is designed at 240 px and drawn at the knob's size, with fonts made for that size,
@@ -102,9 +102,12 @@ The boards Knob OS knows now:
   0 and 100% on a dial, a firm click per option on a picker. When a value changes on the PC (say the volume), the
   knob can turn itself to match. A vibration motor gives a click when you press and a buzz for alerts (and ticks and
   bumps when there's no motor on the knob). Settings > Haptics sets the strength and turns vibration on or off.
+  The CrowPanels have no vibration motor of their own, but one can be added: plug DFRobot's
+  [Gravity haptic motor driver for LRA motors](https://wiki.dfrobot.com/_SKU_DRI0056_Gravity_Haptic_Motor_Driver)
+  (DRI0056, with its motor) into the knob's spare I2C connector, and Knob OS finds it when it starts.
 - **Lights,** on knobs with LEDs. In **Level meter** mode they fill up, in order round the ring, with the level on the
-  screen: a dial's or a channel's volume, how far a song has played. A single LED gets brighter instead. Screens
-  without a level (Home, lists) light them all. In **App colour** mode they all show the colour of the open app, or of
+  screen: a dial's or a channel's volume, how far a song has played, the seconds on the Clock (starting again each
+  minute). A single LED gets brighter instead. Screens without a level (the other Home pages, lists) light them all. In **App colour** mode they all show the colour of the open app, or of
   the Home page in focus. LED brightness sets how bright.
 
 ### Adding a board
@@ -158,9 +161,11 @@ Controls [AudioDesk](https://github.com/Shyam-Sangeeth/AudioDesk)'s Game, Media 
 
 - **Channels:** each channel is a circle: a thin ring in the channel's colour, filled by a thicker arc as far as the
   volume (empty when muted), with the output device inside (Sonar's output while the channel goes through Sonar;
-  long names scroll) and a small Sonar badge while it goes through Sonar. A muted channel's icon is crossed out, and
-  an arc spins round the ring while a channel switches device. Below are a **Sonar** pill (when SteelSeries Sonar is
-  installed) and **Headset | Home Theater**.
+  long names scroll) and a small Sonar badge while it goes through Sonar. A muted channel's icon is crossed out.
+  Below are a **Sonar** pill (when SteelSeries Sonar is installed) and **Headset | Home Theater**.
+- **While AudioDesk switches** (a device, Sonar on or off, Headset | Home Theater), the screen dims and a spinner turns
+  in the middle. Turning, pressing and tapping do nothing until it's done; going back (a long press or a swipe right)
+  still works.
 - **A channel** (press it): the volume ring with the % at the bottom (or "Muted"), the channel's own Sonar on/off,
   and its output device (name and format on a card; while it goes through Sonar, the devices Sonar can play it on).
   Pressing the knob moves between them, and turning changes the selected one:
@@ -311,7 +316,10 @@ the CrowPanel 1.28", until one does). To try another board, run the simulator as
 ![Knob Hub: Settings page](docs/screenshots/hub-settings.png)
 
 **Settings:** the knob's screen brightness, screen timeout, idle behaviour and name, the connection, and Start with
-Windows.
+Windows. **Set up Wi-Fi...** (with a knob connected) opens a small window: the knob looks for networks, you pick
+yours and type its password, and the knob joins it there and then. The password goes only to the knob. Meanwhile the
+knob shows a Wi-Fi screen; using the knob closes the window. **Use a phone** in that window starts the knob's pairing
+mode instead, and **Forget Wi-Fi** makes the knob forget its network (see [Connection](#connection)).
 
 ## Apps
 
@@ -411,7 +419,7 @@ app. Knob Hub connects to the simulator on 127.0.0.1:5718 and retries every 2 se
 
 ### Checks
 
-`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout, cards) through
+`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout, cards, the Wi-Fi screen, the busy spinner) through
 the preview DLL, without a knob. `tools/tour.py` and `tools/compare.py` show whether a change altered any screen. See
 [`tools/README.md`](tools/README.md).
 
@@ -422,8 +430,13 @@ pio run -e crowpanel-128    # CrowPanel 1.28"
 pio run -e crowpanel-146    # CrowPanel 1.46"
 ```
 
-builds Knob OS for one board: there's an env per board (its pins are in `knob-os/src/hal/esp32/boards/`). The board-specific parts (display,
-touch, encoder, LEDs, haptics, USB and Wi-Fi) are still to be written; see [Status](#status).
+builds Knob OS for one board: there's an env per board (its pins and quirks are in `knob-os/src/hal/esp32/boards/`).
+Add `-t upload --upload-port COM3` to flash it (close Knob Hub first: it holds the knob's port). Both CrowPanels run
+it: display, touch, encoder and press, backlight, LEDs, the USB and Wi-Fi links, and vibration through an add-on
+haptic driver. The motor on the knob is still to be written.
+
+How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).
+A whole-screen frame takes about 25 ms on the 1.28".
 
 ### Fonts
 
@@ -443,17 +456,24 @@ screen size's fonts. It needs Node.js.
 
 ## Connection
 
-Knob Hub's side of USB is written; the knob's (and Wi-Fi) is still to come. How it works and the plan:
-
 - **USB:** the knob shows up as a USB serial port (the ESP32-S3's own USB). Knob Hub looks only at ports with
   Espressif's USB vendor id (303A), so it never opens other serial devices, and counts a port as the knob once it
-  says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back in at any time.
-- USB always has priority: when the knob is plugged in, Knob Hub switches to it from the simulator (or Wi-Fi), and
+  says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back in at any time. The knob can't
+  tell when a port is opened, so Knob Hub sends it a heartbeat (with the time, for its clock) every 2 seconds.
+- **USB always has priority:** when the knob is plugged in, Knob Hub switches to it from Wi-Fi or the simulator, and
   back when it's unplugged.
-- The first time, USB only (it pairs the knob with Knob Hub).
-- Otherwise Wi-Fi, once set up.
-- Wi-Fi is set up from the knob's Settings > Connection > Wi-Fi setup: in pairing mode the knob opens its own network
-  and a setup page at knobhub.local, which switch off again once it's connected.
+- **Pairing:** the first time a knob says hello over USB, Knob Hub gives it a random key. Over Wi-Fi both prove they
+  hold it before anything else, and every line is encrypted (AES-256-GCM) with a key new for each connection. One
+  knob is paired at a time: plugging in another pairs that one instead, and plugging the first back in pairs it again.
+- **Wi-Fi:** the knob listens on your network as `knob-xxxx.local`, and Knob Hub connects to the paired knob there
+  whenever it isn't plugged in. Your router lists it under the knob's name.
+- **Setting up Wi-Fi,** two ways (the knob uses 2.4 GHz networks only):
+  - From Knob Hub, with the knob connected: **Set up Wi-Fi...** on the Settings page lists the networks the knob can
+    see; pick yours and type its password (see [Knob Hub on the PC](#knob-hub-on-the-pc)).
+  - Without the PC: the knob's Settings > Connection > Wi-Fi setup (or **Use a phone** in Knob Hub's window) starts
+    pairing mode. The knob opens its own network (`KnobHub-xxxx`, with the password on its screen) for 5 minutes,
+    and a page at knobhub.local where you choose your network from a phone. The knob's network switches off once it
+    has joined yours.
 
 ## Repository layout
 
@@ -464,7 +484,7 @@ KnobHub/
 │  │                        LEDs, screen timeout
 │  ├─ src/hal/sim/          Simulator (SDL2 window)
 │  ├─ src/hal/preview/      knob_preview.dll for Knob Hub's live preview
-│  ├─ src/hal/esp32/        The real knob (to be finished with the boards); boards/ has each board's pins
+│  ├─ src/hal/esp32/        The real knob (net.cpp: Wi-Fi and pairing); boards/ has each board's pins
 │  └─ fonts/                make_fonts.py
 ├─ hub/                     Knob Hub (WPF, .NET 10); KnobHub.slnx
 │  ├─ KnobHub.Sdk/          Class library for apps
@@ -479,8 +499,7 @@ KnobHub/
 
 ## Status
 
-Working: the simulator, Knob Hub with the live preview, apps from GitHub, and the Media, AudioDesk, Counter
-and Displays apps, on every board in the list (in the simulator and the preview), with haptics, the LEDs' modes and the screen
-timeout worked out in Knob OS, and Knob Hub's side of USB. No board runs Knob OS yet: the hardware layer is next
-(display, touch, encoder, backlight, LEDs, the USB link, then the motor drivers), starting with the CrowPanels, then
-Wi-Fi.
+Working: Knob OS on both CrowPanels (1.28" and 1.46"), over USB and Wi-Fi, the simulator, Knob Hub with the live
+preview, apps from GitHub, and the Media, AudioDesk, Counter and Displays apps, with haptics (vibration through an
+add-on driver), the LEDs' modes and the screen timeout. Next: the motor knob (a motor on the knob, driven by
+field-oriented control).

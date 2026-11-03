@@ -3,8 +3,9 @@
 
 // The knob's RGB LEDs, on boards that have them (Board::leds). Like haptics, apps don't deal with them: each screen
 // says what its lights show (its Glow), and Knob OS turns that into the LEDs' colours by the Lights settings:
-//   Level meter: the LEDs fill up with the screen's level (a volume, how far a song has played) in its colour, in
-//                order round the ring; one LED gets brighter instead. A screen without a level lights them all.
+//   Level meter: the LEDs fill up with the screen's level (a volume, how far a song has played, the clock's
+//                seconds) in its colour, in order round the ring; one LED gets brighter instead. A screen without a
+//                level lights them all.
 //   App colour:  all of them in the screen's colour (the open app's, or the Home page in focus).
 //   Off.
 // Brightness is the LED brightness setting. They're off while the screen is off, and while it's dimmed too with LEDs

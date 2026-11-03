@@ -12,7 +12,7 @@ internal sealed record KnobBoard(string Id, string Name, int Size, bool Touch, i
     public static readonly KnobBoard[] Known =
     [
         new("crowpanel-1.28", "CrowPanel 1.28\"", 240, true, 5, false, false),
-        new("crowpanel-1.46", "CrowPanel 1.46\"", 360, true, 1, false, false),
+        new("crowpanel-1.46", "CrowPanel 1.46\"", 360, true, 8, false, false),
         new("motor-knob", "Motor knob", 240, true, 8, true, true),
     ];
 

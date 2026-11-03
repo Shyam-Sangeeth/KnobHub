@@ -56,10 +56,13 @@ public:
         }
     }
 
-    // The page in focus's colour.
+    // The page in focus's colour; on the clock, the seconds as the level, like its arc.
     lights::Glow glow() const override {
         lights::Glow g;
-        if (!pages_.empty()) g.color = pages_[current_].app.color;
+        if (pages_.empty()) return g;
+        g.color = pages_[current_].app.color;
+        std::tm now{};
+        if (pages_[current_].kind == PageKind::Clock && hal_local_time(now)) g.level = now.tm_sec * 100 / 60;
         return g;
     }
 

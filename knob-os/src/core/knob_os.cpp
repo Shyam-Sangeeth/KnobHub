@@ -5,6 +5,7 @@
 
 #include "hal.h"
 #include "apps.h"
+#include "busy.h"
 #include "home.h"
 #include "icons.h"
 #include "idle.h"
@@ -23,13 +24,17 @@ void knob_os_start() {
     lv_obj_set_style_bg_color(screen, theme::color(theme::Bezel), 0);
     lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    // The panel itself is round; everything is drawn inside this circle, so the simulator looks the same.
+    // The panel itself is round; everything is drawn inside this circle, so the simulator and the preview look the
+    // same. A real knob's panel hides the corners itself: clipping there sent every frame through a whole-screen
+    // layer, which made it take half as long again.
     lv_obj_t* circle = lv_obj_create(screen);
     lv_obj_remove_style_all(circle);
     lv_obj_set_size(circle, ui::size(), ui::size());
     lv_obj_center(circle);
+#ifndef KNOB_ESP32
     lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_clip_corner(circle, true, 0);
+#endif
     lv_obj_set_style_bg_color(circle, theme::color(theme::Screen), 0);
     lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, 0);
     lv_obj_remove_flag(circle, LV_OBJ_FLAG_SCROLLABLE);
@@ -74,6 +79,7 @@ bool knob_input_parse(const char* name, KnobInput& out) {
 
 void knob_os_input(KnobInput input) {
     if (idle::input()) return;  // it only woke the screen
+    if (busy::active() && input != KnobInput::Back) return;  // an app is busy: only Back gets through
     JsonDocument key;
     key["t"] = "key";
     key["input"] = knob_input_name(input);
@@ -122,3 +128,5 @@ void knob_os_touch(int x, int y, bool down) {
 void knob_os_link_connected(bool connected) { hub_link::set_connected(connected); }
 
 void knob_os_link_line(const char* line) { hub_link::receive(line); }
+
+void knob_os_wifi_changed() { settings::wifi_changed(); }

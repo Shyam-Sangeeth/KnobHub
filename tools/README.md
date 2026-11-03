@@ -11,7 +11,7 @@ that you send link messages to, turn, press and tap, and read the screen, bright
 
 | Script | What it does |
 |---|---|
-| `checks.py` | Checks behaviour: LEDs, pictures from another screen size, haptics, toasts, the screen timeout, cards. `--list` names them; pass names to run some. About a minute, since the timeout waits for real. Exits with 1 on a failure. |
+| `checks.py` | Checks behaviour: LEDs, pictures from another screen size, haptics, toasts, the screen timeout, cards, the Wi-Fi screen, the busy spinner. `--list` names them; pass names to run some. About a minute, since the timeout waits for real. Exits with 1 on a failure. |
 | `tour.py <dir>` | Saves every kind of screen as PNGs (`--board`, `--screen 240/360/480`). |
 | `compare.py <dir> --against <dir>` | Lists the screens that differ between two tours (exit 1 if any); `--sheet out.png` makes a contact sheet. |
 
@@ -27,3 +27,9 @@ and compare them.
 | `hub-page.ps1 -Page 0-3` | Shows a page of the open Knob Hub window (Knob, Apps, Board, Settings) through UI Automation. |
 
 A Knob Hub running in the tray connects to any simulator you start, so it sees what you do there.
+
+## A real knob
+
+| Script | What it does |
+|---|---|
+| `knob_perf.py [COM3]` | How fast the knob draws: turns through the Home ring over USB and prints the frame times (median and slowest), the CPU speed and the free internal RAM. Needs a build with `-D KNOB_PERF` and Knob Hub closed; see the script's header. |

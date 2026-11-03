@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows.Threading;
@@ -5,6 +6,13 @@ using KnobHub.Apps;
 using KnobHub.Sdk;
 
 namespace KnobHub.Core;
+
+/// <summary>A network the knob can see: its name, signal (dBm) and whether it has no password.</summary>
+internal sealed record WifiNetworkInfo(string Ssid, int Rssi, bool Open)
+{
+    public string Strength => Rssi > -60 ? "Strong" : Rssi > -75 ? "Good" : "Weak";
+    public bool Secured => !Open;
+}
 
 /// <summary>
 /// Knob Hub's side of the link (see knob-os/src/core/link.h for the messages). It talks to the real knob when one is
@@ -182,6 +190,11 @@ internal sealed class KnobSession : IDisposable
     private void OnKnobConnected(bool connected)
     {
         Log(connected ? $"Knob connected ({_knob.Kind})" : "Knob disconnected: the preview is the knob now");
+        if (!connected)
+        {
+            ReadWifi(null);
+            KnobPaired = false;
+        }
         // Disconnected: the preview already shows what the knob showed and takes over from there, timing its own screen
         // timeout again.
         if (!connected) Preview.LinkLine(new JsonObject { ["t"] = "idle", ["follow"] = false }.ToJsonString());
@@ -207,6 +220,19 @@ internal sealed class KnobSession : IDisposable
             case "idle":
                 // The preview follows the knob's screen state, so an input that only wakes the knob doesn't act on it.
                 Preview.LinkLine(new JsonObject { ["t"] = "idle", ["state"] = msg.Str("state"), ["follow"] = true }.ToJsonString());
+                return;
+            case "wifi":
+                ReadWifi(msg);
+                StateChanged?.Invoke();
+                return;
+            case "wifi_left":
+                WifiScreenLeft?.Invoke();
+                return;
+            case "wifi_networks":
+                var networks = (msg["networks"] as JsonArray ?? []).OfType<JsonObject>()
+                    .Select(n => new WifiNetworkInfo(n.Str("ssid"), n.Int("rssi"), n["open"] is JsonValue o && o.TryGetValue(out bool open) && open))
+                    .Where(n => n.Ssid.Length > 0).ToList();
+                WifiNetworksFound?.Invoke(networks);
                 return;
         }
         Handle(msg, fromKnob: true);
@@ -294,11 +320,136 @@ internal sealed class KnobSession : IDisposable
         return null;
     }
 
+    // --- Wi-Fi and pairing ---
+
+    /// <summary>The connected knob's Wi-Fi: "unsupported", "off", "connecting", "connected", "failed" or "setup"
+    /// (see link.h), and the network it's set up for. Empty when no real knob is connected.</summary>
+    public string WifiState { get; private set; } = "";
+    public string WifiNetwork { get; private set; } = "";
+    /// <summary>The connected knob holds Knob Hub's key, so it can be reached over Wi-Fi.</summary>
+    public bool KnobPaired { get; private set; }
+    /// <summary>The network name of the knob Knob Hub is paired with, or "" for none.</summary>
+    public string PairedHost => _settings.Paired?.Host ?? "";
+
+    /// <summary>Knob Hub's Wi-Fi buttons: pairing mode on the knob ("setup"), off ("stop"), or forget the network
+    /// ("forget"). Only to the real knob.</summary>
+    public void WifiAction(string action)
+    {
+        if (_knob.IsConnected) _knob.Send(new JsonObject { ["t"] = "wifi", ["action"] = action }.ToJsonString());
+    }
+
+    /// <summary>Has the knob look for networks: <see cref="WifiNetworksFound"/> brings them, strongest first. The knob
+    /// goes to Settings > Connection first (closing an open app), and so does the preview, to stay in step.</summary>
+    public void WifiScan()
+    {
+        if (!_knob.IsConnected) return;
+        if (_open != null) Closed(_open);
+        Send(new JsonObject { ["t"] = "wifi", ["action"] = "scan" });
+    }
+
+    /// <summary>The Wi-Fi window closed: the knob (and the preview) leave their Wi-Fi screen.</summary>
+    public void WifiDone() => Send(new JsonObject { ["t"] = "wifi", ["action"] = "done" });
+
+    /// <summary>Has the knob join a network now (and keep it once joined). The password goes only to the knob.</summary>
+    public void WifiJoin(string ssid, string password)
+    {
+        if (_knob.IsConnected)
+            _knob.Send(new JsonObject { ["t"] = "wifi", ["action"] = "join", ["ssid"] = ssid, ["password"] = password }.ToJsonString());
+    }
+
+    public event Action<IReadOnlyList<WifiNetworkInfo>>? WifiNetworksFound;
+    /// <summary>Something was done on the knob's Wi-Fi screen, which leaves it: the Wi-Fi window closes too.</summary>
+    public event Action? WifiScreenLeft;
+
+    /// <summary>A network being joined, or the last one that couldn't be and why ("password", "not_found",
+    /// "security", "timeout", "other"); whether the knob is looking for networks.</summary>
+    public string WifiJoining => _wifi?.Str("joining") ?? "";
+    public string WifiJoinFailed => _wifi?.Str("join_failed") ?? "";
+    public string WifiJoinProblem => _wifi?.Str("join_problem") ?? "";
+    public bool WifiScanning => _wifi?["scanning"] is JsonValue v && v.TryGetValue(out bool b) && b;
+
+    /// <summary>The knob's own network and its password while it's in Wi-Fi setup.</summary>
+    public string WifiSetupNetwork { get; private set; } = "";
+    public string WifiSetupPassword { get; private set; } = "";
+    private string _keyId = "";  // the connected knob's key fingerprint
+
+    private JsonObject? _wifi;  // the knob's last Wi-Fi message (or its hello's wifi)
+
+    private void ReadWifi(JsonObject? wifi)
+    {
+        _wifi = wifi?.DeepClone().AsObject();
+        _wifi?.Remove("t");
+        WifiState = wifi?.Str("state") ?? "";
+        WifiNetwork = wifi?.Str("network") ?? "";
+        WifiSetupNetwork = wifi?.Str("setup_network") ?? "";
+        WifiSetupPassword = wifi?.Str("setup_password") ?? "";
+        if (wifi != null) LogWifi(wifi);
+        MirrorWifi();
+    }
+
+    private string _wifiLogged = "";
+
+    /// <summary>Logs what the knob's Wi-Fi is doing, when that changes (not the password, which never comes back).</summary>
+    private void LogWifi(JsonObject wifi)
+    {
+        string text = wifi.Str("state") switch
+        {
+            "connected" => $"on Wi-Fi ({wifi.Str("network")})",
+            "connecting" => $"trying for {wifi.Str("network")}",
+            "failed" => $"can't join {wifi.Str("network")}",
+            "setup" => "in Wi-Fi setup",
+            "off" => "not set up for Wi-Fi",
+            _ => "",
+        };
+        if (text.Length == 0) return;
+        if (wifi.Str("joining").Length > 0) text += $", joining {wifi.Str("joining")}";
+        else if (wifi.Str("join_failed").Length > 0) text += $"; couldn't join {wifi.Str("join_failed")} ({wifi.Str("join_problem")})";
+        if (text == _wifiLogged) return;
+        _wifiLogged = text;
+        Log($"The knob is {text}");
+    }
+
+    /// <summary>The preview shows the real knob's link and Wi-Fi in its Settings and Wi-Fi setup screen (it has none
+    /// of its own; see knob-os/src/hal/preview/preview.cpp), and none again once the knob goes.</summary>
+    private void MirrorWifi()
+    {
+        var msg = new JsonObject { ["t"] = "mirror_wifi", ["state"] = "unsupported" };
+        if (_knob.IsConnected && _wifi != null && WifiState.Length > 0)
+        {
+            foreach (var (name, value) in _wifi) msg[name] = value?.DeepClone();
+            msg["link"] = _knob.Kind is "USB" or "Wi-Fi" ? _knob.Kind : "";
+            msg["key_id"] = _keyId;
+        }
+        Preview.LinkLine(msg.ToJsonString());
+    }
+
+    /// <summary>A knob that says hello over USB gets Knob Hub's key if it hasn't got it: the same key again for the
+    /// knob Knob Hub knows, or a new one for another knob (one knob is paired at a time). Never over Wi-Fi.</summary>
+    private void Pair(JsonObject hello)
+    {
+        string id = hello.Str("id");
+        if (id.Length == 0) return;  // Knob OS before 0.3
+        var known = _settings.Paired?.Id == id ? _settings.Paired : null;
+        byte[] key = known != null ? Convert.FromBase64String(known.Key) : RandomNumberGenerator.GetBytes(32);
+        KnobPaired = true;
+        _keyId = PairedKnob.KeyId(key);
+        if (known != null && known.Host == hello.Str("host") && _keyId == hello.Str("key_id")) return;
+        _settings.Paired = new PairedKnob { Id = id, Host = hello.Str("host"), Key = Convert.ToBase64String(key) };
+        _settings.Save();
+        _knob.Send(new JsonObject { ["t"] = "pair", ["key"] = Convert.ToBase64String(key) }.ToJsonString());
+        Log($"Paired with {hello.Str("host")}: Knob Hub can reach it over Wi-Fi now");
+    }
+
     private void HandleHello(JsonObject msg, bool fromKnob)
     {
         OsVersion = msg.Str("os");
         if (fromKnob)
         {
+            _keyId = msg.Str("key_id");
+            KnobPaired = _settings.Paired is { } paired && paired.Id == msg.Str("id") &&
+                         PairedKnob.KeyId(Convert.FromBase64String(paired.Key)) == _keyId;
+            if (_knob.Kind == "USB") Pair(msg);
+            ReadWifi(msg["wifi"] as JsonObject);
             // The preview mirrors the knob, so it becomes the same board (starting again if it wasn't; its screen
             // stays 480 px), and stays it when the knob goes.
             _knobBoard = KnobBoard.FromHello(msg);
@@ -311,6 +462,10 @@ internal sealed class KnobSession : IDisposable
             if (_knobBoard.Id != Preview.Board.Id) StartPreview(KnobBoard.Find(_knobBoard.Id));
             // Bring the preview to where the knob is; the knob reopens its app by itself.
             Preview.LinkLine(new JsonObject { ["t"] = "sync", ["page"] = msg.Str("page"), ["app"] = msg.Str("app") }.ToJsonString());
+        }
+        else if (_knob.IsConnected)
+        {
+            MirrorWifi();  // a new preview (another board) mirroring the knob
         }
         // After a reconnect, an app Knob Hub still thinks is open may not be on the knob any more: close it here. (An
         // app that is still open on the knob asks to be opened again by itself.) The preview only counts when it's

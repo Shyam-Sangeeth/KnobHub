@@ -75,7 +75,7 @@ for pixel tests.
 pio run -e sim -t exec      # simulator window (SDL2); Knob Hub connects to it on 127.0.0.1:5718
                             # program.exe --board crowpanel-1.46 (or motor-knob) for another board
 pio run -e preview          # knob_preview.dll for Knob Hub's live preview
-pio run -e crowpanel-128    # a real board: one env per board (hardware layer src/hal/esp32 still mostly stubs)
+pio run -e crowpanel-128    # a real board: one env per board; -t upload --upload-port COM3 flashes it
 pio run -e crowpanel-146
 
 # hub
@@ -124,14 +124,27 @@ when screens change.
 - `sim`: SDL, mouse only, fixed-size window; `--board <id>`; prints what the motors and LEDs would do.
 - `preview`: the DLL, with in-memory storage, 480 px unless `kp_screen` says otherwise; `kp_board` before
   `kp_start`; `kp_vibration`/`kp_motor` report haptics and `kp_leds` the LEDs.
-- `esp32`: LittleFS; one pin file per board in `boards/`.
+- `esp32`: display (LovyanGFX, panel set in the pin file; LVGL renders into two DMA buffers of a third of the screen;
+  built with `-O2`, and without the round clip the simulator and the preview have: a whole-screen frame takes ~25 ms,
+  against 193 ms before. Measure with a `-D KNOB_PERF` build and `tools/knob_perf.py`), CST816 touch, encoder
+  (interrupts, one step per full cycle) and press, backlight PWM, WS2812 LEDs (RMT), USB link (lines read by a task on
+  core 0: the USB serial drops what its buffer can't hold), LittleFS; one pin file per board in `boards/`, which can
+  also set `SCREEN_UPSIDE_DOWN` (screen and touch turned 180° so the top is where the LEDs start; the 1.28" does) and
+  `LEDS_REVERSED` (LEDs chained the other way round the ring; the 1.28" does), `LED_AT_TOP` (the LED in the chain at
+  the top of the screen; 7 on the 1.46"), `ENCODER_HALF_CYCLE` (a click is half a cycle of A and B; the 1.46") and
+  `LCD_RGB_ORDER`. Wi-Fi and pairing are in `net.cpp`; motors still to do.
+  The 1.46"'s ST77961 needs its own start-up commands (`boards/crowpanel_1_46_panel.h`, from the LovyanGFX 1.2.7 that
+  Elecrow's example ships): newer LovyanGFX's `Panel_ST77961` leaves it blank. A DFRobot DRI0056 haptic driver (TM6605,
+  I2C 0x2D) on the spare I2C connector (`PIN_EXT_SDA/SCL`, `Wire1`) is looked for at start and gives the board
+  vibration (`hal_board().vibration`); it answers only a moment after power-on, hence the retries.
 
 **hub/KnobHub**
 - `Core/KnobSession.cs`: talks to one knob (apps, screens, icons).
 - `Core/KnobConnection.cs`: the links, highest priority first in `KnobLinks` (USB, then the simulator's TCP); lower
   ones pause while a higher one is in use. A link counts as connected once the knob says hello (`LineConnection`).
-  USB looks only at COM ports with Espressif's vendor id (registry), opened with DTR on and RTS off (both would reset
-  the ESP32-S3).
+  USB looks only at COM ports with Espressif's vendor id (registry), opened with RTS off (RTS can reset the ESP32-S3).
+  The knob can't see the port open (the ESP32-S3's USB serial has no DTR to read), so over USB Knob Hub sends a `hub`
+  heartbeat every 2 s with the time (`Heartbeat`); the knob's link is up while they come (6 s without one: down).
 - `Core/KnobPreview.cs`: the DLL, always 480 px; it loads a fresh copy from %TEMP% to become another board, since
   Knob OS starts only once per DLL. While it isn't on show (`Shown`: the window in the tray, minimized or on another
   page) it ticks 4 times a second and copies no frames.

@@ -508,12 +508,14 @@
                 <TextBlock Text="Connection" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="{Binding ConnectionText}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding ConnectionText, Mode=OneWay}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding WifiText, Mode=OneWay}" TextWrapping="Wrap" Margin="0,6,0,0" />
                         <TextBlock TextWrapping="Wrap" Margin="0,6,0,12" Style="{StaticResource SecondaryText}"
-                                   Text="USB is used whenever it's plugged in. Wi-Fi setup (pairing mode, knobhub.local) comes with the knob hardware." />
+                                   Text="USB is used whenever it's plugged in; otherwise Knob Hub finds the knob on your Wi-Fi. Setting up Wi-Fi opens the knob's own network for 5 minutes, with a page at knobhub.local where you choose yours." />
                         <WrapPanel>
-                            <Button Content="Start pairing mode" IsEnabled="False" Margin="0,0,8,0" />
-                            <Button Content="Forget Wi-Fi" IsEnabled="False" />
+                            <Button Content="{Binding WifiSetupButton, Mode=OneWay}" IsEnabled="{Binding CanSetUpWifi, Mode=OneWay}"
+                                    Click="WifiSetup_Click" Margin="0,0,8,0" />
+                            <Button Content="Forget Wi-Fi" IsEnabled="{Binding CanForgetWifi, Mode=OneWay}" Click="ForgetWifi_Click" />
                         </WrapPanel>
                     </StackPanel>
                 </Border>

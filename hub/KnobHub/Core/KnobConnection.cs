@@ -67,14 +67,50 @@ internal abstract class LineConnection : IKnobConnection
     /// <summary>The stream opened by the last <see cref="OpenAsync"/> didn't say hello in time.</summary>
     protected virtual void NoHello() { }
 
-    public void Send(string line)
+    /// <summary>A message sent as soon as the stream is open and every <see cref="BeatEvery"/> after, or null for none:
+    /// how a knob on a link that can't tell when it's opened (USB) knows Knob Hub is there. <paramref name="session"/>
+    /// is new each time the stream is opened.</summary>
+    protected virtual string? Heartbeat(string session) => null;
+
+    /// <summary>The heartbeat a real knob gets (over USB and Wi-Fi): the session, and the time for its clock (Unix
+    /// seconds, and the offset from UTC in minutes).</summary>
+    protected static string HubMessage(string session)
+    {
+        var now = DateTimeOffset.Now;
+        return new JsonObject
+        {
+            ["t"] = "hub",
+            ["session"] = session,
+            ["time"] = now.ToUnixTimeSeconds(),
+            ["offset"] = (int)now.Offset.TotalMinutes,
+        }.ToJsonString();
+    }
+
+    private static readonly TimeSpan BeatEvery = TimeSpan.FromSeconds(2);
+
+    public void Send(string line) => Write(_writer, line);
+
+    private void Write(Stream? stream, string line)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
         lock (_writeLock)
         {
-            try { _writer?.Write(bytes); _writer?.Flush(); }
+            try { stream?.Write(bytes); stream?.Flush(); }
             catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or TimeoutException) { }
         }
+    }
+
+    private async Task BeatAsync(Stream stream, string session, CancellationToken stop)
+    {
+        try
+        {
+            while (!stop.IsCancellationRequested && Heartbeat(session) is { } line)
+            {
+                Write(stream, line);
+                await Task.Delay(BeatEvery, stop);
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     private async Task RunAsync(CancellationToken stop)
@@ -104,6 +140,7 @@ internal abstract class LineConnection : IKnobConnection
             using (owner)
             {
                 if (_paused) return;
+                _ = BeatAsync(stream, Guid.NewGuid().ToString("N")[..8], current.Token);
                 var reader = new StreamReader(stream, new UTF8Encoding(false));
                 string? hello = await WaitForHelloAsync(reader, current);
                 if (hello == null)
@@ -195,7 +232,9 @@ internal sealed class SimulatorConnection : LineConnection
 /// <summary>
 /// A knob plugged in over USB: the ESP32-S3's own USB (Espressif's vendor id 303A), which Windows shows as a COM
 /// port. Ports are found by that id in the registry, so other serial devices are never opened. The port is opened
-/// with DTR on (Knob OS counts the link as up while it is) and RTS off (with both, the ESP32-S3 would reset).
+/// with RTS off (RTS can reset the ESP32-S3). Knob OS can't see the port being opened, so Knob Hub sends
+/// it a "hub" message every 2 seconds, with the time for its clock; the knob counts the link as up while they come
+/// (see knob-os/src/hal/esp32/main.cpp).
 /// </summary>
 internal sealed class UsbConnection : LineConnection
 {
@@ -239,6 +278,8 @@ internal sealed class UsbConnection : LineConnection
         if (_tried != null) _resting[_tried] = DateTime.UtcNow + RestAfterNoHello;
     }
 
+    protected override string? Heartbeat(string session) => HubMessage(session);
+
     /// <summary>The COM ports there now whose USB device has a knob's vendor id.</summary>
     internal static List<string> KnobPorts()
     {
@@ -269,7 +310,7 @@ internal sealed class UsbConnection : LineConnection
 }
 
 /// <summary>
-/// Every way a knob can be connected, highest priority first (USB, then the simulator): the knob in use is the first
+/// Every way a knob can be connected, highest priority first (USB, Wi-Fi, the simulator): the knob in use is the first
 /// one connected. While one is in use, the ones after it are paused, so when it goes the next one connects afresh
 /// and says hello again (Knob Hub learns its board).
 /// </summary>

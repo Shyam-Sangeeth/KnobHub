@@ -27,13 +27,21 @@ def dial(value, color="#4CC2FF"):
 
 
 def check_leds():
-    """Level meter fills the LEDs in order; App colour lights them all; Off; one LED gets brighter; the arc."""
+    """Level meter fills the LEDs in order (5 and 8 of them); App colour lights them all; Off; the arc."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
     k.send(APPS, wait=0.3)
     colors, start, sweep = k.leds()
-    expect("Home (the clock page): all lit, the default arc", (start, sweep), (270, 360))
+    expect("Home (the clock page): the default arc", (start, sweep), (270, 360))
     expect("Home: 5 LEDs", len(colors), 5)
+    # The clock fills them with the seconds (white at 70%), as lights.cpp works it out; the second may tick meanwhile.
+    def seconds(sec):
+        level = sec * 100 // 60
+        percents = [70 * min(max(level * 5 - i * 100, 0), 100) // 100 for i in range(5)]
+        return [sum((0xF2F3F5 >> s & 0xFF) * p // 100 << s for s in (16, 8, 0)) for p in percents]
+    now = time.localtime().tm_sec
+    if colors not in (seconds(now), seconds((now - 1) % 60)):
+        raise AssertionError(f"clock: got {colors!r}, wanted the seconds ({now}): {seconds(now)!r}")
     k.turn_left()
     expect("Home on AudioDesk: its colour at 70%", k.leds()[0], [0x6156AC] * 5)
     k.press(wait=0.8)
@@ -47,13 +55,13 @@ def check_leds():
     k.send({"t": "settings", "led_mode": 2}, wait=0.2)
     expect("Off", k.leds()[0], [0] * 5)
 
-    one = Knob(board="crowpanel-1.46")
-    one.connect()
-    one.send(APPS, wait=0.3)
-    one.turn_left()
-    one.press(wait=0.8)
-    one.send(dial(64), wait=0.2)
-    expect("one LED at 64: brighter by the level", one.leds()[0], [0x215570])
+    ring = Knob(board="crowpanel-1.46")
+    ring.connect()
+    ring.send(APPS, wait=0.3)
+    ring.turn_left()
+    ring.press(wait=0.8)
+    ring.send(dial(64), wait=0.2)
+    expect("8 LEDs at 64: 5 full, 1 an eighth, 2 off", ring.leds()[0], [0x3587B2] * 5 + [0x060F14, 0, 0])
 
 
 def check_pictures():
@@ -131,6 +139,12 @@ def check_idle():
     expect("a replayed turn while following acts", [m["input"] for m in k.take("key")], ["right"])
     k.send({"t": "idle", "follow": False}, wait=0.3)
     expect("timing its own again: awake", k.brightness(), 80)
+    k.send({"t": "settings", "timeout": 4}, wait=0.3)
+    k.run(20)
+    k.send({"t": "settings", "timeout": 0}, wait=0.3)
+    expect("a timeout set after 20 s idle counts from then: awake", k.brightness(), 80)
+    k.run(7.6)
+    expect("and dims 7.5 s later", k.brightness(), 20)
 
 
 def check_toasts():
@@ -223,8 +237,69 @@ def check_cards():
     expect("cards again: on the selected one", k.motor(), (3, 2, False, "firm"))
 
 
+def check_wifi():
+    """Knob Hub's Wi-Fi window: the Wi-Fi screen over Connection; a turn, press or tap leaves it (wifi_left); done doesn't."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    # The real knob's Wi-Fi, as Knob Hub mirrors it to the preview.
+    k.send({"t": "mirror_wifi", "link": "USB", "key_id": "abcd1234", "state": "off"}, wait=0.3)
+    k.send({"t": "wifi", "action": "scan"}, wait=0.4)
+    k.send({"t": "wifi", "action": "done"}, wait=0.4)
+    connection = k.frame()
+    expect("the window closing sends nothing back", k.take("wifi_left"), [])
+    for name, act in [("a turn", k.turn_right), ("a press", k.press), ("a tap", lambda: k.tap(120, 120))]:
+        k.send({"t": "wifi", "action": "scan"}, wait=0.4)
+        if k.frame() == connection:
+            raise AssertionError("the Wi-Fi screen didn't come up")
+        act()
+        k.run(0.3)
+        expect(f"{name} leaves the Wi-Fi screen", len(k.take("wifi_left")), 1)
+        expect(f"after {name}: the Connection page", k.frame() == connection, True)
+    k.turn_right()
+    expect("on the Connection page, turning doesn't", k.take("wifi_left"), [])
+
+
+def check_busy():
+    """An app's busy spinner: turns, presses and taps don't reach the screen, Back does; an update or a new screen ends it."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    screen = dial(40)
+    k.send(screen, wait=0.4)
+    plain = k.frame()
+    screen["data"]["busy"] = True
+    k.send(screen, wait=0.4)
+    expect("busy: the spinner shows", k.frame() != plain, True)
+    k.take()
+    k.turn_right()
+    k.press()
+    k.tap(120, 120)
+    k.tap(120, 200)
+    expect("busy: turns, presses and taps do nothing", k.take("input"), [])
+    k.back()
+    expect("busy: Back still goes to the app", [m["kind"] for m in k.take("input")], ["back"])
+    k.send({"t": "update", "app": "demo", "screen": "v", "data": {"busy": False}}, wait=0.4)
+    k.turn_right()
+    expect("not busy: a turn reaches the app", [m["kind"] for m in k.take("input")], ["rotate"])
+    k.send({"t": "update", "app": "demo", "screen": "v", "data": {"value": 50}}, wait=0.3)
+    k.turn_right()
+    expect("an update without busy leaves it as it was", [m["kind"] for m in k.take("input")], ["rotate"])
+    k.send(screen, wait=0.4)
+    k.send(dial(40), wait=0.4)
+    k.turn_right()
+    expect("a new screen isn't busy unless it says so", [m["kind"] for m in k.take("input")], ["rotate"])
+    k.send(screen, wait=0.4)
+    k.send({"t": "close", "app": "demo"}, wait=0.6)
+    k.take()
+    k.turn_right()
+    expect("closing the app ends it: Home turns", len(k.take("key")), 1)
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
-          "idle": check_idle, "cards": check_cards}
+          "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:

@@ -3,7 +3,7 @@
 
 #include "input.h"
 
-#define KNOB_OS_VERSION "0.2.0"
+#define KNOB_OS_VERSION "0.3.0"
 
 // Knob OS's entry points, called by the hardware layer (src/hal/<target>/) from its main loop.
 
@@ -26,3 +26,6 @@ void knob_os_link_connected(bool connected);
 
 // One message received from Knob Hub: a JSON object, without the trailing newline.
 void knob_os_link_line(const char* line);
+
+// The Wi-Fi state changed (see hal_wifi).
+void knob_os_wifi_changed();

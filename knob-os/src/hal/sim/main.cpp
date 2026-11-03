@@ -263,6 +263,21 @@ void hal_link_send(const char* line) {
     }
 }
 
+// No Wi-Fi: Knob Hub reaches the simulator on its local socket.
+const char* hal_link_kind() { return ""; }
+KnobIdentity hal_identity() { return {}; }
+void hal_set_name(const std::string&) {}
+WifiStatus hal_wifi() { return {}; }
+bool hal_wifi_setup(std::string& why) {
+    why = "Wi-Fi setup needs the real knob";
+    return false;
+}
+void hal_wifi_stop_setup() {}
+void hal_wifi_forget() {}
+void hal_wifi_scan() {}
+std::vector<WifiNetwork> hal_wifi_networks() { return {}; }
+void hal_wifi_join(const std::string&, const std::string&) {}
+
 // The simulator's flash: files in %LOCALAPPDATA%\KnobHub\Simulator.
 static std::string store_path(const char* name) {
     std::string folder = window_folder();

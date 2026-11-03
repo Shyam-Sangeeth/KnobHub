@@ -13,6 +13,12 @@ public abstract class KnobScreen
     /// <summary>The Knob OS template that draws it.</summary>
     [JsonIgnore]
     public abstract string Template { get; }
+
+    /// <summary>Something is under way (e.g. switching a device): a spinner turns in the middle of the knob's screen, over
+    /// everything, and turns, presses and taps don't reach the screen until it's false again. Back still does. Change it
+    /// with <see cref="IKnobHost.Update"/> (<c>new { busy = false }</c>); a screen that's shown isn't busy unless it says
+    /// so.</summary>
+    public bool Busy { get; set; }
 }
 
 /// <summary>One big value on a 270° arc, e.g. a volume. Turning reports rotate (+1/-1, the knob moves the value by

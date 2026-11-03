@@ -29,6 +29,11 @@ internal sealed class HubSettings
     /// <see cref="KnobBoard"/>).</summary>
     public string PreviewBoard { get; set; } = KnobBoard.Default.Id;
 
+    /// <summary>The knob paired over USB, which Knob Hub looks for on Wi-Fi when it isn't plugged in (see
+    /// <see cref="WifiConnection"/>).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PairedKnob? Paired { get; set; }
+
     public static HubSettings Load()
     {
         try
@@ -59,6 +64,21 @@ internal sealed class AppState
     /// <summary>The app's settings changed on the Apps page: id to option index (omitted while none are).</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, int>? Settings { get; set; }
+}
+
+/// <summary>A knob paired with Knob Hub: the key Knob Hub gave it over USB, which both prove they hold over Wi-Fi.</summary>
+internal sealed class PairedKnob
+{
+    /// <summary>The knob's lasting id (its chip's MAC), from its hello.</summary>
+    public string Id { get; set; } = "";
+    /// <summary>Its name on the network, e.g. "knob-b2a4" (reached as knob-b2a4.local).</summary>
+    public string Host { get; set; } = "";
+    /// <summary>32 random bytes, base64.</summary>
+    public string Key { get; set; } = "";
+
+    /// <summary>The fingerprint a knob reports for its key (key_id in its hello): the first 4 bytes of the key's
+    /// SHA-256, in hex.</summary>
+    public static string KeyId(byte[] key) => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(key), 0, 4);
 }
 
 /// <summary>The knob's settings. Sent to the knob as a "settings" message (snake_case names).</summary>

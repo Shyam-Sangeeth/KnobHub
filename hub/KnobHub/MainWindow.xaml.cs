@@ -324,6 +324,20 @@ public partial class MainWindow : Window
     // Add apps is a modal window over Knob Hub: Knob Hub is back once it's closed.
     private void AddApps_Click(object sender, RoutedEventArgs e) => new AddAppsWindow(_model, Manager, this).ShowDialog();
 
+    // The Wi-Fi window is modal over Knob Hub, like Add apps.
+    private void WifiSetup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_model.InWifiSetup) _model.StopWifiSetup();
+        else new WifiWindow(((App)Application.Current).Session, this).ShowDialog();
+    }
+
+    private void ForgetWifi_Click(object sender, RoutedEventArgs e)
+    {
+        var answer = MessageBox.Show(this, "Forget the knob's Wi-Fi network? It will only connect over USB until you set up Wi-Fi again.",
+            "Forget Wi-Fi", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Yes) _model.ForgetWifi();
+    }
+
     private void Uninstall_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not { } item) return;

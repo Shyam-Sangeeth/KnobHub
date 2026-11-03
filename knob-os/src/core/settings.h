@@ -35,4 +35,13 @@ void apply_from_hub(JsonObjectConst msg);
 void forget_pages();
 void send_all();
 
+// Wi-Fi (Settings > Connection). The state as it goes in hello and "wifi" messages: {state, network, and in setup
+// setup_network and setup_password}.
+void describe_wifi(JsonObject out);
+// The hardware layer's Wi-Fi changed: shows or closes the setup screen, tells Knob Hub, redraws.
+void wifi_changed();
+// Knob Hub's "wifi" messages: action "setup" (pairing mode), "stop", "forget", "scan" (its Wi-Fi window opened or
+// looks again: answered with wifi_networks), "join" (with ssid and password) or "done" (the window closed).
+void wifi_action(JsonObjectConst msg);
+
 }  // namespace settings

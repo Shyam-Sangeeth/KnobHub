@@ -9,7 +9,7 @@ namespace {
 // (fonts/make_fonts.py) and, for the real thing, a board file in src/hal/esp32/boards/.
 const Board Known[] = {
     {"crowpanel-1.28", "CrowPanel 1.28\"", 240, true, 5, false, false},
-    {"crowpanel-1.46", "CrowPanel 1.46\"", 360, true, 1, false, false},
+    {"crowpanel-1.46", "CrowPanel 1.46\"", 360, true, 8, false, false},
     // A knob with a motor and a vibration motor (SmartKnob style): not built yet, here so the haptics can be tried in
     // the simulator and Knob Hub's preview.
     {"motor-knob", "Motor knob", 240, true, 8, true, true},

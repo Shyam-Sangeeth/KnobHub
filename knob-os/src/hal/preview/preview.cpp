@@ -14,8 +14,10 @@
 // It has no motors or LEDs: kp_vibration, kp_motor and kp_leds tell Knob Hub what they'd do, so it can show it.
 #include <windows.h>
 
+#include <ArduinoJson.h>
 #include <lvgl.h>
 
+#include <cstring>
 #include <ctime>
 #include <deque>
 #include <map>
@@ -94,6 +96,56 @@ void hal_link_send(const char* line) {
     if (send_line) send_line(line);
 }
 
+// No network of its own. While it mirrors a real knob, Knob Hub sends it the knob's link and Wi-Fi state
+// ({"t":"mirror_wifi", link, key_id, and the knob's "wifi" fields; state "unsupported" when the knob goes), so its
+// Settings and Wi-Fi setup screen show what the knob's do. What's done on them is done by the real
+// knob (the preview only replays the knob's actions), so the calls below do nothing then.
+namespace {
+std::string mirror_link;
+KnobIdentity mirror_identity;
+WifiStatus mirror_wifi;
+
+WifiState parse_state(const char* s) {
+    static const char* const Names[] = {"unsupported", "off", "connecting", "connected", "failed", "setup"};
+    for (int i = 0; i < 6; i++)
+        if (std::strcmp(s, Names[i]) == 0) return static_cast<WifiState>(i);
+    return WifiState::Unsupported;
+}
+
+// A mirror_wifi message: kept here, never given to Knob OS.
+bool take_mirror(const char* line) {
+    if (!std::strstr(line, "\"mirror_wifi\"")) return false;
+    JsonDocument msg;
+    if (deserializeJson(msg, line) || std::strcmp(msg["t"] | "", "mirror_wifi") != 0) return false;
+    mirror_link = msg["link"] | "";
+    mirror_identity.key_id = msg["key_id"] | "";
+    mirror_wifi.state = parse_state(msg["state"] | "");
+    mirror_wifi.network = msg["network"] | "";
+    mirror_wifi.setup_network = msg["setup_network"] | "";
+    mirror_wifi.setup_password = msg["setup_password"] | "";
+    mirror_wifi.joining = msg["joining"] | "";
+    mirror_wifi.join_failed = msg["join_failed"] | "";
+    mirror_wifi.join_problem = msg["join_problem"] | "";
+    mirror_wifi.scanning = msg["scanning"] | false;
+    knob_os_wifi_changed();
+    return true;
+}
+}  // namespace
+
+const char* hal_link_kind() { return mirror_link.c_str(); }
+KnobIdentity hal_identity() { return mirror_identity; }
+void hal_set_name(const std::string&) {}
+WifiStatus hal_wifi() { return mirror_wifi; }
+bool hal_wifi_setup(std::string& why) {
+    why = "Wi-Fi setup needs the real knob";
+    return mirror_wifi.state != WifiState::Unsupported;
+}
+void hal_wifi_stop_setup() {}
+void hal_wifi_forget() {}
+void hal_wifi_scan() {}
+std::vector<WifiNetwork> hal_wifi_networks() { return {}; }
+void hal_wifi_join(const std::string&, const std::string&) {}
+
 void hal_set_brightness(int percent) { brightness = percent; }
 
 bool hal_store_read(const char* name, std::vector<uint8_t>& out) {
@@ -155,7 +207,9 @@ KP_API void kp_touch(int x, int y, int down) { knob_os_touch(x, y, down != 0); }
 
 KP_API void kp_link_connected(int connected) { knob_os_link_connected(connected != 0); }
 
-KP_API void kp_link_line(const char* line) { knob_os_link_line(line); }
+KP_API void kp_link_line(const char* line) {
+    if (!take_mirror(line)) knob_os_link_line(line);
+}
 
 // The screen: kp_size() x kp_size() pixels, 4 bytes each. serial (optional) tells whether it changed since the last
 // call.
