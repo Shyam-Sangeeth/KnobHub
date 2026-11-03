@@ -21,7 +21,8 @@ public sealed class DialScreen : KnobScreen
 {
     /// <inheritdoc />
     public override string Template => "dial";
-    /// <summary>Shown in capitals above the value.</summary>
+    /// <summary>Above the value. Write it in capitals ("VOLUME"), like Knob OS's own screens: the knob shows text as
+    /// it's sent.</summary>
     public string? Label { get; set; }
     public string? Icon { get; set; }
     public string? Color { get; set; }
@@ -120,7 +121,8 @@ public sealed class ControlsScreen : KnobScreen
 {
     /// <inheritdoc />
     public override string Template => "controls";
-    /// <summary>Shown in capitals under the icon.</summary>
+    /// <summary>Under the icon. Write it in capitals ("MEDIA"), like Knob OS's own screens: the knob shows text as
+    /// it's sent.</summary>
     public string? Label { get; set; }
     public string? Icon { get; set; }
     public string? Color { get; set; }

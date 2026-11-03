@@ -330,6 +330,10 @@ apart from Knob Hub's releases. Each release there is one version of one app, ta
 
 ## Making an app
 
+**The full guide is the [KnobHub-Apps wiki](https://github.com/Shyam-Sangeeth/KnobHub-Apps/wiki)**: setting up, a step-by-step tutorial, every screen with
+pictures, icons, testing, publishing, design guidelines and troubleshooting, plus a [page for AI agents](https://github.com/Shyam-Sangeeth/KnobHub-Apps/wiki/For-AI-agents).
+In short:
+
 An app is a Knob Hub plugin: a folder with `app.json` and a .NET assembly, zipped and renamed to `.knobapp`. Knob
 Hub installs it into `%LOCALAPPDATA%\KnobHub\Apps\<id>`. `hub/Plugins/Counter` is a small, complete example.
 

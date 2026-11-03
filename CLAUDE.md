@@ -183,6 +183,9 @@ Apps are released in **Shyam-Sangeeth/KnobHub-Apps** (its own repo):
 - `pack-release.ps1` creates releases for versions not yet released, so bump `version` in an app's `app.json` to
   publish an update.
 - Update that repo's README (with screenshots in its `docs/`) when an app changes.
+- The guide to making apps is that repo's **wiki** (`KnobHub-Apps.wiki.git`; pages such as Screens, How-apps-work and
+  For-AI-agents, images in `images/`). Update it with the SDK: new screens or fields, input, app loading, packaging,
+  built-in icons or Knob Hub's install and Add apps behaviour. Its code samples must compile.
 
 ## Working on the user's PC
 
