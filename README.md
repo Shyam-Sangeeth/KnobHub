@@ -323,10 +323,10 @@ Windows.
 | Displays | Picks the main display | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Displays`) |
 
 Apps are released in their own repository, [Shyam-Sangeeth/KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps),
-apart from Knob Hub's releases. Each release there is one version of one app, tagged `<id>-v<version>`, with
-`<id>.knobapp` and `<id>.app.json`; Add apps lists the newest of each. To publish, run
-`hub/Plugins/pack-release.ps1`: it builds every app in `hub/Plugins` and releases the versions not released yet
-(it needs the GitHub CLI, logged in). Bump `version` in an app's `app.json` to publish an update.
+apart from Knob Hub's releases. Each app there has one release, tagged with its id, holding every version as
+`<id>-<version>.knobapp` and `<id>-<version>.app.json`; Add apps lists the newest version of each. To publish, run
+`hub/Plugins/pack-release.ps1`: it builds every app in `hub/Plugins` and adds the versions not released yet to
+their apps' releases (it needs the GitHub CLI, logged in). Bump `version` in an app's `app.json` to publish an update.
 
 ## Making an app
 

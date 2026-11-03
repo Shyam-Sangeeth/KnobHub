@@ -15,9 +15,11 @@ internal sealed record CatalogApp(AppManifest Manifest, string DownloadUrl, stri
 
 /// <summary>
 /// Knob Hub apps published as the GitHub releases of a repository of their own (Shyam-Sangeeth/KnobHub-Apps, apart
-/// from Knob Hub's own releases). Each release is one version of one app: tagged "&lt;id&gt;-v&lt;version&gt;", with the
-/// app ("&lt;id&gt;.knobapp") and its app.json ("&lt;id&gt;.app.json"), so the list shows names, icons and versions without
-/// downloading every app. Drafts and pre-releases are left out.
+/// from Knob Hub's own releases). Each release is one app, tagged with its id, holding every version of it: the app
+/// ("&lt;id&gt;-&lt;version&gt;.knobapp") and its app.json ("&lt;id&gt;-&lt;version&gt;.app.json"), so the list shows names,
+/// icons and versions without downloading every app. The older layout, one release per version tagged
+/// "&lt;id&gt;-v&lt;version&gt;" with "&lt;id&gt;.knobapp" and "&lt;id&gt;.app.json", is read too. Drafts and pre-releases are
+/// left out.
 /// </summary>
 internal static class AppCatalog
 {
@@ -35,23 +37,41 @@ internal static class AppCatalog
     public static async Task<List<CatalogApp>> LoadAsync(string repo, CancellationToken cancel = default)
     {
         string json = await Http.GetStringAsync($"https://api.github.com/repos/{repo}/releases?per_page=100", cancel);
-        var newest = new Dictionary<string, CatalogApp>(StringComparer.OrdinalIgnoreCase);
+        // The newest version of each app, by the files' names; only its app.json is downloaded.
+        var newest = new Dictionary<string, (string Version, JsonObject Package, JsonObject? Manifest, JsonObject Release)>(
+            StringComparer.OrdinalIgnoreCase);
         foreach (var release in (JsonNode.Parse(json) as JsonArray ?? []).OfType<JsonObject>())
         {
             if (Flag(release, "draft") || Flag(release, "prerelease")) continue;
             var assets = (release["assets"] as JsonArray ?? []).OfType<JsonObject>().ToList();
             foreach (var package in assets.Where(a => a.Str("name").EndsWith(".knobapp", StringComparison.OrdinalIgnoreCase)))
             {
-                string id = Path.GetFileNameWithoutExtension(package.Str("name"));
-                var manifestAsset = assets.FirstOrDefault(a => a.Str("name").Equals(id + ".app.json", StringComparison.OrdinalIgnoreCase));
-                var manifest = manifestAsset != null ? await ReadManifest(manifestAsset.Str("browser_download_url"), cancel) : null;
-                manifest ??= new AppManifest { Id = id, Name = string.IsNullOrEmpty(release.Str("name")) ? id : release.Str("name") };
-                if (string.IsNullOrEmpty(manifest.Version)) manifest.Version = VersionFromTag(release.Str("tag_name"));
-                var app = new CatalogApp(manifest, package.Str("browser_download_url"), release.Str("html_url"));
-                if (!newest.TryGetValue(app.Id, out var known) || IsNewer(app.Version, known.Version)) newest[app.Id] = app;
+                string name = Path.GetFileNameWithoutExtension(package.Str("name"));
+                var (id, version) = SplitName(name, release.Str("tag_name"));
+                var manifestAsset = assets.FirstOrDefault(a => a.Str("name").Equals(name + ".app.json", StringComparison.OrdinalIgnoreCase));
+                if (!newest.TryGetValue(id, out var known) || IsNewer(version, known.Version))
+                    newest[id] = (version, package, manifestAsset, release);
             }
         }
-        return newest.Values.OrderBy(a => a.Manifest.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+        var apps = new List<CatalogApp>();
+        foreach (var (id, (version, package, manifestAsset, release)) in newest)
+        {
+            var manifest = manifestAsset != null ? await ReadManifest(manifestAsset.Str("browser_download_url"), cancel) : null;
+            manifest ??= new AppManifest { Id = id, Name = string.IsNullOrEmpty(release.Str("name")) ? id : release.Str("name") };
+            if (string.IsNullOrEmpty(manifest.Version)) manifest.Version = version;
+            apps.Add(new CatalogApp(manifest, package.Str("browser_download_url"), release.Str("html_url")));
+        }
+        return apps.OrderBy(a => a.Manifest.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+    }
+
+    /// <summary>"audiodesk-1.2.0" -> ("audiodesk", "1.2.0"). A name without a version ("audiodesk", the older layout)
+    /// takes it from the release's tag.</summary>
+    private static (string Id, string Version) SplitName(string name, string tag)
+    {
+        int dash = name.LastIndexOf('-');
+        if (dash > 0 && System.Version.TryParse(name[(dash + 1)..], out _)) return (name[..dash], name[(dash + 1)..]);
+        return (name, VersionFromTag(tag));
     }
 
     /// <summary>Downloads the app to a temporary file (the caller installs it and deletes the file).</summary>

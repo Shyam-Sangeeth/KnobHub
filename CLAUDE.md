@@ -179,9 +179,11 @@ when screens change.
 
 Apps are released in **Shyam-Sangeeth/KnobHub-Apps** (its own repo):
 
-- Each release is one version of one app, tagged `<id>-v<version>`, with `<id>.knobapp` and `<id>.app.json`.
-- `pack-release.ps1` creates releases for versions not yet released, so bump `version` in an app's `app.json` to
-  publish an update.
+- Each app has one release, tagged with its id (title: the app's name), holding every version as
+  `<id>-<version>.knobapp` and `<id>-<version>.app.json`. Add apps also reads the old layout (a release per version,
+  tagged `<id>-v<version>`, with `<id>.knobapp`), so keep that working.
+- `pack-release.ps1` adds versions not yet released to their app's release (creating it for a new app), so bump
+  `version` in an app's `app.json` to publish an update.
 - Update that repo's README (with screenshots in its `docs/`) when an app changes.
 - The guide to making apps is that repo's **wiki** (`KnobHub-Apps.wiki.git`; pages such as Screens, How-apps-work and
   For-AI-agents, images in `images/`). Update it with the SDK: new screens or fields, input, app loading, packaging,
