@@ -3,10 +3,10 @@ messages and sums up the frame times the knob prints. Needs a build with frame t
 the port):
 
     cd knob-os
-    $env:PLATFORMIO_BUILD_FLAGS = "-D KNOB_PERF"; pio run -e crowpanel-128 -t upload --upload-port COM3
-    python -I ..\\tools\\knob_perf.py COM3
+    $env:PLATFORMIO_BUILD_FLAGS = "-D KNOB_PERF"; pio run -e crowpanel-128 -t upload --upload-port COM7
+    python -I ..\\tools\\knob_perf.py [COM7]
 
-Uses pyserial (PlatformIO's own Python has it: %USERPROFILE%\\.platformio\\penv\\Scripts\\python.exe). Flash a normal
+COM7 stands for the knob's port. Without one, the script uses the first Knob OS port (USB 303A:0002). Uses pyserial (PlatformIO's own Python has it: %USERPROFILE%\\.platformio\\penv\\Scripts\\python.exe). Flash a normal
 build afterwards."""
 import json
 import re
@@ -15,12 +15,14 @@ import sys
 import time
 
 import serial
+from serial.tools import list_ports
 
 PerfLine = re.compile(r"perf frame=(\d+) us flush=(\d+) us px=(\d+) strips=(\d+) cpu=(\d+) free=(\d+)")
 
 
 def main():
-    port = sys.argv[1] if len(sys.argv) > 1 else "COM3"
+    knobs = [p.device for p in list_ports.comports() if (p.vid, p.pid) == (0x303A, 0x0002)]
+    port = sys.argv[1] if len(sys.argv) > 1 else knobs[0] if knobs else sys.exit("No knob running Knob OS is plugged in.")
     s = serial.Serial()
     s.port, s.baudrate, s.timeout = port, 115200, 0.05
     s.dtr, s.rts = True, False

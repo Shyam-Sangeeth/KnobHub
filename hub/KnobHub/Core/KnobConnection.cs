@@ -236,7 +236,7 @@ internal sealed class SimulatorConnection : LineConnection
 /// <summary>
 /// A knob plugged in over USB: the ESP32-S3's own USB (Espressif's vendor id 303A), which Windows shows as a COM
 /// port. Ports are found by that id in the registry, so other serial devices are never opened. The port is opened
-/// with RTS off (RTS can reset the ESP32-S3). Knob OS can't see the port being opened, so Knob Hub sends
+/// with RTS off (RTS can reset the ESP32-S3). Knob OS doesn't go by the port being opened, so Knob Hub sends
 /// it a "hub" message every 2 seconds, with the time for its clock; the knob counts the link as up while they come
 /// (see knob-os/src/hal/esp32/main.cpp). A port that doesn't say hello is left alone for 30 seconds before it's tried
 /// again: it's an ESP32 that isn't running Knob OS (yet), on which Knob Hub can install it.
@@ -327,10 +327,13 @@ internal sealed class UsbConnection : LineConnection
     protected override string? Heartbeat(string session) => HubMessage(session);
 
     /// <summary>The COM ports there now whose USB device has a knob's vendor id.</summary>
-    internal static List<string> KnobPorts()
+    internal static List<string> KnobPorts() => KnobPortDevices().Select(p => p.Port).ToList();
+
+    /// <summary>The same ports, each with its USB device: its key under Enum\USB, e.g. VID_303A&amp;PID_0002&amp;MI_00.</summary>
+    internal static List<(string Port, string Device)> KnobPortDevices()
     {
         var present = new HashSet<string>(SerialPort.GetPortNames(), StringComparer.OrdinalIgnoreCase);
-        var ports = new List<string>();
+        var ports = new List<(string Port, string Device)>();
         if (present.Count == 0) return ports;
         try
         {
@@ -338,15 +341,15 @@ internal sealed class UsbConnection : LineConnection
             if (usb == null) return ports;
             foreach (string device in usb.GetSubKeyNames())
             {
-                // e.g. VID_303A&PID_1001, or VID_303A&PID_1001&MI_00 for one interface of a composite device
+                // e.g. VID_303A&PID_0002, or VID_303A&PID_0002&MI_00 for one interface of a composite device
                 if (!Vendors.Any(v => device.StartsWith($"VID_{v}&", StringComparison.OrdinalIgnoreCase))) continue;
                 using var deviceKey = usb.OpenSubKey(device);
                 if (deviceKey == null) continue;
                 foreach (string instance in deviceKey.GetSubKeyNames())
                 {
                     using var parameters = deviceKey.OpenSubKey($@"{instance}\Device Parameters");
-                    if (parameters?.GetValue("PortName") is string name && present.Contains(name) && !ports.Contains(name))
-                        ports.Add(name);
+                    if (parameters?.GetValue("PortName") is string name && present.Contains(name) && !ports.Any(p => p.Port == name))
+                        ports.Add((name, device));
                 }
             }
         }

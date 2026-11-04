@@ -8,8 +8,9 @@
 // key and sealed; see core/link.h). The hal_wifi_* and hal_identity calls are here too.
 namespace net {
 
-// In setup(): reads the key and the saved network, and joins it.
-void start();
+// In setup(): reads the key and the saved network, and joins it. tx_power: the radio's transmit power, in the Wi-Fi
+// driver's quarter dBm (wifi_power_t, e.g. WIFI_POWER_15dBm), for boards that need it lower; 0 leaves the driver's.
+void start(int tx_power = 0);
 // In loop(): Wi-Fi, the setup page and the link. Calls knob_os_wifi_changed() when the Wi-Fi state changes.
 void poll();
 

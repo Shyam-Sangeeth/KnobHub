@@ -49,6 +49,10 @@
 // The ring's first LED in Knob OS's order (the top of the screen) is the last in the chain.
 #define LED_AT_TOP 7
 
+// Wi-Fi: at the driver's full power (about 20 dBm) the router never answered it (reason 2, "auth expired"), where the
+// 1.28" joined the same network in seconds. At 15 dBm it joins in seconds too (tested on 2026-11-04).
+#define WIFI_TX_POWER 60  // in quarter dBm: 15 dBm (WIFI_POWER_15dBm)
+
 // The spare I2C connector (e.g. for a DRV2605L vibration driver)
 #define PIN_EXT_SDA 38
 #define PIN_EXT_SCL 39

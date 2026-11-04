@@ -46,6 +46,7 @@ struct WifiStatus {
     std::string joining;                        // a network chosen in Knob Hub or on the setup page, while it joins
     std::string join_failed, join_problem;      // the last one it couldn't join, and why ("password", "not_found",
                                                 // "security", "timeout", "other")
+    int join_reason = 0;                        // ... and the Wi-Fi driver's own reason (WIFI_REASON_*), for the log
     bool scanning = false;                      // looking for networks (hal_wifi_scan)
 };
 WifiStatus hal_wifi();

@@ -12,6 +12,7 @@
 #include <LittleFS.h>
 #include <LovyanGFX.hpp>
 #include <Wire.h>
+#include <esp32-hal-tinyusb.h>
 #include <lvgl.h>
 #include <soc/gpio_reg.h>
 #include <sys/time.h>
@@ -350,8 +351,8 @@ void start_leds() {
 
 // --- The link ---
 //
-// Over USB, Knob OS can't tell when Knob Hub opens the port (the ESP32-S3's own USB serial has no DTR to read), so
-// Knob Hub sends {"t":"hub","session","time","offset"} as soon as it opens it and every 2 seconds after. The link is
+// Over USB, Knob OS doesn't go by the port's DTR to tell when Knob Hub opens it (the chip's USB Serial/JTAG unit,
+// which Knob OS used before 1.0.2, has none to read), so Knob Hub sends {"t":"hub","session","time","offset"} as soon as it opens it and every 2 seconds after. The link is
 // up from the first one (Knob OS says hello) until none has come for 6 seconds; a new session (Knob Hub started
 // again) brings it up afresh. "time" (Unix seconds) and "offset" (minutes from UTC) set the clock. Those messages stay
 // here, as does "pair" (net.cpp); every other line goes to Knob OS.
@@ -588,6 +589,14 @@ void setup() {
 #endif
     Serial.setRxBufferSize(16 * 1024);  // before begin, which would make it 256 bytes
     Serial.begin(115200);
+    // Knob Hub restarts the knob into its ROM loader (to install Knob OS) by opening the port at 1200 baud. The core
+    // would also restart into it on esptool's DTR/RTS sequence, but Windows plays that by itself when a port opened
+    // with DTR on and RTS off is closed: Knob Hub quitting would leave the knob in its loader. So only 1200 baud does.
+    Serial.enableReboot(false);
+    Serial.onEvent(ARDUINO_USB_CDC_LINE_CODING_EVENT, [](void*, esp_event_base_t, int32_t, void* data) {
+        if (static_cast<arduino_usb_cdc_event_data_t*>(data)->line_coding.bit_rate == 1200)
+            usb_persist_restart(RESTART_BOOTLOADER);
+    });
     LittleFS.begin(true);  // formats it the first time
 
     start_backlight();
@@ -599,7 +608,11 @@ void setup() {
     start_knob();
     start_vibration();  // before Knob OS tells Knob Hub what the board has
     knob_os_start();
-    net::start();  // after Knob OS has loaded the knob's name, its name on the network
+#ifdef WIFI_TX_POWER
+    net::start(WIFI_TX_POWER);  // after Knob OS has loaded the knob's name, its name on the network
+#else
+    net::start();
+#endif
     xTaskCreatePinnedToCore(read_link, "link", 4096, nullptr, 5, nullptr, 0);  // the main loop is on core 1
 }
 

@@ -32,4 +32,4 @@ A Knob Hub running in the tray connects to any simulator you start, so it sees w
 
 | Script | What it does |
 |---|---|
-| `knob_perf.py [COM3]` | How fast the knob draws: turns through the Home ring over USB and prints the frame times (median and slowest), the CPU speed and the free internal RAM. Needs a build with `-D KNOB_PERF` and Knob Hub closed; see the script's header. |
+| `knob_perf.py [port]` | How fast the knob draws: turns through the Home ring over USB and prints the frame times (median and slowest), the CPU speed and the free internal RAM. Without a port it uses the plugged-in knob's (Knob OS's USB, 303A:0002). Needs a build with `-D KNOB_PERF` and Knob Hub closed; see the script's header. |

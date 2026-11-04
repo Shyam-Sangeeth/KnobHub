@@ -15,8 +15,10 @@ namespace KnobHub.Core;
 /// boot_app0 and the firmware. Everything in it is written except the nvs partition, where Knob OS keeps the knob's
 /// pairing key and Wi-Fi network; the file system with its settings lies past the image's end, so it's kept too.
 ///
-/// The ESP32-S3's own USB (its USB Serial/JTAG controller) resets the chip from the port's DTR and RTS lines, so no
-/// buttons are needed: the knob drops off USB, comes back in the loader, and after writing is reset to start Knob OS.
+/// No buttons are needed. The loader runs on the ESP32-S3's USB Serial/JTAG unit, which resets the chip from the port's
+/// DTR and RTS lines: the knob drops off USB, comes back in the loader, and after writing is reset to start Knob OS.
+/// Knob OS (from 1.0.2) has a USB serial port of its own instead (see knob-os/platformio.ini), which restarts the chip
+/// into the loader when it's opened at 1200 baud; the loader then comes back on another port, the unit's.
 /// </summary>
 internal static class KnobFlasher
 {
@@ -42,7 +44,7 @@ internal static class KnobFlasher
     {
         var regions = Regions(image);
         progress.Report(new("Restarting the knob into its loader", 0));
-        ResetIntoLoader(portName);
+        portName = ResetIntoLoader(portName);
         using var loader = Loader.Open(portName, cancel);
         loader.Connect();
         if (loader.ReadRegister(0x40001000) != Esp32S3Magic)
@@ -98,9 +100,55 @@ internal static class KnobFlasher
         return regions;
     }
 
-    /// <summary>Resets the ESP32-S3 into its ROM loader through the USB Serial/JTAG controller: DTR holds the boot pin
-    /// low while RTS resets the chip. The knob then leaves USB for a moment and comes back as the loader.</summary>
-    private static void ResetIntoLoader(string portName)
+    /// <summary>Restarts the ESP32-S3 into its ROM loader and returns the loader's port.</summary>
+    private static string ResetIntoLoader(string portName)
+    {
+        string? device = UsbConnection.KnobPortDevices()
+            .FirstOrDefault(p => p.Port.Equals(portName, StringComparison.OrdinalIgnoreCase)).Device;
+        if (device == null || IsSerialJtag(device))
+        {
+            ResetSerialJtag(portName);
+            return portName;
+        }
+        return RestartFromKnobOs(portName);
+    }
+
+    /// <summary>The ESP32-S3's USB Serial/JTAG unit (a knob in its loader, without Knob OS, or with Knob OS before 1.0.2),
+    /// by its USB device (e.g. VID_303A&amp;PID_1001&amp;MI_00).</summary>
+    private static bool IsSerialJtag(string device) => device.Contains("&PID_1001", StringComparison.OrdinalIgnoreCase);
+
+    private static HashSet<string> SerialJtagPorts() =>
+        UsbConnection.KnobPortDevices().Where(p => IsSerialJtag(p.Device)).Select(p => p.Port).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Knob OS's own USB serial port: opened at 1200 baud, the Arduino core restarts the chip into the loader
+    /// on the USB Serial/JTAG unit. That's a port that wasn't there before.</summary>
+    private static string RestartFromKnobOs(string portName)
+    {
+        var before = SerialJtagPorts();
+        var port = OpenPort(portName, TimeSpan.FromSeconds(5));
+        try
+        {
+            port.BaudRate = 1200;
+            Thread.Sleep(200);
+        }
+        catch (IOException) { }  // the knob already left USB
+        finally { Close(port); }
+        var until = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+        while (DateTime.UtcNow < until)
+        {
+            if (SerialJtagPorts().FirstOrDefault(p => !before.Contains(p)) is { } loader)
+            {
+                Thread.Sleep(300);  // Windows opens it a moment after it's listed
+                return loader;
+            }
+            Thread.Sleep(100);
+        }
+        throw new IOException("The knob didn't come back in its loader. Hold its boot button while you plug it in, then install again.");
+    }
+
+    /// <summary>Resets the ESP32-S3 into its ROM loader through the USB Serial/JTAG unit: DTR holds the boot pin low
+    /// while RTS resets the chip. The knob then leaves USB for a moment and comes back as the loader.</summary>
+    private static void ResetSerialJtag(string portName)
     {
         var port = OpenPort(portName, TimeSpan.FromSeconds(5));
         try

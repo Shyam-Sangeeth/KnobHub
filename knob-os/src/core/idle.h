@@ -23,7 +23,8 @@ bool input();
 void wake();
 
 // Knob Hub asks to keep the screen on (an app wants it, e.g. a running timer): it wakes and doesn't time out or dim
-// until asked to stop, or until the link to Knob Hub goes. Then the timeout starts from then.
+// until asked to stop, or until the link to Knob Hub goes. Then the timeout starts from then. Settings > Connection
+// and its Wi-Fi screens keep it on the same way while they're on show (settings::keeps_screen_awake).
 void keep_awake(bool on);
 
 State state();

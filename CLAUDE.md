@@ -63,9 +63,10 @@ for pixel tests.
   in `knob_os_input`, touches by a layer over everything until the finger lifts. A toast wakes it (`idle::wake`); app
   screen updates don't, or the Media app's position updates would keep it on. An app can keep it on
   (`IKnobHost.KeepAwake`): Knob Hub sends `awake` while any app wants it, again after each hello, and the knob lets
-  go when the link drops (`idle::keep_awake`). The knob reports its state in an `idle`
-  message, and Knob Hub's preview follows it while mirroring (`follow`), so a wake-up input never acts on the preview
-  either.
+  go when the link drops (`idle::keep_awake`). Settings > Connection and its Wi-Fi screens hold it on the same way
+  while they're on show (`settings::keeps_screen_awake`), since a join can take a minute. The knob reports its state
+  in an `idle` message, and Knob Hub's preview follows it while mirroring (`follow`), so a wake-up input never acts on
+  the preview either.
 - **Pictures** (album art, `TextPicture`) carry `screen`, the size Knob Hub drew them for (`KnobSession` adds it);
   Knob OS scales one drawn for another size (`ui::picture_px`), so the 480 px preview can mirror any knob. Touches
   are rescaled between the two in `KnobSession`.
@@ -77,7 +78,8 @@ for pixel tests.
 pio run -e sim -t exec      # simulator window (SDL2); Knob Hub connects to it on 127.0.0.1:5718
                             # program.exe --board crowpanel-1.46 (or motor-knob) for another board
 pio run -e preview          # knob_preview.dll for Knob Hub's live preview
-pio run -e crowpanel-128    # a real board: one env per board; -t upload --upload-port COM3 flashes it. Also makes
+pio run -e crowpanel-128    # a real board: one env per board; -t upload --upload-port COM7 (the knob's port; PlatformIO
+                            # touches it at 1200 baud into the loader, a new port) flashes it. Also makes
 pio run -e crowpanel-146    # knob-os.bin and copies it to .cache\knob-os\firmware (scripts/merged.py)
 
 # hub
@@ -134,12 +136,17 @@ when screens change.
 - `esp32`: display (LovyanGFX, panel set in the pin file; LVGL renders into two DMA buffers of a third of the screen;
   built with `-O2`, and without the round clip the simulator and the preview have: a whole-screen frame takes ~25 ms,
   against 193 ms before. Measure with a `-D KNOB_PERF` build and `tools/knob_perf.py`), CST816 touch, encoder
-  (interrupts, one step per full cycle) and press, backlight PWM, WS2812 LEDs (RMT), USB link (lines read by a task on
-  core 0: the USB serial drops what its buffer can't hold), LittleFS; one pin file per board in `boards/`, which can
+  (interrupts, one step per full cycle) and press, backlight PWM, WS2812 LEDs (RMT), USB link (TinyUSB serial,
+  303A:0002 from the variant in `knob-os/variants/knob`; only opening it at 1200 baud restarts into the loader, not
+  DTR/RTS, which Windows plays when a port closes; lines read by a task on core 0: the USB serial drops what its
+  buffer can't hold), LittleFS; one pin file per board in `boards/`, which can
   also set `SCREEN_UPSIDE_DOWN` (screen and touch turned 180° so the top is where the LEDs start; the 1.28" does) and
   `LEDS_REVERSED` (LEDs chained the other way round the ring; the 1.28" does), `LED_AT_TOP` (the LED in the chain at
   the top of the screen; 7 on the 1.46"), `ENCODER_HALF_CYCLE` (a click is half a cycle of A and B; the 1.46") and
-  `LCD_RGB_ORDER`. Wi-Fi and pairing are in `net.cpp`; motors still to do.
+  `LCD_RGB_ORDER`, and `WIFI_TX_POWER` (in quarter dBm; the 1.46" needs 60, 15 dBm: at full power its router never
+  answered it, reason 2, and with 15 dBm it joins in seconds). Wi-Fi and pairing are in `net.cpp`: a join gets a
+  minute (`JoinMs`) and is pinned to the scanned access point only in pairing mode; a failure is reported as
+  `join_problem` and the driver's `join_reason`, which Knob Hub logs. Motors still to do.
   The 1.46"'s ST77961 needs its own start-up commands (`boards/crowpanel_1_46_panel.h`, from the LovyanGFX 1.2.7 that
   Elecrow's example ships): newer LovyanGFX's `Panel_ST77961` leaves it blank. A DFRobot DRI0056 haptic driver (TM6605,
   I2C 0x2D) on the spare I2C connector (`PIN_EXT_SDA/SCL`, `Wire1`) is looked for at start and gives the board
@@ -150,8 +157,8 @@ when screens change.
 - `Core/KnobConnection.cs`: the links, highest priority first in `KnobLinks` (USB, Wi-Fi, then the simulator's TCP); lower
   ones pause while a higher one is in use. A link counts as connected once the knob says hello (`LineConnection`).
   USB looks only at COM ports with Espressif's vendor id (registry), opened with RTS off (RTS can reset the ESP32-S3).
-  The knob can't see the port open (the ESP32-S3's USB serial has no DTR to read), so over USB Knob Hub sends a `hub`
-  heartbeat every 2 s with the time (`Heartbeat`); the knob's link is up while they come (6 s without one: down).
+  The knob doesn't go by DTR (Knob OS before 1.0.2 was on the USB Serial/JTAG unit, which has none), so over USB
+  Knob Hub sends a `hub` heartbeat every 2 s with the time (`Heartbeat`); the knob's link is up while they come (6 s without one: down).
 - `Core/KnobPreview.cs`: the DLL, always 480 px; it loads a fresh copy from %TEMP% to become another board, since
   Knob OS starts only once per DLL. While it isn't on show (`Shown`: the window in the tray, minimized or on another
   page) it ticks 4 times a second and copies no frames.
@@ -162,7 +169,10 @@ when screens change.
 - `Core/KnobFirmware.cs`: the Knob OS images that came with Knob Hub (`firmware\` next to the exe, copied in by the
   csproj's `KnobFirmware` target from `%USERPROFILE%\.cache\knob-os\firmware`).
 - `Core/KnobFlasher.cs`: installs an image over USB through the ESP32-S3's ROM loader (Espressif's documented serial
-  protocol: SLIP, compressed writes, MD5 check). DTR/RTS reset the chip into the loader and back, no buttons. It
+  protocol: SLIP, compressed writes, MD5 check), no buttons. Knob OS's own USB serial (TinyUSB, 303A:0002, see
+  `knob-os/platformio.ini`; it keeps the knob out of Safely Remove Hardware) restarts into the loader when opened at
+  1200 baud; the loader is on the chip's USB Serial/JTAG unit (303A:1001), a different COM port, where DTR/RTS reset
+  the chip into the loader and back. It
   skips the nvs partition (pairing key, Wi-Fi network); the file system with the settings lies past the image.
   `KnobSession.InstallKnobOsAsync` pauses every link meanwhile; `UsbConnection.SilentPorts` are knobs that never
   said hello (not running Knob OS), offered in Settings with a board picker.

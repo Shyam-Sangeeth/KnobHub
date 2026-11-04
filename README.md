@@ -137,11 +137,14 @@ size, LEDs and motors from the knob's hello). To add one:
    so Knob Hub's preview can become it.
 2. **Fonts:** if its screen size is new, add the size to `DIAMETERS` in `knob-os/fonts/make_fonts.py` and run it (see
    [Fonts](#fonts)).
-3. **Pins:** a file in `knob-os/src/hal/esp32/boards/` with its id and pins (copy `crowpanel_1_46.h`).
+3. **Pins:** a file in `knob-os/src/hal/esp32/boards/` with its id and pins (copy `crowpanel_1_46.h`), and any
+   quirks the board has: the screen upside down, LEDs chained the other way round, or `WIFI_TX_POWER` when it can't
+   join Wi-Fi at full transmit power, as the 1.46" can't.
 4. **Build:** an env in `knob-os/platformio.ini` that extends `esp32` and sets `KNOB_BOARD` (the pin file) and
    `KNOB_FONT_SET` (the screen size), like `crowpanel-146`.
 5. **Hardware layer:** if it uses a display, touch, LED or motor chip that `src/hal/esp32` doesn't drive yet, add a
-   driver for it there.
+   driver for it there. Knob OS's USB link is the ESP32-S3's own USB (GPIO 19 and 20, see `knob-os/platformio.ini`):
+   a board whose USB port goes through a USB-to-serial chip needs the link on that chip's UART instead.
 
 Then try it in the simulator (`--board <id>`) and Knob Hub's preview before flashing.
 
@@ -271,7 +274,8 @@ other.
 **Screen timeout:** after the chosen time with nothing done on the knob, the screen turns off. The next turn, press or
 touch only wakes it; it doesn't act. A message from Knob Hub (e.g. "Sonar is off") wakes it too, and the timeout starts
 again; apps updating their screens don't. An app can keep the screen on while it needs it (Timer, while it runs):
-then it doesn't time out or dim, and the timeout starts again when the app lets go. With **Dim when idle** on, the screen dims to a quarter of its brightness
+then it doesn't time out or dim, and the timeout starts again when the app lets go. Settings > Connection and its
+Wi-Fi screens keep it on the same way, since joining a network can take a minute. With **Dim when idle** on, the screen dims to a quarter of its brightness
 halfway to the timeout (after a minute when the timeout is Never); while it's dimmed the knob works as usual. The LEDs
 go off with the screen; with Lights > **When dimmed** set to off, they go off already when it dims. Knob Hub's preview
 goes dark with the knob.
@@ -365,13 +369,14 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
   installer, checks it against the release's SHA-256, and runs it: Knob Hub closes, updates and starts again, with
   its settings and apps kept.
 - **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
-  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.1 is ready: see Knob Hub" once when
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.2 is ready: see Knob Hub" once when
   it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
   keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
   USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
 - **A knob that isn't running Knob OS** (new, or one whose Knob OS doesn't start) can't say what board it is: while
   the Settings page is open, Knob Hub notices it on its USB port and lets you choose the board, then installs
-  Knob OS on it.
+  Knob OS on it. A knob whose Knob OS doesn't start doesn't show up on USB at all: hold its boot button while you
+  plug it in, so it starts in its loader, and Knob Hub offers to install Knob OS.
 - **Apps** update from **Add apps** (see [Apps](#apps)).
 
 ## Apps
@@ -498,16 +503,19 @@ pio run -e crowpanel-146    # CrowPanel 1.46"
 ```
 
 builds Knob OS for one board: there's an env per board (its pins and quirks are in `knob-os/src/hal/esp32/boards/`).
-Add `-t upload --upload-port COM3` to flash it (close Knob Hub first: it holds the knob's port). Both CrowPanels run
+Add `-t upload --upload-port COM7` (the knob's port, "USB Serial Device" in Device Manager) to flash it. Close Knob
+Hub first, because it holds the port. PlatformIO opens the port at 1200 baud, which restarts the knob into its loader,
+then flashes it on the loader's port, which appears in its place. Both CrowPanels run
 it: display, touch, encoder and press, backlight, LEDs, the USB and Wi-Fi links, and vibration through an add-on
 haptic driver. The motor on the knob is still to be written.
 
 Each build also makes `knob-os.bin`: the bootloader, the partition table and Knob OS in one image that starts at 0x0
 (`knob-os/scripts/merged.py`). It's copied to `%USERPROFILE%\.cache\knob-os\firmware\`, with `firmware.json` saying
 each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
-installs from it. To flash a release's image by hand, use
-`esptool --chip esp32s3 write-flash 0x0 knob-os-1.0.0-crowpanel-1.28.bin`; unlike Knob Hub, that also clears the
-knob's pairing and Wi-Fi network.
+installs from it. To flash a release's image by hand, put the knob in its loader first: hold its boot button while
+you plug it in (esptool can't restart Knob OS 1.0.2 into it). Then use
+`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.2-crowpanel-1.28.bin`, with the port the loader is on
+("USB JTAG/serial debug unit"). Unlike Knob Hub, that also clears the knob's pairing and Wi-Fi network.
 
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).
 A whole-screen frame takes about 25 ms on the 1.28".
@@ -532,10 +540,14 @@ screen size's fonts. It needs Node.js.
 
 ## Connection
 
-- **USB:** the knob shows up as a USB serial port (the ESP32-S3's own USB). Knob Hub looks only at ports with
-  Espressif's USB vendor id (303A), so it never opens other serial devices, and counts a port as the knob once it
-  says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back in at any time. The knob can't
-  tell when a port is opened, so Knob Hub sends it a heartbeat (with the time, for its clock) every 2 seconds.
+- **USB:** the knob shows up as a USB serial port named "Knob Hub knob" (Knob OS's own, on the ESP32-S3's USB).
+  Knob Hub looks only at ports with Espressif's USB vendor id (303A), so it never opens other serial devices, and
+  counts a port as the knob once it says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back
+  in at any time: Windows doesn't list the knob under Safely Remove Hardware. Knob Hub sends the knob a heartbeat
+  (with the time, for its clock) every 2 seconds, which is how the knob knows the link is up.
+- **Installing Knob OS** goes through the ESP32-S3's built-in USB unit, which the loader uses: while Knob OS is
+  being installed the knob is a different COM port, "USB JTAG/serial debug unit" (and in Safely Remove Hardware for
+  that minute). Knob OS 1.0.1 and earlier used that unit all the time.
 - **USB always has priority:** when the knob is plugged in, Knob Hub switches to it from Wi-Fi or the simulator, and
   back when it's unplugged.
 - **Pairing:** the first time a knob says hello over USB, Knob Hub gives it a random key. Over Wi-Fi both prove they
@@ -550,6 +562,10 @@ screen size's fonts. It needs Node.js.
     pairing mode. The knob opens its own network (`KnobHub-xxxx`, with the password on its screen) for 5 minutes,
     and a page at knobhub.local where you choose your network from a phone. The knob's network switches off once it
     has joined yours.
+- **When the knob can't join,** Knob Hub's Wi-Fi window says why: the password was turned down, the knob can't see
+  the network (it needs 2.4 GHz), the security isn't WPA2 or WPA3, or the network didn't answer in time. The knob
+  keeps trying for a minute. Knob Hub's log has the knob's Wi-Fi reason code too (for example "Wi-Fi reason 2" when
+  the router didn't answer), which helps when the reason isn't clear.
 
 ## Repository layout
 
@@ -561,6 +577,7 @@ KnobHub/
 │  ├─ src/hal/sim/          Simulator (SDL2 window)
 │  ├─ src/hal/preview/      knob_preview.dll for Knob Hub's live preview
 │  ├─ src/hal/esp32/        The real knob (net.cpp: Wi-Fi and pairing); boards/ has each board's pins
+│  ├─ variants/knob/        The ESP32-S3 variant with Knob OS's own USB product id (303A:0002)
 │  └─ fonts/                make_fonts.py
 ├─ hub/                     Knob Hub (WPF, .NET 10); KnobHub.slnx
 │  ├─ KnobHub.Sdk/          Class library for apps

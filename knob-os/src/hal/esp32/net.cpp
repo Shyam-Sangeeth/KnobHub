@@ -39,7 +39,10 @@ namespace {
 
 constexpr uint16_t LinkPort = 5719;
 constexpr uint32_t SetupMs = 5 * 60 * 1000;
-constexpr uint32_t JoinMs = 20000;           // to join a network chosen on the setup page
+// To join a network chosen on the setup page or in Knob Hub. Generous: a router can leave the knob unanswered for a
+// while before letting it in (reason 2, which the Wi-Fi driver retries); a board that's never answered may need a lower
+// transmit power (WIFI_TX_POWER, see boards/crowpanel_1_46.h).
+constexpr uint32_t JoinMs = 60000;
 constexpr uint32_t StartJoinAfterMs = 300;   // the page has its answer by then
 constexpr uint32_t SetupAfterJoinMs = 10000; // the page shows it worked, then the knob's own network goes
 constexpr uint32_t FailedAfterMs = 20000;    // not joined the saved network for this long: "Can't connect"
@@ -125,6 +128,13 @@ bool served = false;            // the link's server and mDNS are running for th
 
 DNSServer dns;
 WebServer web(80);
+int tx_power = 0;  // the board's (see start), or 0 for the driver's own
+
+// Sets the radio's mode, with the board's transmit power (a mode change can start the radio afresh).
+void radio_mode(wifi_mode_t mode) {
+    WiFi.mode(mode);
+    if (tx_power) WiFi.setTxPower(static_cast<wifi_power_t>(tx_power));
+}
 
 WifiState state() {
     if (setup_on) return WifiState::Setup;
@@ -305,24 +315,31 @@ void page_join() {
 
 // In pairing mode the knob's one radio serves its own network and joins the other, so both must be on one channel:
 // if the radio hops between them while joining, the password handshake times out. Its own network moves to the
-// chosen one's channel first (the phone or PC on it joins again by itself).
+// chosen one's channel first (the phone or PC on it joins again by itself), and the knob joins that access point.
+// Otherwise (from Knob Hub) the Wi-Fi driver picks the access point, as when it rejoins the saved network: tied to the
+// strongest one of that name, a join failed (reason 2, the router not answering) where the saved network's rejoin
+// worked; another network can have the same name (e.g. "Wi-Fi"), or a router several access points.
 void start_join() {
     join_started = true;
-    if (setup_on && join_channel > 0) WiFi.softAP(setup_network.c_str(), setup_password.c_str(), join_channel);
-    if (join_channel > 0) WiFi.begin(join_ssid.c_str(), join_password.c_str(), join_channel, join_bssid);
-    else WiFi.begin(join_ssid.c_str(), join_password.c_str());  // typed in, not seen in the scan
+    if (setup_on && join_channel > 0) {
+        WiFi.softAP(setup_network.c_str(), setup_password.c_str(), join_channel);
+        WiFi.begin(join_ssid.c_str(), join_password.c_str(), join_channel, join_bssid);
+    } else {
+        WiFi.begin(join_ssid.c_str(), join_password.c_str());
+    }
 }
 
 // Why the last try failed, for the page: the Wi-Fi driver's reason for the last disconnect.
 const char* join_problem() {
     switch (fail_reason) {
         case WIFI_REASON_AUTH_FAIL:
-        case WIFI_REASON_AUTH_EXPIRE:
         case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
         case WIFI_REASON_HANDSHAKE_TIMEOUT: return "password";
         case WIFI_REASON_NO_AP_FOUND: return "not_found";
         case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
         case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD: return "security";
+        // The router never let it start (not the password): it turned the knob away the whole time.
+        case WIFI_REASON_AUTH_EXPIRE:
         case 0: return "timeout";
         default: return "other";
     }
@@ -355,7 +372,7 @@ void start_setup() {
     stop_link();
     // While trying for a network that isn't there, the knob would hop channels and its own network with it.
     if (WiFi.status() != WL_CONNECTED) WiFi.disconnect();
-    WiFi.mode(WIFI_AP_STA);
+    radio_mode(WIFI_AP_STA);
     WiFi.softAP(setup_network.c_str(), setup_password.c_str());
     dns.start(53, "*", WiFi.softAPIP());
     static bool routes = false;
@@ -388,7 +405,7 @@ void end_setup() {
     dns.stop();
     MDNS.end();
     WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_STA);
+    radio_mode(WIFI_STA);
     WiFi.scanDelete();
     if (join == Join::Joined) {
         save_joined();
@@ -663,7 +680,8 @@ bool shown_scanning = false;
 
 }  // namespace
 
-void start() {
+void start(int board_tx_power) {
+    tx_power = board_tx_power;
     prefs.begin("knob", false);
     size_t n = prefs.getBytesLength("key");
     if (n == KeySize) {
@@ -677,7 +695,7 @@ void start() {
     WiFi.persistent(false);  // the network is kept above, not by the Wi-Fi driver
     WiFi.setHostname(network_name.empty() ? host.c_str() : network_name.c_str());
     started = true;
-    WiFi.mode(WIFI_STA);
+    radio_mode(WIFI_STA);
     WiFi.setSleep(false);  // answers in milliseconds instead of a tenth of a second
     WiFi.setAutoReconnect(true);
     WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) { last_reason = info.wifi_sta_disconnected.reason; },
@@ -804,6 +822,7 @@ WifiStatus hal_wifi() {
     if (net::join == net::Join::Failed) {
         s.join_failed = net::join_ssid;
         s.join_problem = net::join_problem();
+        s.join_reason = net::fail_reason;
     }
     s.scanning = net::scan_wanted || net::scanning;
     return s;

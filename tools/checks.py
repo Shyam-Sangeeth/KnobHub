@@ -315,7 +315,7 @@ def check_busy():
 
 def check_awake():
     """Knob Hub's awake keeps the screen on past the timeout, not dimmed; let go, the timeout counts from then; it ends
-    with the link."""
+    with the link. Settings > Connection keeps it on too."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
     k.send({"t": "settings", "brightness": 80, "timeout": 0, "dim_idle": True})
@@ -332,6 +332,16 @@ def check_awake():
     k.connect(False)
     k.run(15.3)
     expect("the link went: no longer kept awake", k.brightness(), 0)
+    k.connect()
+    k.send({"t": "wifi", "action": "scan"}, wait=0.4)  # Knob Hub's Wi-Fi window: the knob goes to Connection
+    k.run(16)
+    expect("Connection's Wi-Fi screen: 16 s idle, still on", k.brightness(), 80)
+    k.send({"t": "wifi", "action": "done"}, wait=0.4)
+    k.run(16)
+    expect("the Connection page itself: still on", k.brightness(), 80)
+    k.back()
+    k.run(15.3)
+    expect("left it: the timeout counts again (off 15 s later)", k.brightness(), 0)
 
 
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,

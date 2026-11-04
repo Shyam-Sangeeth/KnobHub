@@ -424,7 +424,8 @@ internal sealed class KnobSession : IDisposable
         };
         if (text.Length == 0) return;
         if (wifi.Str("joining").Length > 0) text += $", joining {wifi.Str("joining")}";
-        else if (wifi.Str("join_failed").Length > 0) text += $"; couldn't join {wifi.Str("join_failed")} ({wifi.Str("join_problem")})";
+        else if (wifi.Str("join_failed").Length > 0)
+            text += $"; couldn't join {wifi.Str("join_failed")} ({wifi.Str("join_problem")}, Wi-Fi reason {wifi.Int("join_reason")})";
         if (text == _wifiLogged) return;
         _wifiLogged = text;
         Log($"The knob is {text}");

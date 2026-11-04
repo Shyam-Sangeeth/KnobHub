@@ -19,6 +19,7 @@ const char* const Names[] = {"awake", "dim", "off"};
 State current = State::Awake;
 bool following = false;
 bool kept_awake = false;  // Knob Hub asked (see keep_awake)
+bool held = false;        // kept on now: Knob Hub asked, or the Connection page is on show
 int shown_brightness = -1;
 // Over everything while the screen is off, so a touch only wakes it. It stays until that touch lets go: the rest of
 // the touch (a drag, a swipe) mustn't reach the screen either.
@@ -29,7 +30,7 @@ void place_blocker();
 
 // The state the time since the last input calls for (LVGL counts touches; input() counts the knob).
 State due() {
-    if (kept_awake) return State::Awake;
+    if (held) return State::Awake;
     const KnobSettings& s = settings::get();
     uint32_t timeout = TimeoutMs[std::min(std::max(s.timeout, 0), 4)];
     uint32_t idle_ms = lv_display_get_inactive_time(nullptr);
@@ -62,6 +63,9 @@ void set(State s) {
 }
 
 void update() {
+    bool hold = kept_awake || settings::keeps_screen_awake();
+    if (held && !hold) lv_display_trigger_activity(nullptr);  // let go: the timeout counts from now
+    held = hold;
     if (!following) set(due());
 }
 

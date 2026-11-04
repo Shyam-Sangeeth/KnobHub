@@ -432,6 +432,7 @@ void describe_wifi(JsonObject out) {
     if (!w.join_failed.empty()) {
         out["join_failed"] = w.join_failed;
         out["join_problem"] = w.join_problem;
+        if (w.join_reason) out["join_reason"] = w.join_reason;
     }
     if (w.scanning) out["scanning"] = true;
 }
@@ -600,6 +601,13 @@ void wifi_action(JsonObjectConst msg) {
     } else if (std::strcmp(action, "done") == 0) {
         close_pc_screen();  // Knob Hub's Wi-Fi window closed: back to the Connection page
     }
+}
+
+bool keeps_screen_awake() {
+    Screen* shown = screens::top();
+    if (!shown) return false;
+    return (page == Page::Connection && shown == page_screen) || (pc_screen && shown == pc_screen) ||
+           (setup_screen && shown == setup_screen);
 }
 
 }  // namespace settings

@@ -44,4 +44,8 @@ void wifi_changed();
 // looks again: answered with wifi_networks), "join" (with ssid and password) or "done" (the window closed).
 void wifi_action(JsonObjectConst msg);
 
+// The Connection page or one of its Wi-Fi screens is on show: the screen doesn't time out meanwhile (joining a network
+// can take a minute; see idle.h).
+bool keeps_screen_awake();
+
 }  // namespace settings
