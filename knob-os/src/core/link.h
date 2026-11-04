@@ -26,6 +26,8 @@
 //                                                             can say busy: see busy.h)
 //   close   {app}                                             the app is done: back to Home
 //   toast   {text}                                            a short message over anything
+//   awake   {on}                                              keep the screen on (an app asked, e.g. a timer that's
+//                                                             running): no timeout, no dimming (see idle.h)
 //   icon    {name, size, w, h, hash, a8}                      an icon Knob OS asked for (see icons.h)
 //   icons   {known: {name: hash}}                             the icons Knob Hub has, when it connects (see icons.h)
 //   settings{brightness, led_brightness, led_mode, timeout, dim_idle, leds_idle_off, clock_24h, vibration, haptics,

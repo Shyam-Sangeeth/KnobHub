@@ -298,8 +298,29 @@ def check_busy():
     expect("closing the app ends it: Home turns", len(k.take("key")), 1)
 
 
+def check_awake():
+    """Knob Hub's awake keeps the screen on past the timeout, not dimmed; let go, the timeout counts from then; it ends
+    with the link."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send({"t": "settings", "brightness": 80, "timeout": 0, "dim_idle": True})
+    k.send({"t": "awake", "on": True}, wait=0.3)
+    k.run(16)
+    expect("kept awake: 16 s idle with a 15 s timeout, not even dimmed", k.brightness(), 80)
+    k.send({"t": "awake", "on": False}, wait=0.3)
+    k.run(7.6)
+    expect("let go: the timeout counts from then (dimmed 7.5 s later)", k.brightness(), 20)
+    k.run(7.8)
+    expect("and off at 15 s", k.brightness(), 0)
+    k.send({"t": "awake", "on": True}, wait=0.3)
+    expect("asked again while off: wakes", k.brightness(), 80)
+    k.connect(False)
+    k.run(15.3)
+    expect("the link went: no longer kept awake", k.brightness(), 0)
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
-          "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy}
+          "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy, "awake": check_awake}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:

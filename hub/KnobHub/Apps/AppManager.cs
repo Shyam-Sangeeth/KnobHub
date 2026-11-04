@@ -249,6 +249,7 @@ internal sealed class AppManager
         if (entry.App == null) return;
         if (entry.Host is { IsOpen: true }) entry.Host.Close();
         try { entry.App.Stop(); } catch (Exception) { }
+        entry.Host?.KeepAwake(false);
         entry.App = null;
         entry.Host = null;
     }

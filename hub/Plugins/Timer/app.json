@@ -1,0 +1,12 @@
+{
+  "id": "timer",
+  "name": "Timer",
+  "subtitle": "Turn to set, press to start",
+  "description": "A countdown timer: turn the knob to set it and press to start. The knob's screen stays on until it's done",
+  "icon": "timer",
+  "color": "#F59E0B",
+  "version": "1.0.0",
+  "author": "Knob Hub",
+  "assembly": "Timer.KnobApp.dll",
+  "type": "Timer.KnobApp.TimerApp"
+}

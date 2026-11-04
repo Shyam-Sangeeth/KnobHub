@@ -22,6 +22,10 @@ bool input();
 // Something to see (a toast): the screen wakes, and the timeout starts again.
 void wake();
 
+// Knob Hub asks to keep the screen on (an app wants it, e.g. a running timer): it wakes and doesn't time out or dim
+// until asked to stop, or until the link to Knob Hub goes. Then the timeout starts from then.
+void keep_awake(bool on);
+
 State state();
 
 // Whether the LEDs are off for idleness: the screen is off, or dimmed with Lights > When dimmed set to off.

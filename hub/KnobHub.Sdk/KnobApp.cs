@@ -92,6 +92,11 @@ public interface IKnobHost
     /// <summary>A short message over whatever the knob shows.</summary>
     void Toast(string text);
 
+    /// <summary>Keeps the knob's screen on while <paramref name="on"/>: it doesn't time out or dim, also while the app
+    /// isn't open (e.g. while a timer runs). Turn it off as soon as it's not needed; Knob Hub turns it off when the app
+    /// stops. Knob Hub 1.0.1 and Knob OS 1.0.1 or newer.</summary>
+    void KeepAwake(bool on);
+
     /// <summary>Writes to Knob Hub's log.</summary>
     void Log(string message);
 

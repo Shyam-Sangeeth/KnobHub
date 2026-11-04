@@ -61,7 +61,9 @@ for pixel tests.
 - **Screen timeout** (`idle.h`): the time since the last input (LVGL's inactive time; `idle::input()` counts knob
   turns and presses) dims and then turns off the screen. An input while it's off only wakes it: knob inputs are dropped
   in `knob_os_input`, touches by a layer over everything until the finger lifts. A toast wakes it (`idle::wake`); app
-  screen updates don't, or the Media app's position updates would keep it on. The knob reports its state in an `idle`
+  screen updates don't, or the Media app's position updates would keep it on. An app can keep it on
+  (`IKnobHost.KeepAwake`): Knob Hub sends `awake` while any app wants it, again after each hello, and the knob lets
+  go when the link drops (`idle::keep_awake`). The knob reports its state in an `idle`
   message, and Knob Hub's preview follows it while mirroring (`follow`), so a wake-up input never acts on the preview
   either.
 - **Pictures** (album art, `TextPicture`) carry `screen`, the size Knob Hub drew them for (`KnobSession` adds it);
@@ -95,7 +97,7 @@ Knob Hub's **live preview** (a virtual knob when no simulator is connected), and
 when screens change.
 
 - **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout, cards, the Wi-Fi
-  screen, the busy spinner) through the preview DLL. Add a check there when you add behaviour.
+  screen, the busy spinner, keeping the screen awake) through the preview DLL. Add a check there when you add behaviour.
 - **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical
   pixel for pixel unless the change is meant to show.
 - **Without the user's mouse or focus:** `tools/sim-capture.ps1` posts wheel and middle-button messages to the
@@ -181,6 +183,7 @@ when screens change.
   sides in step.
 - `Counter` is the small example app.
 - `Displays` picks the main display (cards) through Windows' CCD API (`QueryDisplayConfig`, `SetDisplayConfig`).
+- `Timer` is a countdown on the ring screen; it keeps the knob's screen on while it runs (`Host.KeepAwake`).
 
 ## Things that bite
 

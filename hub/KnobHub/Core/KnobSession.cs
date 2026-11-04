@@ -190,6 +190,20 @@ internal sealed class KnobSession : IDisposable
 
     public void Toast(string text) => Send(new JsonObject { ["t"] = "toast", ["text"] = text });
 
+    private readonly HashSet<AppEntry> _keepAwake = [];  // apps that want the knob's screen kept on
+
+    /// <summary>An app wants the knob's screen kept on, or no longer does: the knob keeps it on while any app does.
+    /// </summary>
+    public void KeepAwake(AppEntry entry, bool on)
+    {
+        bool before = _keepAwake.Count > 0;
+        if (on) _keepAwake.Add(entry);
+        else _keepAwake.Remove(entry);
+        if (_keepAwake.Count > 0 != before) SendKeepAwake();
+    }
+
+    private void SendKeepAwake() => Send(new JsonObject { ["t"] = "awake", ["on"] = _keepAwake.Count > 0 });
+
     public void Log(string message) => Logged?.Invoke(message);
 
     // --- knob -> Knob Hub ---
@@ -450,6 +464,7 @@ internal sealed class KnobSession : IDisposable
     private void HandleHello(JsonObject msg, bool fromKnob)
     {
         OsVersion = msg.Str("os");
+        if (_keepAwake.Count > 0) SendKeepAwake();  // a knob (or preview) that's new to it
         if (fromKnob)
         {
             KnobOsVersion = OsVersion;

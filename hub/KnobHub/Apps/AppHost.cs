@@ -21,6 +21,8 @@ internal sealed class AppHost(AppEntry entry, KnobSession session, Dispatcher ui
 
     public void Toast(string text) => Run(() => session.Toast(text));
 
+    public void KeepAwake(bool on) => Run(() => session.KeepAwake(entry, on));
+
     public void Log(string message) => Run(() => session.Log($"{entry.Manifest.Name}: {message}"));
 
     public int Setting(string id) => AppManager.GetSetting(entry, id);

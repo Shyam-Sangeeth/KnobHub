@@ -71,6 +71,7 @@ void receive(const char* line) {
     else if (std::strcmp(t, "icon") == 0) icons::receive(msg);
     else if (std::strcmp(t, "icons") == 0) icons::check(msg);
     else if (std::strcmp(t, "toast") == 0) toast_show(msg["text"] | "");
+    else if (std::strcmp(t, "awake") == 0) idle::keep_awake(msg["on"] | false);
     else if (std::strcmp(t, "settings") == 0) settings::apply_from_hub(msg);
     else if (std::strcmp(t, "wifi") == 0) settings::wifi_action(msg);
     else if (std::strcmp(t, "key") == 0) {

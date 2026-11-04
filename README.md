@@ -33,6 +33,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
   - [Media](#media)
   - [Counter](#counter)
   - [Displays](#displays)
+  - [Timer](#timer)
   - [Settings](#settings)
   - [Alerts and messages](#alerts-and-messages)
   - [Using the knob](#using-the-knob)
@@ -55,7 +56,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 2. **Put Knob OS on the knob:** plug the knob into the PC over USB, open Knob Hub's **Settings** page, and under
    **Knob OS** choose the knob's board and click **Install Knob OS**. It takes about a minute; then the knob restarts
    with Knob OS and connects. A CrowPanel straight from the box runs Elecrow's demo, which this replaces.
-3. **Add apps:** Media is built in. **Apps > Add apps** lists the others (AudioDesk, Counter, Displays and more).
+3. **Add apps:** Media is built in. **Apps > Add apps** lists the others (AudioDesk, Counter, Displays, Timer and more).
 
 Knob Hub checks for a newer version of itself a little after it starts, and each new Knob Hub brings the newest
 Knob OS: see [Updates](#updates).
@@ -242,6 +243,23 @@ while the app is open.
   </tr>
 </table>
 
+### Timer
+
+A countdown timer. Turn the knob to set it: a minute a click up to 15 minutes, five minutes a click up to an hour,
+then a quarter of an hour a click up to 3 hours. Press to start: the ring empties as the time runs down, and the
+knob's screen stays on (no timeout, no dimming) until it's done. Press again to pause, when the screen may sleep, and
+once more to carry on; turning while it's paused sets it afresh. It keeps running when you go back to Home, and at
+the end **Time's up** shows over whatever the knob shows, waking it (with a buzz on a knob with vibration).
+
+<table>
+  <tr>
+    <td align="center"><img src="design/screenshots/timer/home-timer.png" width="200" /><br />On the Home ring</td>
+    <td align="center"><img src="design/screenshots/timer/timer.png" width="200" /><br />Set</td>
+    <td align="center"><img src="design/screenshots/timer/timer-running.png" width="200" /><br />Running</td>
+    <td align="center"><img src="design/screenshots/timer/timer-done.png" width="200" /><br />Done</td>
+  </tr>
+</table>
+
 ### Settings
 
 The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode, on knobs with LEDs),
@@ -252,7 +270,8 @@ other.
 
 **Screen timeout:** after the chosen time with nothing done on the knob, the screen turns off. The next turn, press or
 touch only wakes it; it doesn't act. A message from Knob Hub (e.g. "Sonar is off") wakes it too, and the timeout starts
-again; apps updating their screens don't. With **Dim when idle** on, the screen dims to a quarter of its brightness
+again; apps updating their screens don't. An app can keep the screen on while it needs it (Timer, while it runs):
+then it doesn't time out or dim, and the timeout starts again when the app lets go. With **Dim when idle** on, the screen dims to a quarter of its brightness
 halfway to the timeout (after a minute when the timeout is Never); while it's dimmed the knob works as usual. The LEDs
 go off with the screen; with Lights > **When dimmed** set to off, they go off already when it dims. Knob Hub's preview
 goes dark with the knob.
@@ -362,6 +381,7 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
 | AudioDesk | AudioDesk's channels, volume, Sonar and output devices | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/AudioDesk`) |
 | Counter | Counts up and down as you turn | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Counter`) |
 | Displays | Picks the main display | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Displays`) |
+| Timer | A countdown timer that keeps the screen on while it runs | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Timer`) |
 
 Apps are released in their own repository, [Shyam-Sangeeth/KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps),
 apart from Knob Hub's releases. Each app there has one release, tagged with its id, holding every version as
@@ -383,7 +403,7 @@ file name) and `type` (full name of the `KnobApp` subclass).
 
 **The app** derives from `KnobHub.Sdk.KnobApp`: override `Open` to show the first screen and `Input` to react
 (optionally `Start`, `Stop` and `Closed`). It talks to the knob through `IKnobHost`: `Show`, `Update`, `Close`,
-`Toast` and `Log`. Knobs come in different sizes, but screens scale by themselves; only a picture an app draws itself
+`Toast`, `KeepAwake` (the knob's screen stays on while it's on, e.g. while a timer runs) and `Log`. Knobs come in different sizes, but screens scale by themselves; only a picture an app draws itself
 needs sizing, for a 240 px screen times `Host.ScreenSize / 240.0`.
 
 **Screens** are templates the knob already knows:
@@ -465,7 +485,7 @@ released separately (see [Apps](#apps)).
 
 ### Checks
 
-`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout, cards, the Wi-Fi screen, the busy spinner) through
+`python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout, cards, the Wi-Fi screen, the busy spinner, keeping the screen awake) through
 the preview DLL, without a knob. `tools/tour.py` and `tools/compare.py` show whether a change altered any screen. See
 [`tools/README.md`](tools/README.md).
 
@@ -544,7 +564,7 @@ KnobHub/
 ├─ hub/                     Knob Hub (WPF, .NET 10); KnobHub.slnx
 │  ├─ KnobHub.Sdk/          Class library for apps
 │  ├─ KnobHub/              The tray app
-│  └─ Plugins/              AudioDesk, Counter and Displays apps, pack-release.ps1
+│  └─ Plugins/              AudioDesk, Counter, Displays and Timer apps, pack-release.ps1
 ├─ design/
 │  ├─ screenshots/          Every knob screen, by app
 │  └─ recreated/            The screens recreated in HTML/CSS, one page per app
@@ -557,5 +577,5 @@ KnobHub/
 
 Working: Knob OS on both CrowPanels (1.28" and 1.46"), over USB and Wi-Fi, the simulator, Knob Hub with the live
 preview, its installer and updates, installing Knob OS from Knob Hub, apps from GitHub, and the Media, AudioDesk,
-Counter and Displays apps, with haptics (vibration through an add-on driver), the LEDs' modes and the screen timeout. Next: the motor knob (a motor on the knob, driven by
+Counter, Displays and Timer apps, with haptics (vibration through an add-on driver), the LEDs' modes and the screen timeout. Next: the motor knob (a motor on the knob, driven by
 field-oriented control).
