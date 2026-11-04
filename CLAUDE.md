@@ -91,8 +91,8 @@ There are no unit tests. Check changes with the scripts in `tools/` (see its REA
 Knob Hub's **live preview** (a virtual knob when no simulator is connected), and keep `design/screenshots/` current
 when screens change.
 
-- **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout, cards) through the preview
-  DLL. Add a check there when you add behaviour.
+- **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout, cards, the Wi-Fi
+  screen, the busy spinner) through the preview DLL. Add a check there when you add behaviour.
 - **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical
   pixel for pixel unless the change is meant to show.
 - **Without the user's mouse or focus:** `tools/sim-capture.ps1` posts wheel and middle-button messages to the
@@ -112,6 +112,8 @@ when screens change.
 - `settings.cpp`: the knob's settings, kept in `settings.json`. Knob Hub's saved settings win: it sends them after
   every hello, and the knob only sends a setting when it's changed on the knob.
 - `message.cpp`, `toast.cpp`.
+- `busy.cpp/.h`: the busy spinner an app's screen can ask for (`busy` in its data), over everything; only Back gets
+  through while it shows.
 - `ui.cpp/.h`: shared widgets, the scaling helpers (`ui::px`, `ui::font`, `ui::size`, `ui::picture_px`), and the ink
   helpers `ui::ink_top` and `ui::ink_height` used to centre text visually.
 - `text_picture.cpp/.h`: text Knob Hub drew as a picture (scripts the fonts lack), scrolling when long.

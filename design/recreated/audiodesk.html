@@ -96,6 +96,26 @@
       flex-shrink: 0;
     }
 
+    /* Busy: an app's screen can ask for it (busy in its data) */
+    .busy-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(7, 8, 10, 0.8);
+    }
+
+    /* One spoke on every 83 ms, like the knob */
+    .busy-spinner {
+      animation: busy-turn 1s steps(12) infinite;
+    }
+
+    @keyframes busy-turn {
+      to { transform: rotate(360deg); }
+    }
+
     /* 240x240 native Knob OS display */
     .knob-screen {
       width: 240px;
@@ -472,7 +492,7 @@
         <div class="knob-screen">
           <div class="screen-title">AUDIODESK</div>
 
-          <!-- Channel Tiles: Game (Muted), Media (Selected), Aux (Switching) -->
+          <!-- Channel Tiles: Game (Muted), Media (Selected), Aux -->
           <div class="tiles-row">
 
             <!-- Game Tile (Muted) -->
@@ -533,11 +553,10 @@
               </div>
             </div>
 
-            <!-- Aux Tile (Switching) -->
+            <!-- Aux Tile -->
             <div class="tile">
               <svg class="tile-svg" viewBox="0 0 58 58">
                 <circle cx="29" cy="29" r="26.5" fill="#14161B" stroke="#C084FC" stroke-width="3.5" stroke-dasharray="125 50" stroke-dashoffset="-38" />
-                <circle cx="29" cy="29" r="26.5" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-dasharray="45 130" stroke-dashoffset="15" stroke-linecap="round" />
               </svg>
               <div class="tile-content">
                 <div class="tile-icon" style="color: #C084FC;">
@@ -578,11 +597,31 @@
             <div class="profile-segment inactive">Home Theater</div>
           </div>
 
+          <!-- Busy: the screen dims and the spinner turns over everything; only Back gets through -->
+          <div class="busy-overlay">
+            <svg class="busy-spinner" viewBox="-35 -35 70 70" width="70" height="70">
+              <circle r="35" fill="var(--screen-bg)" />
+              <g stroke-width="5" stroke-linecap="round">
+                <line x1="0.0" y1="-14.0" x2="0.0" y2="-26.0" stroke="#FF0000" opacity="1.00" />
+                <line x1="-7.0" y1="-12.1" x2="-13.0" y2="-22.5" stroke="#FF8000" opacity="0.95" />
+                <line x1="-12.1" y1="-7.0" x2="-22.5" y2="-13.0" stroke="#FFFF00" opacity="0.90" />
+                <line x1="-14.0" y1="-0.0" x2="-26.0" y2="-0.0" stroke="#80FF00" opacity="0.84" />
+                <line x1="-12.1" y1="7.0" x2="-22.5" y2="13.0" stroke="#00FF00" opacity="0.79" />
+                <line x1="-7.0" y1="12.1" x2="-13.0" y2="22.5" stroke="#00FF80" opacity="0.74" />
+                <line x1="-0.0" y1="14.0" x2="-0.0" y2="26.0" stroke="#00FFFF" opacity="0.69" />
+                <line x1="7.0" y1="12.1" x2="13.0" y2="22.5" stroke="#0080FF" opacity="0.64" />
+                <line x1="12.1" y1="7.0" x2="22.5" y2="13.0" stroke="#0000FF" opacity="0.59" />
+                <line x1="14.0" y1="0.0" x2="26.0" y2="0.0" stroke="#8000FF" opacity="0.53" />
+                <line x1="12.1" y1="-7.0" x2="22.5" y2="-13.0" stroke="#FF00FF" opacity="0.48" />
+                <line x1="7.0" y1="-12.1" x2="13.0" y2="-22.5" stroke="#FF0080" opacity="0.43" />
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
       <div class="card-meta">
         <div class="card-title">Channels Muted &amp; Switching</div>
-        <div class="card-desc">Overview with Game channel muted (dimmed ring, struck-through icon) and Aux switching device to Speaker with active loading arc.</div>
+        <div class="card-desc">Overview with the Game channel muted (dimmed ring, struck-through icon) while AudioDesk switches something: the screen dims and the busy spinner turns over it until the switch is done. Only Back works meanwhile.</div>
       </div>
     </div>
 
@@ -747,7 +786,7 @@
               Headset Earphone
             </div>
             <div style="font-size: 10.5px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; overflow: hidden; width: 100%; margin-top: 2px;">
-              Switching...
+              Sonar · 24-bit, 96 kHz
             </div>
           </div>
 
@@ -756,11 +795,31 @@
             72%
           </div>
 
+          <!-- Busy: the screen dims and the spinner turns over everything; only Back gets through -->
+          <div class="busy-overlay">
+            <svg class="busy-spinner" viewBox="-35 -35 70 70" width="70" height="70">
+              <circle r="35" fill="var(--screen-bg)" />
+              <g stroke-width="5" stroke-linecap="round">
+                <line x1="0.0" y1="-14.0" x2="0.0" y2="-26.0" stroke="#FF0000" opacity="1.00" />
+                <line x1="-7.0" y1="-12.1" x2="-13.0" y2="-22.5" stroke="#FF8000" opacity="0.95" />
+                <line x1="-12.1" y1="-7.0" x2="-22.5" y2="-13.0" stroke="#FFFF00" opacity="0.90" />
+                <line x1="-14.0" y1="-0.0" x2="-26.0" y2="-0.0" stroke="#80FF00" opacity="0.84" />
+                <line x1="-12.1" y1="7.0" x2="-22.5" y2="13.0" stroke="#00FF00" opacity="0.79" />
+                <line x1="-7.0" y1="12.1" x2="-13.0" y2="22.5" stroke="#00FF80" opacity="0.74" />
+                <line x1="-0.0" y1="14.0" x2="-0.0" y2="26.0" stroke="#00FFFF" opacity="0.69" />
+                <line x1="7.0" y1="12.1" x2="13.0" y2="22.5" stroke="#0080FF" opacity="0.64" />
+                <line x1="12.1" y1="7.0" x2="22.5" y2="13.0" stroke="#0000FF" opacity="0.59" />
+                <line x1="14.0" y1="0.0" x2="26.0" y2="0.0" stroke="#8000FF" opacity="0.53" />
+                <line x1="12.1" y1="-7.0" x2="22.5" y2="-13.0" stroke="#FF00FF" opacity="0.48" />
+                <line x1="7.0" y1="-12.1" x2="13.0" y2="-22.5" stroke="#FF0080" opacity="0.43" />
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
       <div class="card-meta">
         <div class="card-title">Channel Switching</div>
-        <div class="card-desc">Channel view while an audio output device change is in progress, displaying "Switching..." status and 72% volume arc.</div>
+        <div class="card-desc">A channel while its output device changes: the screen dims and the busy spinner turns over it until the switch is done. Only Back works meanwhile.</div>
       </div>
     </div>
 
