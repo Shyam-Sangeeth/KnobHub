@@ -14,6 +14,9 @@ TestResults/
 # Packed apps: built from the projects (hub/Plugins/pack-release.ps1 gathers them for GitHub releases)
 *.knobapp
 hub/Plugins/release/
+# The installer's build (installer/build-installer.ps1)
+installer/payload/
+installer/out/
 
 # Build output that may land anywhere
 *.exe

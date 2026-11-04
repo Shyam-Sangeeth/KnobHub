@@ -520,17 +520,54 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Knob OS on the knob: install or update it over USB (see KnobOsModel). -->
+                <TextBlock Text="Knob OS" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
+                <Border Style="{StaticResource Card}" DataContext="{Binding KnobOs}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Status, Mode=OneWay}" TextWrapping="Wrap" />
+                        <ProgressBar Margin="0,10,0,0" Height="4" Maximum="100" Value="{Binding Progress, Mode=OneWay}"
+                                     Visibility="{Binding Installing, Converter={StaticResource BoolToVisibility}}" />
+                        <Grid Margin="0,12,0,0" Visibility="{Binding ChoosesBoard, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="180" />
+                                <ColumnDefinition Width="300" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Board" VerticalAlignment="Center" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding Boards, Mode=OneWay}" DisplayMemberPath="Name"
+                                      SelectedItem="{Binding Board}" AutomationProperties.Name="Board">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                        <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
+                        </Grid>
+                        <Button Margin="0,12,0,0" HorizontalAlignment="Left" Content="{Binding InstallText, Mode=OneWay}"
+                                Visibility="{Binding ShowsInstall, Converter={StaticResource BoolToVisibility}}"
+                                Click="InstallKnobOs_Click" />
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Text="Knob Hub" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" />
-                        <TextBlock Text="{Binding HubVersion, StringFormat=You have {0}}" Margin="0,10,0,0" Style="{StaticResource SecondaryText}" />
+                        <StackPanel Margin="0,14,0,0" DataContext="{Binding Updates}">
+                            <TextBlock Text="{Binding Status, Mode=OneWay}" TextWrapping="Wrap" />
+                            <TextBlock Margin="0,2,0,0" Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}">
+                                <Hyperlink NavigateUri="{Binding ReleaseUrl, Mode=OneWay}" RequestNavigate="Link_RequestNavigate">What's new in this version</Hyperlink>
+                            </TextBlock>
+                            <ProgressBar Margin="0,10,0,0" Height="4" Maximum="100" Value="{Binding Progress, Mode=OneWay}"
+                                         Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+                            <WrapPanel Margin="0,12,0,0">
+                                <Button Content="Check for updates" Click="CheckUpdates_Click" IsEnabled="{Binding CanCheck, Mode=OneWay}" Margin="0,0,8,0" />
+                                <Button Content="{Binding InstallText, Mode=OneWay}" Click="InstallUpdate_Click"
+                                        Style="{DynamicResource AccentButtonStyle}" IsEnabled="{Binding CanInstall, Mode=OneWay}"
+                                        Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}" />
+                            </WrapPanel>
+                            <CheckBox Margin="0,12,0,0" Content="Check for updates when Knob Hub starts" IsChecked="{Binding AutoCheck}" />
+                        </StackPanel>
                     </StackPanel>
-                </Border>
-
-                <TextBlock Text="Firmware" Style="{StaticResource SectionTitle}" Margin="0,22,0,8" />
-                <Border Style="{StaticResource Card}">
-                    <TextBlock Text="{Binding FirmwareText}" />
                 </Border>
             </StackPanel>
         </ScrollViewer>

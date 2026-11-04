@@ -29,6 +29,9 @@ internal sealed class HubSettings
     /// <see cref="KnobBoard"/>).</summary>
     public string PreviewBoard { get; set; } = KnobBoard.Default.Id;
 
+    /// <summary>Check GitHub for a newer Knob Hub a little after it starts (see <see cref="HubUpdates"/>).</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
     /// <summary>The knob paired over USB, which Knob Hub looks for on Wi-Fi when it isn't plugged in (see
     /// <see cref="WifiConnection"/>).</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -8,11 +8,13 @@ public partial class App : Application
 {
     private const string InstanceName = "KnobHub.SingleInstance";
     private const string ShowEventName = "KnobHub.ShowWindow";
+    private const string ExitEventName = "KnobHub.Exit";
 
     private Mutex? _instanceMutex;
     private KnobSession? _session;
     private TrayIcon? _tray;
     private MainWindow? _window;
+    private HubUpdateModel? _updates;
     private bool _exiting;
 
     internal KnobSession Session => _session ?? throw new InvalidOperationException("Knob Hub hasn't started.");
@@ -25,13 +27,32 @@ public partial class App : Application
         // plenty fast here.
         System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
 
+        // Used by the installer: --exit closes a running Knob Hub (before an upgrade or uninstall) and waits for it;
+        // --add-startup and --remove-startup set Start with Windows (the installer's checkbox, uninstalling).
+        if (e.Args.Contains("--exit") || e.Args.Contains("--add-startup") || e.Args.Contains("--remove-startup"))
+        {
+            if (e.Args.Contains("--add-startup") || e.Args.Contains("--remove-startup"))
+            {
+                try { StartupSetting.Enabled = e.Args.Contains("--add-startup"); } catch { }
+            }
+            if (e.Args.Contains("--exit")) CloseRunningCopy();
+            Shutdown();
+            return;
+        }
+
         // Second launch: ask the running copy to show its window, then quit.
         _instanceMutex = new Mutex(true, InstanceName, out bool isFirst);
         if (!isFirst)
         {
             try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { }
-            Shutdown();
-            return;
+            // The other copy may be on its way out (it just started an update that started this one): give it a moment.
+            try { isFirst = _instanceMutex.WaitOne(TimeSpan.FromSeconds(3)); }
+            catch (AbandonedMutexException) { isFirst = true; }
+            if (!isFirst)
+            {
+                Shutdown();
+                return;
+            }
         }
         var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
         new Thread(() =>
@@ -39,12 +60,20 @@ public partial class App : Application
             while (showEvent.WaitOne())
                 Dispatcher.BeginInvoke(ShowWindow);
         }) { IsBackground = true }.Start();
+        var exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
+        new Thread(() =>
+        {
+            exitEvent.WaitOne();
+            Dispatcher.BeginInvoke(ExitApp);
+        }) { IsBackground = true }.Start();
 
         var settings = HubSettings.Load();
-        var links = new KnobLinks(new UsbConnection(), new WifiConnection(() => settings.Paired), new SimulatorConnection());
-        _session = new KnobSession(settings, links, Dispatcher);
+        var usb = new UsbConnection();
+        var links = new KnobLinks(usb, new WifiConnection(() => settings.Paired), new SimulatorConnection());
+        _session = new KnobSession(settings, links, Dispatcher, usb);
         _session.Logged += Log;
-        var model = new MainViewModel(_session);
+        _updates = new HubUpdateModel(settings, ExitApp);
+        var model = new MainViewModel(_session, _updates);
         _session.Start([(MediaApp.Manifest, () => new MediaApp())]);
         model.Refresh();
 
@@ -65,6 +94,41 @@ public partial class App : Application
         };
 
         if (!e.Args.Contains("--minimized")) ShowWindow();
+        CheckForUpdatesLater();
+    }
+
+    /// <summary>If it's turned on, checks GitHub for a newer Knob Hub once, a little after it starts (so it doesn't slow
+    /// down signing in), and says so in a tray notification that opens Settings.</summary>
+    private async void CheckForUpdatesLater()
+    {
+        if (_updates == null || _session == null || !_session.HubSettings.CheckForUpdates) return;
+        await Task.Delay(TimeSpan.FromSeconds(20));
+        _updates.UpdateFound += update =>
+        {
+            if (_window is { IsVisible: true }) return;  // the Settings page shows it
+            _tray?.ShowHint($"Knob Hub {update.Version} is available", "Click to open Settings and update.", () =>
+            {
+                ShowWindow();
+                _window?.ShowSettings();
+            });
+        };
+        await _updates.CheckAsync(quiet: true);
+    }
+
+    /// <summary>Asks a running Knob Hub to exit and waits (up to 10 s) until it has.</summary>
+    private static void CloseRunningCopy()
+    {
+        try
+        {
+            EventWaitHandle.OpenExisting(ExitEventName).Set();
+            using var mutex = new Mutex(false, InstanceName);
+            try
+            {
+                if (mutex.WaitOne(TimeSpan.FromSeconds(10))) mutex.ReleaseMutex();
+            }
+            catch (AbandonedMutexException) { }
+        }
+        catch (WaitHandleCannotBeOpenedException) { }  // not running
     }
 
     /// <summary>%LOCALAPPDATA%\KnobHub\knobhub.log: connections, apps opened, app problems. Started afresh when it

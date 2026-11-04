@@ -6,6 +6,7 @@ namespace KnobHub;
 internal sealed class TrayIcon : IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
+    private Action? _hintClicked;
 
     public TrayIcon(System.Drawing.Icon icon, Action open, Action exit)
     {
@@ -20,6 +21,14 @@ internal sealed class TrayIcon : IDisposable
         {
             if (e.Button == Forms.MouseButtons.Left) open();
         };
+        _icon.BalloonTipClicked += (_, _) => _hintClicked?.Invoke();
+    }
+
+    /// <summary>A Windows notification from the tray icon; clicking it calls <paramref name="onClick"/>.</summary>
+    public void ShowHint(string title, string text, Action? onClick = null)
+    {
+        _hintClicked = onClick;
+        _icon.ShowBalloonTip(5000, title, text, Forms.ToolTipIcon.None);
     }
 
     public void Dispose()

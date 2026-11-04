@@ -23,6 +23,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 
 ## Contents
 
+- [Getting started](#getting-started)
 - [How it works](#how-it-works)
 - [Knobs](#knobs)
   - [Adding a board](#adding-a-board)
@@ -44,6 +45,20 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 - [Connection](#connection)
 - [Repository layout](#repository-layout)
 - [Status](#status)
+
+## Getting started
+
+1. **Install Knob Hub:** download `KnobHub-<version>-x64.msi` from the
+   [latest release](https://github.com/Shyam-Sangeeth/KnobHub/releases/latest) and run it. It installs for everyone
+   on the PC (Windows asks for admin rights), into Program Files unless you choose another folder, and starts Knob Hub
+   when it's done. It needs 64-bit Windows 10 (2004 or later) or Windows 11; .NET comes with it.
+2. **Put Knob OS on the knob:** plug the knob into the PC over USB, open Knob Hub's **Settings** page, and under
+   **Knob OS** choose the knob's board and click **Install Knob OS**. It takes about a minute; then the knob restarts
+   with Knob OS and connects. A CrowPanel straight from the box runs Elecrow's demo, which this replaces.
+3. **Add apps:** Media is built in. **Apps > Add apps** lists the others (AudioDesk, Counter, Displays and more).
+
+Knob Hub checks for a newer version of itself a little after it starts, and each new Knob Hub brings the newest
+Knob OS: see [Updates](#updates).
 
 ## How it works
 
@@ -319,7 +334,25 @@ the CrowPanel 1.28", until one does). To try another board, run the simulator as
 Windows. **Set up Wi-Fi...** (with a knob connected) opens a small window: the knob looks for networks, you pick
 yours and type its password, and the knob joins it there and then. The password goes only to the knob. Meanwhile the
 knob shows a Wi-Fi screen; using the knob closes the window. **Use a phone** in that window starts the knob's pairing
-mode instead, and **Forget Wi-Fi** makes the knob forget its network (see [Connection](#connection)).
+mode instead, and **Forget Wi-Fi** makes the knob forget its network (see [Connection](#connection)). **Knob OS**
+says which Knob OS the knob runs and installs a newer one, and **Knob Hub** checks for a newer Knob Hub (see
+[Updates](#updates)).
+
+### Updates
+
+- **Knob Hub** checks GitHub for a newer version a little after it starts (turn it off in Settings) and says so in
+  a Windows notification. **Check for updates** in Settings checks now. **Download and install** fetches the
+  installer, checks it against the release's SHA-256, and runs it: Knob Hub closes, updates and starts again, with
+  its settings and apps kept.
+- **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.1 is ready: see Knob Hub" once when
+  it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
+  keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
+  USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
+- **A knob that isn't running Knob OS** (new, or one whose Knob OS doesn't start) can't say what board it is: while
+  the Settings page is open, Knob Hub notices it on its USB port and lets you choose the board, then installs
+  Knob OS on it.
+- **Apps** update from **Add apps** (see [Apps](#apps)).
 
 ## Apps
 
@@ -415,7 +448,20 @@ KnobHub\bin\Debug\net10.0-windows10.0.19041.0\KnobHub.exe
 ```
 
 Building Knob Hub also builds `knob_preview.dll` (`pio run -e preview`) if it's missing and copies it next to the
-app. Knob Hub connects to the simulator on 127.0.0.1:5718 and retries every 2 seconds.
+app, with the Knob OS images from the last real-knob builds (see [The real knob](#the-real-knob)). Knob Hub connects
+to the simulator on 127.0.0.1:5718 and retries every 2 seconds.
+
+### Installer and releases
+
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build-installer.ps1
+```
+
+builds Knob OS for every board and the preview, a self-contained Knob Hub, and in `installer\out` the installer
+(`KnobHub-<version>-x64.msi`, the version from `hub\KnobHub\KnobHub.csproj`) and each board's Knob OS image
+(`knob-os-<version>-<board>.bin`). A release is a GitHub release tagged `v<version>` with all of them attached; Knob
+Hub's updater looks for its `.msi`. `installer\make-installer-art.ps1` draws the installer's pictures. Apps are
+released separately (see [Apps](#apps)).
 
 ### Checks
 
@@ -435,6 +481,13 @@ Add `-t upload --upload-port COM3` to flash it (close Knob Hub first: it holds t
 it: display, touch, encoder and press, backlight, LEDs, the USB and Wi-Fi links, and vibration through an add-on
 haptic driver. The motor on the knob is still to be written.
 
+Each build also makes `knob-os.bin`: the bootloader, the partition table and Knob OS in one image that starts at 0x0
+(`knob-os/scripts/merged.py`). It's copied to `%USERPROFILE%\.cache\knob-os\firmware\`, with `firmware.json` saying
+each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
+installs from it. To flash a release's image by hand, use
+`esptool --chip esp32s3 write-flash 0x0 knob-os-1.0.0-crowpanel-1.28.bin`; unlike Knob Hub, that also clears the
+knob's pairing and Wi-Fi network.
+
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).
 A whole-screen frame takes about 25 ms on the 1.28".
 
@@ -448,6 +501,8 @@ screen size's fonts. It needs Node.js.
 
 ## Files
 
+- Knob Hub itself: `C:\Program Files\Knob Hub` unless you chose another folder, with the Knob OS images it installs
+  in `firmware\`. Uninstalling keeps the settings and apps below.
 - Settings: `%LOCALAPPDATA%\KnobHub\settings.json`
 - Installed apps: `%LOCALAPPDATA%\KnobHub\Apps\<id>`
 - Log: `%LOCALAPPDATA%\KnobHub\knobhub.log` (connections, apps opened, app problems)
@@ -493,6 +548,7 @@ KnobHub/
 ├─ design/
 │  ├─ screenshots/          Every knob screen, by app
 │  └─ recreated/            The screens recreated in HTML/CSS, one page per app
+├─ installer/               Knob Hub's installer (WiX) and build-installer.ps1, which makes a release's files
 ├─ docs/screenshots/        Knob Hub screenshots for this README
 └─ tools/                   Checks through the preview DLL, screen tours, simulator and Knob Hub screenshots
 ```
@@ -500,6 +556,6 @@ KnobHub/
 ## Status
 
 Working: Knob OS on both CrowPanels (1.28" and 1.46"), over USB and Wi-Fi, the simulator, Knob Hub with the live
-preview, apps from GitHub, and the Media, AudioDesk, Counter and Displays apps, with haptics (vibration through an
-add-on driver), the LEDs' modes and the screen timeout. Next: the motor knob (a motor on the knob, driven by
+preview, its installer and updates, installing Knob OS from Knob Hub, apps from GitHub, and the Media, AudioDesk,
+Counter and Displays apps, with haptics (vibration through an add-on driver), the LEDs' modes and the screen timeout. Next: the motor knob (a motor on the knob, driven by
 field-oriented control).

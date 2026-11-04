@@ -41,8 +41,8 @@ public partial class MainWindow : Window
         model.Vibrated += FlashRing;
         model.LedsChanged += ShowLeds;
         // In the tray, minimized or on another page, the preview only keeps up with the knob, without drawing.
-        IsVisibleChanged += (_, _) => ShowPreview();
-        StateChanged += (_, _) => ShowPreview();
+        IsVisibleChanged += (_, _) => { ShowPreview(); WatchForKnobs(); };
+        StateChanged += (_, _) => { ShowPreview(); WatchForKnobs(); };
         StateChanged += (_, _) => ShowWindowState();
         Loaded += (_, _) => ShowWindowState();
     }
@@ -76,7 +76,15 @@ public partial class MainWindow : Window
         BoardPage.Visibility = Nav.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = Nav.SelectedIndex == 3 ? Visibility.Visible : Visibility.Collapsed;
         ShowPreview();
+        WatchForKnobs();
     }
+
+    /// <summary>Opens the Settings page (from the tray's update notice).</summary>
+    public void ShowSettings() => Nav.SelectedIndex = 3;
+
+    /// <summary>While the Settings page is on show, look for knobs that aren't running Knob OS.</summary>
+    private void WatchForKnobs() =>
+        _model.KnobOs.Watch(IsVisible && WindowState != WindowState.Minimized && SettingsPage.Visibility == Visibility.Visible);
 
     private void ShowPreview() =>
         _model.ShowPreview(IsVisible && WindowState != WindowState.Minimized && KnobPage.Visibility == Visibility.Visible);
@@ -336,6 +344,24 @@ public partial class MainWindow : Window
         var answer = MessageBox.Show(this, "Forget the knob's Wi-Fi network? It will only connect over USB until you set up Wi-Fi again.",
             "Forget Wi-Fi", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer == MessageBoxResult.Yes) _model.ForgetWifi();
+    }
+
+    private async void InstallKnobOs_Click(object sender, RoutedEventArgs e)
+    {
+        var answer = MessageBox.Show(this, _model.KnobOs.InstallQuestion, "Install Knob OS", MessageBoxButton.OKCancel,
+            MessageBoxImage.Question);
+        if (answer == MessageBoxResult.OK) await _model.KnobOs.InstallAsync();
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e) => await _model.Updates.CheckAsync(quiet: false);
+
+    private async void InstallUpdate_Click(object sender, RoutedEventArgs e) => await _model.Updates.InstallAsync();
+
+    private void Link_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
+        catch (Exception) { }
+        e.Handled = true;
     }
 
     private void Uninstall_Click(object sender, RoutedEventArgs e)

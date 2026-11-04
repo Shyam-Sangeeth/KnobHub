@@ -75,14 +75,17 @@ for pixel tests.
 pio run -e sim -t exec      # simulator window (SDL2); Knob Hub connects to it on 127.0.0.1:5718
                             # program.exe --board crowpanel-1.46 (or motor-knob) for another board
 pio run -e preview          # knob_preview.dll for Knob Hub's live preview
-pio run -e crowpanel-128    # a real board: one env per board; -t upload --upload-port COM3 flashes it
-pio run -e crowpanel-146
+pio run -e crowpanel-128    # a real board: one env per board; -t upload --upload-port COM3 flashes it. Also makes
+pio run -e crowpanel-146    # knob-os.bin and copies it to .cache\knob-os\firmware (scripts/merged.py)
 
 # hub
 dotnet build KnobHub\KnobHub.csproj          # also builds/copies knob_preview.dll if missing
 KnobHub\bin\Debug\net10.0-windows10.0.19041.0\KnobHub.exe
 dotnet build Plugins\Counter -c Release       # -> bin\Release\Counter.knobapp
 powershell -ExecutionPolicy Bypass -File Plugins\pack-release.ps1 [-NoPublish]   # publish apps to KnobHub-Apps
+
+# a Knob Hub release (from the repository root): Knob OS for every board, the MSI and the boards' images
+powershell -ExecutionPolicy Bypass -File installer\build-installer.ps1    # -> installer\out
 ```
 
 Editing `platformio.ini` wipes PlatformIO's build folders, so rebuild both `sim` and `preview` afterwards.
@@ -142,7 +145,7 @@ when screens change.
 
 **hub/KnobHub**
 - `Core/KnobSession.cs`: talks to one knob (apps, screens, icons).
-- `Core/KnobConnection.cs`: the links, highest priority first in `KnobLinks` (USB, then the simulator's TCP); lower
+- `Core/KnobConnection.cs`: the links, highest priority first in `KnobLinks` (USB, Wi-Fi, then the simulator's TCP); lower
   ones pause while a higher one is in use. A link counts as connected once the knob says hello (`LineConnection`).
   USB looks only at COM ports with Espressif's vendor id (registry), opened with RTS off (RTS can reset the ESP32-S3).
   The knob can't see the port open (the ESP32-S3's USB serial has no DTR to read), so over USB Knob Hub sends a `hub`
@@ -154,6 +157,15 @@ when screens change.
 - `Core/KnobIcons.cs`: draws A8 icons.
 - `Core/AppCatalog.cs`: the GitHub app list.
 - `Core/HubSettings.cs`: `%LOCALAPPDATA%\KnobHub\settings.json`.
+- `Core/KnobFirmware.cs`: the Knob OS images that came with Knob Hub (`firmware\` next to the exe, copied in by the
+  csproj's `KnobFirmware` target from `%USERPROFILE%\.cache\knob-os\firmware`).
+- `Core/KnobFlasher.cs`: installs an image over USB through the ESP32-S3's ROM loader (Espressif's documented serial
+  protocol: SLIP, compressed writes, MD5 check). DTR/RTS reset the chip into the loader and back, no buttons. It
+  skips the nvs partition (pairing key, Wi-Fi network); the file system with the settings lies past the image.
+  `KnobSession.InstallKnobOsAsync` pauses every link meanwhile; `UsbConnection.SilentPorts` are knobs that never
+  said hello (not running Knob OS), offered in Settings with a board picker.
+- `Core/HubUpdates.cs`: Knob Hub's own updates (latest release of this repo, its `.msi`, SHA-256 checked), as in
+  AudioDesk. `UpdateModels.cs` has the Settings page's Knob OS and update models.
 - `Apps/AppManager.cs` (install, order, settings, `.knobapp`), `Apps/AppHost.cs`, and `Apps/MediaApp.cs` (built in).
 - `MainWindow`: the Knob, Apps, Board and Settings pages, with its own title bar via `WindowChrome`. Board has the
   board's details and the settings only some boards have (Lights, Haptics). There's no board picker (the user's
@@ -189,6 +201,21 @@ when screens change.
   use `char.ConvertFromUtf32(...)` when it matters.
 - **Windows reserved names:** `aux`, `con`, `nul` and so on can't be file names (git can't add `aux.png`).
 - **Keep slow work off the UI thread** in Knob Hub, as in AudioDesk.
+
+## Releases
+
+Knob Hub's releases are in this repo; apps have their own (below).
+
+1. Bump `<Version>` in `hub/KnobHub/KnobHub.csproj`, and `KNOB_OS_VERSION` in `knob-os/src/core/knob_os.h` when Knob
+   OS changed (Knob Hub offers knobs the Knob OS it carries when it's newer than theirs).
+2. `installer\build-installer.ps1`: `installer\out` gets `KnobHub-<version>-x64.msi` and
+   `knob-os-<os version>-<board>.bin` for each board.
+3. A GitHub release `v<version>` with all of them attached. The updater reads the latest release's `.msi` and checks
+   its SHA-256 digest, and the installer won't downgrade, so never publish a lower version than the latest.
+
+The installer is per-machine (Program Files\Knob Hub by default, a folder page to choose another, kept for upgrades
+in `HKLM\Software\KnobHub\Installer\InstallFolder`), starts Knob Hub through Explorer so it doesn't run elevated,
+and uses `KnobHub.exe --exit`, `--add-startup` and `--remove-startup`. Commit and publish only when the user asks.
 
 ## Apps repository
 

@@ -67,6 +67,9 @@ internal abstract class LineConnection : IKnobConnection
     /// <summary>The stream opened by the last <see cref="OpenAsync"/> didn't say hello in time.</summary>
     protected virtual void NoHello() { }
 
+    /// <summary>The stream opened by the last <see cref="OpenAsync"/> said hello.</summary>
+    protected virtual void SaidHello() { }
+
     /// <summary>A message sent as soon as the stream is open and every <see cref="BeatEvery"/> after, or null for none:
     /// how a knob on a link that can't tell when it's opened (USB) knows Knob Hub is there. <paramref name="session"/>
     /// is new each time the stream is opened.</summary>
@@ -148,6 +151,7 @@ internal abstract class LineConnection : IKnobConnection
                     if (!_paused && !stop.IsCancellationRequested) NoHello();
                     return;
                 }
+                SaidHello();
                 lock (_writeLock) _writer = stream;
                 Post(() => SetConnected(true));
                 Post(() => LineReceived?.Invoke(hello));
@@ -196,7 +200,7 @@ internal abstract class LineConnection : IKnobConnection
         ConnectedChanged?.Invoke(connected);
     }
 
-    private void Post(Action action) => _ui.Post(_ => action(), null);
+    protected void Post(Action action) => _ui.Post(_ => action(), null);
 
     public void Dispose()
     {
@@ -234,7 +238,8 @@ internal sealed class SimulatorConnection : LineConnection
 /// port. Ports are found by that id in the registry, so other serial devices are never opened. The port is opened
 /// with RTS off (RTS can reset the ESP32-S3). Knob OS can't see the port being opened, so Knob Hub sends
 /// it a "hub" message every 2 seconds, with the time for its clock; the knob counts the link as up while they come
-/// (see knob-os/src/hal/esp32/main.cpp).
+/// (see knob-os/src/hal/esp32/main.cpp). A port that doesn't say hello is left alone for 30 seconds before it's tried
+/// again: it's an ESP32 that isn't running Knob OS (yet), on which Knob Hub can install it.
 /// </summary>
 internal sealed class UsbConnection : LineConnection
 {
@@ -243,15 +248,45 @@ internal sealed class UsbConnection : LineConnection
     private static readonly TimeSpan RestAfterNoHello = TimeSpan.FromSeconds(30);
 
     private readonly Dictionary<string, DateTime> _resting = [];  // ports that didn't say hello, until when
-    private string? _tried;
+    private readonly HashSet<string> _silent = new(StringComparer.OrdinalIgnoreCase);  // ... and haven't since
+    private volatile string? _tried;
 
     public override string Kind => "USB";
+
+    /// <summary>The knob's port while one is connected.</summary>
+    public string? Port => IsConnected ? _tried : null;
+
+    /// <summary>Ports there now with a knob's vendor id that didn't say hello: not running Knob OS.</summary>
+    public IReadOnlyList<string> SilentPorts
+    {
+        get
+        {
+            lock (_silent)
+            {
+                if (_silent.Count == 0) return [];
+                return KnobPorts().Where(_silent.Contains).ToList();
+            }
+        }
+    }
+
+    /// <summary>Tries <paramref name="port"/> again straight away (Knob OS was just installed on it).</summary>
+    public void Retry(string port)
+    {
+        lock (_silent)
+        {
+            _resting.Remove(port);
+            _silent.Remove(port);
+        }
+    }
 
     protected override Task<(Stream Stream, IDisposable Owner)?> OpenAsync(CancellationToken stop)
     {
         foreach (string name in KnobPorts())
         {
-            if (_resting.TryGetValue(name, out var until) && until > DateTime.UtcNow) continue;
+            lock (_silent)
+            {
+                if (_resting.TryGetValue(name, out var until) && until > DateTime.UtcNow) continue;
+            }
             var port = new SerialPort(name, 115200)
             {
                 DtrEnable = true,
@@ -275,7 +310,18 @@ internal sealed class UsbConnection : LineConnection
 
     protected override void NoHello()
     {
-        if (_tried != null) _resting[_tried] = DateTime.UtcNow + RestAfterNoHello;
+        if (_tried is not { } port) return;
+        lock (_silent)
+        {
+            _resting[port] = DateTime.UtcNow + RestAfterNoHello;
+            _silent.Add(port);
+        }
+    }
+
+    protected override void SaidHello()
+    {
+        if (_tried is not { } port) return;
+        lock (_silent) _silent.Remove(port);
     }
 
     protected override string? Heartbeat(string session) => HubMessage(session);
@@ -312,7 +358,7 @@ internal sealed class UsbConnection : LineConnection
 /// <summary>
 /// Every way a knob can be connected, highest priority first (USB, Wi-Fi, the simulator): the knob in use is the first
 /// one connected. While one is in use, the ones after it are paused, so when it goes the next one connects afresh
-/// and says hello again (Knob Hub learns its board).
+/// and says hello again (Knob Hub learns its board). Pausing this pauses them all (while Knob OS is installed).
 /// </summary>
 internal sealed class KnobLinks : IKnobConnection
 {
@@ -334,7 +380,17 @@ internal sealed class KnobLinks : IKnobConnection
 
     public string Kind => _active?.Kind ?? "";
     public bool IsConnected => _active != null;
-    public bool Paused { get; set; }
+    public bool Paused
+    {
+        get => _paused;
+        set
+        {
+            _paused = value;
+            Update();
+        }
+    }
+    private bool _paused;
+
     public event Action<bool>? ConnectedChanged;
     public event Action<string>? LineReceived;
 
@@ -349,7 +405,7 @@ internal sealed class KnobLinks : IKnobConnection
     {
         var best = _links.FirstOrDefault(l => l.IsConnected);
         int index = best == null ? _links.Length : Array.IndexOf(_links, best);
-        for (int i = 0; i < _links.Length; i++) _links[i].Paused = i > index;
+        for (int i = 0; i < _links.Length; i++) _links[i].Paused = _paused || i > index;
         if (best == _active) return;
         if (_active != null)
         {

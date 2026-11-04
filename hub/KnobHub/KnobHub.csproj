@@ -11,7 +11,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>KnobHub</AssemblyName>
     <RootNamespace>KnobHub</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <Product>Knob Hub</Product>
     <Company>Shyam Sangeeth</Company>
     <!-- WPF Fluent theme (ThemeMode) is still marked experimental. -->
@@ -21,6 +21,8 @@
     <PlatformTarget>x64</PlatformTarget>
     <!-- Where Knob OS builds knob_preview.dll (pio run -e preview in knob-os; see the KnobPreview target). -->
     <KnobPreviewDll>$(USERPROFILE)\.cache\knob-os\build\preview\knob_preview.dll</KnobPreviewDll>
+    <!-- Where Knob OS's real-knob builds leave their images (knob-os/scripts/merged.py; see the KnobFirmware target). -->
+    <KnobFirmwareDir>$(USERPROFILE)\.cache\knob-os\firmware</KnobFirmwareDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,6 +37,27 @@
           Command="set &quot;PATH=$(USERPROFILE)\.mingw64\bin;%PATH%&quot; &amp;&amp; &quot;$(USERPROFILE)\.platformio\penv\Scripts\pio.exe&quot; run -e preview"
           WorkingDirectory="$(MSBuildProjectDirectory)\..\..\knob-os" />
     <Copy SourceFiles="$(KnobPreviewDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- The Knob OS images Knob Hub installs on knobs (Settings > Knob OS), from the last real-knob builds
+       (pio run -e crowpanel-128 -e crowpanel-146 in knob-os), into a firmware folder. Without them Knob Hub still
+       runs; it just has no Knob OS to install. -->
+  <Target Name="KnobFirmware" AfterTargets="Build">
+    <ItemGroup>
+      <KnobFirmwareFile Include="$(KnobFirmwareDir)\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(OutDir)firmware" />
+    <Copy SourceFiles="@(KnobFirmwareFile)" DestinationFolder="$(OutDir)firmware" />
+  </Target>
+
+  <!-- dotnet publish (the installer's payload) takes the preview and the Knob OS images too. -->
+  <Target Name="KnobPublishExtras" AfterTargets="Publish">
+    <ItemGroup>
+      <KnobFirmwareFile Include="$(KnobFirmwareDir)\*" />
+    </ItemGroup>
+    <Copy SourceFiles="$(KnobPreviewDll)" DestinationFolder="$(PublishDir)" />
+    <RemoveDir Directories="$(PublishDir)firmware" />
+    <Copy SourceFiles="@(KnobFirmwareFile)" DestinationFolder="$(PublishDir)firmware" />
   </Target>
 
   <ItemGroup>

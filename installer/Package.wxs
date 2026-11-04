@@ -1,0 +1,169 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <!-- Per-machine install (Windows asks for admin rights) into Program Files\Knob Hub by default; the installer lets you
+       choose another folder or drive. Adds a Start menu shortcut and an entry in Settings > Apps. Knob Hub is
+       self-contained, so .NET doesn't need to be installed. It brings the knob preview (knob_preview.dll) and the
+       Knob OS images it installs on knobs (firmware\). -->
+  <Package Name="Knob Hub"
+           Manufacturer="Shyam Sangeeth"
+           Version="$(var.Version)"
+           UpgradeCode="74CD951D-8E18-4DB9-A331-5D4A399AAD23"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <SummaryInformation Description="Knob Hub: apps for a round knob display, and Knob OS for the knob" />
+
+    <!-- Installing a newer version replaces the old one; settings and apps in %LocalAppData%\KnobHub are kept. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Knob Hub is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="KnobHubIcon" SourceFile="$(var.AssetsDir)\KnobHub.ico" />
+    <Property Id="ARPPRODUCTICON" Value="KnobHubIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Shyam-Sangeeth/KnobHub" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Knob Hub" />
+    </StandardDirectory>
+
+    <!-- An upgrade installs where the last version went, unless you choose another folder. -->
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="FindInstallFolder" Root="HKLM" Key="Software\KnobHub\Installer" Name="InstallFolder"
+                      Type="raw" Bitness="always64" />
+    </Property>
+
+    <!-- Everything dotnet publish produced, with the preview and the Knob OS images. -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PayloadDir)\**" />
+    </ComponentGroup>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut">
+        <Shortcut Id="KnobHubShortcut" Name="Knob Hub" Description="Apps for your knob, and Knob OS for it"
+                  Target="[INSTALLFOLDER]KnobHub.exe" WorkingDirectory="INSTALLFOLDER" />
+        <!-- Windows Installer wants a shortcut's key path under HKCU, even in a per-machine install. -->
+        <RegistryValue Root="HKCU" Key="Software\KnobHub\Installer" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <!-- Remembers the install folder (for upgrades), and removes the then empty folder on uninstall. -->
+    <Component Id="InstallFolderInfo" Directory="INSTALLFOLDER">
+      <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\KnobHub\Installer" Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="Main" Title="Knob Hub">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="InstallFolderInfo" />
+    </Feature>
+
+    <!-- Close a running Knob Hub before its files are replaced or removed (upgrade, uninstall). Ignored when it isn't
+         installed or running. -->
+    <CustomAction Id="CloseRunningApp" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]KnobHub.exe&quot; --exit" Execute="immediate" Return="ignore" />
+
+    <!-- On a real uninstall (not an upgrade), remove the Start with Windows entry so it doesn't point at a missing
+         file. -->
+    <CustomAction Id="RemoveStartupEntry" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]KnobHub.exe&quot; --remove-startup" Execute="immediate" Return="ignore" />
+
+    <!-- Start Knob Hub when the install or upgrade finishes. Through Explorer, so it runs as you, not with the
+         installer's admin rights. -->
+    <CustomAction Id="LaunchApp" Directory="INSTALLFOLDER"
+                  ExeCommand="explorer.exe &quot;[INSTALLFOLDER]KnobHub.exe&quot;" Execute="immediate" Return="asyncNoWait" />
+
+    <!-- "Start Knob Hub when Windows starts": ticked for new installs; on an upgrade it follows the current setting (the
+         existing Start with Windows entry), so turning it off earlier isn't undone. -->
+    <Property Id="EXISTINGSTARTUP">
+      <RegistrySearch Id="FindStartupEntry" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                      Name="KnobHub" Type="raw" />
+    </Property>
+    <SetProperty Id="STARTWITHWINDOWS" Value="1" After="AppSearch" Sequence="both"
+                 Condition="EXISTINGSTARTUP OR NOT WIX_UPGRADE_DETECTED" />
+
+    <CustomAction Id="AddStartupEntry" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]KnobHub.exe&quot; --add-startup" Execute="immediate" Return="ignore" />
+    <CustomAction Id="ClearStartupEntry" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]KnobHub.exe&quot; --remove-startup" Execute="immediate" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="CloseRunningApp" Before="InstallValidate" Condition="Installed OR WIX_UPGRADE_DETECTED" />
+      <Custom Action="RemoveStartupEntry" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="AddStartupEntry" After="InstallFinalize" Condition="NOT REMOVE AND STARTWITHWINDOWS" />
+      <Custom Action="ClearStartupEntry" After="AddStartupEntry" Condition="NOT REMOVE AND NOT STARTWITHWINDOWS" />
+      <Custom Action="LaunchApp" After="ClearStartupEntry" Condition="NOT Installed AND NOT REMOVE" />
+    </InstallExecuteSequence>
+
+    <!-- The installer's window: a welcome screen with the startup checkbox, then where to install (Change... picks any
+         folder or drive), then the standard ready, progress and finish screens from the WiX UI extension. -->
+    <UI Id="KnobHubUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Segoe UI" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Segoe UI" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Segoe UI" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="InstallDirDlg" />
+      <DialogRef Id="InvalidDirDlg" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="VerifyReadyDlg" />
+
+      <Dialog Id="KnobHubWelcomeDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="40" Transparent="yes" NoPrefix="yes"
+                 Text="{\WixUI_Font_Bigger}Welcome to Knob Hub Setup" />
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="80" Transparent="yes" NoPrefix="yes"
+                 Text="Knob Hub runs the apps on your round knob display (Media, AudioDesk and the ones you add) and installs Knob OS on the knob over USB.&#13;&#10;&#13;&#10;Click Next to choose where to install Knob Hub [ProductVersion]." />
+        <Control Id="StartWithWindows" Type="CheckBox" X="135" Y="160" Width="220" Height="17"
+                 Property="STARTWITHWINDOWS" CheckBoxValue="1" Text="Start Knob Hub when Windows starts" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+          <Publish Event="NewDialog" Value="InstallDirDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <!-- Choosing the folder: the same steps as the WiX UI extension's WixUI_InstallDir. -->
+      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(sys.BUILDARCHSHORT)" Order="3" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"
+               Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="KnobHubWelcomeDlg" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(sys.BUILDARCHSHORT)" Order="2"
+               Condition="NOT WIXUI_DONTVALIDATEPATH" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"
+               Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="4"
+               Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1" Condition="NOT Installed" />
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+      <InstallUISequence>
+        <Show Dialog="KnobHubWelcomeDlg" Before="ProgressDlg" Condition="NOT Installed" />
+      </InstallUISequence>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+
+    <!-- Knob Hub artwork for the installer's screens (made by make-installer-art.ps1). -->
+    <WixVariable Id="WixUIDialogBmp" Value="$(sys.SOURCEFILEDIR)dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(sys.SOURCEFILEDIR)banner.bmp" />
+
+  </Package>
+</Wix>

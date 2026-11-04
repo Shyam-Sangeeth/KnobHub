@@ -27,9 +27,11 @@ internal sealed class MainViewModel : Observable
     private readonly KnobSession _session;
     private readonly DispatcherTimer _sendSettings;
 
-    public MainViewModel(KnobSession session)
+    public MainViewModel(KnobSession session, HubUpdateModel updates)
     {
         _session = session;
+        KnobOs = new KnobOsModel(session);
+        Updates = updates;
         // Sliders change many times a second: send the knob the latest value at most every 80 ms.
         _sendSettings = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
         _sendSettings.Tick += (_, _) =>
@@ -55,6 +57,11 @@ internal sealed class MainViewModel : Observable
     }
 
     public string HubVersion => "Knob Hub " + Assembly.GetExecutingAssembly().GetName().Version?.ToString(3);
+
+    /// <summary>Settings > Knob OS.</summary>
+    public KnobOsModel KnobOs { get; }
+    /// <summary>Settings > Knob Hub's updates.</summary>
+    public HubUpdateModel Updates { get; }
 
     // --- Knob page ---
 
@@ -281,10 +288,6 @@ internal sealed class MainViewModel : Observable
     public bool CanForgetWifi => IsConnected && _session.WifiState is "connecting" or "connected" or "failed";
     public void StopWifiSetup() => _session.WifiAction("stop");
     public void ForgetWifi() => _session.WifiAction("forget");
-
-    public string FirmwareText => string.IsNullOrEmpty(_session.OsVersion)
-        ? "Knob OS isn't running"
-        : $"Knob OS {_session.OsVersion} on {KnobName}" + (IsConnected ? "" : " (the preview)");
 
     public bool StartWithWindows
     {

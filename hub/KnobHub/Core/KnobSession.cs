@@ -1,3 +1,4 @@
+using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -22,13 +23,17 @@ internal sealed record WifiNetworkInfo(string Ssid, int Rssi, bool Open)
 internal sealed class KnobSession : IDisposable
 {
     private readonly IKnobConnection _knob;
+    private readonly UsbConnection? _usb;
     private readonly HubSettings _settings;
     private AppEntry? _open;              // the app on the knob's screen
+    private readonly HashSet<string> _toldOfUpdate = [];  // knobs told this time that a newer Knob OS is here
 
-    public KnobSession(HubSettings settings, IKnobConnection knob, Dispatcher ui)
+    /// <summary><paramref name="usb"/> is the USB link among <paramref name="knob"/>'s, for installing Knob OS.</summary>
+    public KnobSession(HubSettings settings, IKnobConnection knob, Dispatcher ui, UsbConnection? usb = null)
     {
         _settings = settings;
         _knob = knob;
+        _usb = usb;
         Preview = new KnobPreview();
         Apps = new AppManager(settings, entry => new AppHost(entry, this, ui));
     }
@@ -43,6 +48,8 @@ internal sealed class KnobSession : IDisposable
     public string ConnectionKind => _knob.Kind;
     /// <summary>The Knob OS version of the knob in use (real or preview).</summary>
     public string OsVersion { get; private set; } = "";
+    /// <summary>The real knob's Knob OS version (from its last hello).</summary>
+    public string KnobOsVersion { get; private set; } = "";
 
     /// <summary>The board of the knob in use: the real knob's (from its hello), or the one the preview is.</summary>
     public KnobBoard Board => _knob.IsConnected ? _knobBoard : Preview.Board;
@@ -396,7 +403,7 @@ internal sealed class KnobSession : IDisposable
         {
             "connected" => $"on Wi-Fi ({wifi.Str("network")})",
             "connecting" => $"trying for {wifi.Str("network")}",
-            "failed" => $"can't join {wifi.Str("network")}",
+            "failed" => $"unable to join {wifi.Str("network")}",
             "setup" => "in Wi-Fi setup",
             "off" => "not set up for Wi-Fi",
             _ => "",
@@ -445,6 +452,7 @@ internal sealed class KnobSession : IDisposable
         OsVersion = msg.Str("os");
         if (fromKnob)
         {
+            KnobOsVersion = OsVersion;
             _keyId = msg.Str("key_id");
             KnobPaired = _settings.Paired is { } paired && paired.Id == msg.Str("id") &&
                          PairedKnob.KeyId(Convert.FromBase64String(paired.Key)) == _keyId;
@@ -460,6 +468,7 @@ internal sealed class KnobSession : IDisposable
                 _settings.Save();
             }
             if (_knobBoard.Id != Preview.Board.Id) StartPreview(KnobBoard.Find(_knobBoard.Id));
+            TellOfUpdate(msg.Str("id"));
             // Bring the preview to where the knob is; the knob reopens its app by itself.
             Preview.LinkLine(new JsonObject { ["t"] = "sync", ["page"] = msg.Str("page"), ["app"] = msg.Str("app") }.ToJsonString());
         }
@@ -551,6 +560,61 @@ internal sealed class KnobSession : IDisposable
     {
         try { return JsonNode.Parse(line) as JsonObject; }
         catch (JsonException) { return null; }
+    }
+
+    // --- Installing Knob OS ---
+
+    /// <summary>The port of the knob connected over USB, or null.</summary>
+    public string? UsbPort => _usb?.Port;
+
+    /// <summary>Ports with a knob plugged in that isn't running Knob OS.</summary>
+    public IReadOnlyList<string> PortsWithoutKnobOs => _usb?.SilentPorts ?? [];
+
+    /// <summary>The Knob OS that came with Knob Hub for the connected knob's board, if it's newer than the knob's.</summary>
+    public FirmwareImage? KnobOsUpdate =>
+        _knob.IsConnected && _knob.Kind != "the simulator" && KnobFirmware.For(_knobBoard.Id) is { } image &&
+        KnobFirmware.IsNewer(image.Version, KnobOsVersion) ? image : null;
+
+    public bool Installing { get; private set; }
+
+    /// <summary>Installs <paramref name="image"/> on the knob on <paramref name="port"/>, letting go of every link
+    /// meanwhile; the knob restarts with it and connects again. Throws with a message for the user.</summary>
+    public async Task InstallKnobOsAsync(string port, FirmwareImage image, IProgress<KnobFlasher.Progress> progress)
+    {
+        if (Installing) return;
+        Installing = true;
+        Log($"Installing Knob OS {image.Version} for {image.Board} on {port}");
+        _knob.Paused = true;
+        StateChanged?.Invoke();
+        try
+        {
+            byte[] bytes = await File.ReadAllBytesAsync(image.Path);
+            await Task.Run(() => KnobFlasher.Flash(port, bytes, progress, CancellationToken.None));
+            Log($"Installed Knob OS {image.Version} on {port}");
+            // Let Knob OS start before the USB link looks for it: a port that doesn't say hello in time is left alone
+            // for 30 s.
+            progress.Report(new("Starting Knob OS", 1));
+            await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+        catch (Exception ex)
+        {
+            Log($"Installing Knob OS on {port} failed: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            _usb?.Retry(port);
+            _knob.Paused = false;
+            Installing = false;
+            StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Once a session per knob, a toast on it when Knob Hub has a newer Knob OS for it.</summary>
+    private void TellOfUpdate(string knob)
+    {
+        if (KnobOsUpdate is not { } image || !_toldOfUpdate.Add(knob)) return;
+        Toast($"Knob OS {image.Version} is ready: see Knob Hub");
     }
 
     public void Dispose()
