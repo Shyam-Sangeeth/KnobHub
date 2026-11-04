@@ -238,7 +238,8 @@ def check_cards():
 
 
 def check_wifi():
-    """Knob Hub's Wi-Fi window: the Wi-Fi screen over Connection; a turn, press or tap leaves it (wifi_left); done doesn't."""
+    """Knob Hub's Wi-Fi window: the Wi-Fi screen over Connection; a turn, press or tap leaves it (wifi_left); done doesn't;
+    5 s after joining it leaves by itself."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
     k.send(APPS, wait=0.3)
@@ -258,6 +259,20 @@ def check_wifi():
         expect(f"after {name}: the Connection page", k.frame() == connection, True)
     k.turn_right()
     expect("on the Connection page, turning doesn't", k.take("wifi_left"), [])
+    # A network chosen in Knob Hub's window, joined: the screen says so, then goes by itself.
+    k.send({"t": "wifi", "action": "scan"}, wait=0.4)
+    wifi = {"t": "mirror_wifi", "link": "USB", "key_id": "abcd1234"}
+    k.send({**wifi, "state": "connecting", "network": "Home", "joining": "Home"}, wait=0.3)
+    k.send({**wifi, "state": "connected", "network": "Home"}, wait=0.3)
+    joined = k.frame()
+    k.run(4)
+    expect("joined: the screen stays for a few seconds", (k.take("wifi_left"), k.frame() == joined), ([], True))
+    k.run(1.3)
+    expect("5 s after joining: it leaves (wifi_left)", len(k.take("wifi_left")), 1)
+    left = k.frame()
+    k.send({"t": "wifi", "action": "scan"}, wait=0.4)
+    k.send({"t": "wifi", "action": "done"}, wait=0.4)  # the Connection page as it is now (on Home)
+    expect("back on the Connection page", (left != joined, left == k.frame()), (True, True))
 
 
 def check_busy():

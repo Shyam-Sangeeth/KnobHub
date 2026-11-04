@@ -453,17 +453,33 @@ namespace {
 Screen* pc_screen = nullptr;
 std::string pc_join;  // the network Knob Hub asked to join, once the knob has started on it
 std::string pc_text_shown;
+// Once the knob has joined, the screen goes by itself after a moment, and Knob Hub closes its window too.
+constexpr uint32_t LeaveAfterJoinMs = 5000;
+lv_timer_t* leave_after = nullptr;
+
+// The knob joined the network Knob Hub asked for.
+bool pc_joined(const WifiStatus& w) {
+    return w.joining.empty() && !pc_join.empty() && w.join_failed != pc_join && w.state == WifiState::Connected &&
+           w.network == pc_join;
+}
 
 std::string pc_text(const WifiStatus& w) {
     if (!w.joining.empty()) return "Joining " + w.joining + "...";
     if (!pc_join.empty() && w.join_failed == pc_join) return join_problem_text(w) + ". Try again in Knob Hub.";
     // The network's name on a line of its own: a name like "Home_2.4" would otherwise break at its dot.
-    if (!pc_join.empty() && w.state == WifiState::Connected && w.network == pc_join) return "Connected to\n" + pc_join;
+    if (pc_joined(w)) return "Connected to\n" + pc_join;
     if (w.scanning) return "Looking for networks...";
     return "Choose a network in Knob Hub on your PC.";
 }
 
+void stop_leave_after() {
+    if (!leave_after) return;
+    lv_timer_delete(leave_after);
+    leave_after = nullptr;
+}
+
 void close_pc_screen() {
+    stop_leave_after();
     if (!pc_screen) return;
     if (screens::top() == pc_screen) screens::pop();
     pc_screen = nullptr;
@@ -493,11 +509,21 @@ public:
 
 // Shows the screen, or redraws it with what's happening now.
 void show_pc_screen() {
-    pc_text_shown = pc_text(hal_wifi());
+    WifiStatus w = hal_wifi();
+    pc_text_shown = pc_text(w);
     Screen* screen = new PcWifiScreen(pc_text_shown);
     if (pc_screen && screens::top() == pc_screen) screens::replace(screen);
     else screens::push(screen);
     pc_screen = screen;
+    // Joined: back to the Connection page in a few seconds, unless the knob is used first (which leaves at once).
+    if (!pc_joined(w)) stop_leave_after();
+    else if (!leave_after) {
+        leave_after = lv_timer_create([](lv_timer_t*) {
+            leave_after = nullptr;  // a one-off: LVGL deletes it after this
+            leave_pc_screen();
+        }, LeaveAfterJoinMs, nullptr);
+        lv_timer_set_repeat_count(leave_after, 1);
+    }
 }
 
 }  // namespace

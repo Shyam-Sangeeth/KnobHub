@@ -352,7 +352,8 @@ the CrowPanel 1.28", until one does). To try another board, run the simulator as
 **Settings:** the knob's screen brightness, screen timeout, idle behaviour and name, the connection, and Start with
 Windows. **Set up Wi-Fi...** (with a knob connected) opens a small window: the knob looks for networks, you pick
 yours and type its password, and the knob joins it there and then. The password goes only to the knob. Meanwhile the
-knob shows a Wi-Fi screen; using the knob closes the window. **Use a phone** in that window starts the knob's pairing
+knob shows a Wi-Fi screen; using the knob closes the window. Once the knob has joined, it says so for 5 seconds,
+then goes back to its Connection page and the window closes by itself. **Use a phone** in that window starts the knob's pairing
 mode instead, and **Forget Wi-Fi** makes the knob forget its network (see [Connection](#connection)). **Knob OS**
 says which Knob OS the knob runs and installs a newer one, and **Knob Hub** checks for a newer Knob Hub (see
 [Updates](#updates)).
