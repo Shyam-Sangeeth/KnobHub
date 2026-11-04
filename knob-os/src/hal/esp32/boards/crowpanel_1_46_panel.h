@@ -4,6 +4,21 @@
 // example ships (FreeBSD licence, github.com/lovyan03/LovyanGFX).
 
 class CrowPanel146Panel : public lgfx::Panel_ST77961 {
+public:
+    // Starts the screen again (its reset line, then its start-up commands), keeping the display's settings. What it
+    // showed is gone: draw everything again.
+    void restart() {
+        rst_control(false);
+        lgfx::delay(8);
+        rst_control(true);
+        lgfx::delay(64);
+        startWrite(true);
+        command_list(getInitCommands(0));
+        endWrite();
+        setInvert(getInvert());
+        setRotation(getRotation());
+    }
+
 protected:
     const uint8_t* getInitCommands(uint8_t listno) const override {
         static constexpr uint8_t list0[] = {

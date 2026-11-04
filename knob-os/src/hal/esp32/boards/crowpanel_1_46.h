@@ -18,6 +18,10 @@
 #define LCD_SPI_HZ 80000000
 #define LCD_INVERT false
 #define LCD_RGB_ORDER true
+// On a power bank the screen once came up lit but empty (fine on the PC): a power bank's supply can dip or still be
+// rising just after it's plugged in, and the screen resets or misses its start-up commands. So it's started again a
+// second after start (see main.cpp).
+#define PANEL_RESTART_MS 1000
 #define PIN_LCD_SCLK 10
 #define PIN_LCD_MOSI 11
 #define PIN_LCD_CS 9

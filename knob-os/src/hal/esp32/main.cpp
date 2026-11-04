@@ -64,6 +64,15 @@ public:
         setPanel(&panel_);
     }
 
+#ifdef PANEL_RESTART_MS
+    void restart_panel() {
+        waitDMA();
+        endWrite();
+        panel_.restart();
+        startWrite();
+    }
+#endif
+
 };
 
 Screen screen;
@@ -112,6 +121,15 @@ void start_display() {
     void* b = heap_caps_malloc(bytes, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     lv_display_set_buffers(display, a, b, bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(display, flush);
+#ifdef PANEL_RESTART_MS
+    // Boards whose screen can miss its start (see the board file): start it again once, and draw everything again.
+    lv_timer_t* restart = lv_timer_create([](lv_timer_t*) {
+        screen.restart_panel();
+        lv_obj_invalidate(lv_screen_active());
+        lv_obj_invalidate(lv_layer_top());
+    }, PANEL_RESTART_MS, nullptr);
+    lv_timer_set_repeat_count(restart, 1);
+#endif
 #ifdef KNOB_PERF
     lv_display_add_event_cb(display, [](lv_event_t*) { perf = {}; perf.start = micros(); }, LV_EVENT_REFR_START, nullptr);
     lv_display_add_event_cb(display, [](lv_event_t*) {
