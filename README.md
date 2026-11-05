@@ -551,7 +551,8 @@ screen size's fonts. It needs Node.js.
   a name shows as "Knob Hub knob". Names are kept to plain letters, digits and punctuation for USB.
   Knob Hub looks only at ports with Espressif's USB vendor id (303A), so it never opens other serial devices, and
   counts a port as the knob once it says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back
-  in at any time: Windows doesn't list the knob under Safely Remove Hardware. Knob Hub sends the knob a heartbeat
+  in at any time: Windows doesn't list the knob under Safely Remove Hardware (only briefly while Knob OS is being
+  installed, as "USB JTAG/serial debug unit": the knob's loader). Knob Hub sends the knob a heartbeat
   (with the time, for its clock) every 2 seconds, which is how the knob knows the link is up.
 - **Installing Knob OS** goes through the ESP32-S3's built-in USB unit, which the loader uses: while Knob OS is
   being installed the knob is a different COM port, "USB JTAG/serial debug unit" (and in Safely Remove Hardware for

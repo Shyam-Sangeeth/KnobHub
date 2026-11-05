@@ -120,8 +120,9 @@ when screens change.
 - `apps.cpp` and `icons.cpp`: the cached app list (`apps.json`) and icon cache (`icons.bin`, format "KIC1").
 - `link.cpp/.h`: the protocol. Every message is documented in `link.h`, in the `hub_link` namespace (not `link`,
   which clashes with newlib's `link()`).
-- `settings.cpp`: the knob's settings, kept in `settings.json`. Knob Hub's saved settings win: it sends them after
-  every hello, and the knob only sends a setting when it's changed on the knob.
+- `settings.cpp`: the knob's settings, kept in `settings.json`. Knob Hub sends its saved settings after every hello,
+  and the knob sends its own when one is changed on the knob. Changes made while Knob Hub isn't connected are kept
+  (`changed_away`, saved) and go in the next hello, and Knob Hub takes them (not the name) before sending its own.
 - `message.cpp`, `toast.cpp`.
 - `busy.cpp/.h`: the busy spinner an app's screen can ask for (`busy` in its data), over everything; only Back gets
   through while it shows.
@@ -139,9 +140,12 @@ when screens change.
   `kp_start`; `kp_vibration`/`kp_motor` report haptics and `kp_leds` the LEDs.
 - `esp32`: display (LovyanGFX, panel set in the pin file; LVGL renders into two DMA buffers of a third of the screen;
   built with `-O2`, and without the round clip the simulator and the preview have: a whole-screen frame takes ~25 ms,
-  against 193 ms before. Measure with a `-D KNOB_PERF` build and `tools/knob_perf.py`), CST816 touch, encoder
-  (interrupts, one step per full cycle) and press, backlight PWM, WS2812 LEDs (RMT), USB link (TinyUSB serial,
-  303A:0002 from the variant in `knob-os/variants/knob`; only opening it at 1200 baud restarts into the loader, not
+  against 193 ms before. Measure with a `-D KNOB_PERF` build and `tools/knob_perf.py`), CST816 touch (pushing the
+  knob presses the screen too: a touch under way when the button goes down is cancelled, so it isn't also a tap),
+  encoder (interrupts, one step per full cycle; turns while it's held in are dropped) and press, backlight PWM, WS2812
+  LEDs (RMT), USB link (TinyUSB serial, 303A:0002 from the variant in `knob-os/variants/knob`, started by `start_usb`
+  once the knob's name is read, so Windows shows the device and its port under that name; `ARDUINO_USB_CDC_ON_BOOT=0`,
+  so the link is `usb_serial`, not `Serial`; only opening it at 1200 baud restarts into the loader, not
   DTR/RTS, which Windows plays when a port closes; lines read by a task on core 0: the USB serial drops what its
   buffer can't hold), LittleFS; one pin file per board in `boards/`, which can
   also set `SCREEN_UPSIDE_DOWN` (screen and touch turned 180° so the top is where the LEDs start; the 1.28" does) and
