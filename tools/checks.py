@@ -454,10 +454,45 @@ def check_marquee():
     expect("the ring's label keeps scrolling through updates", len(set(strips)), 5)
 
 
+def check_away():
+    """Settings changed on the knob while Knob Hub is away go in the next hello (once); otherwise hello has none."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send({"t": "apps", "items": [], "order": ["clock", "settings"]}, wait=0.3)
+    k.send({"t": "settings", "brightness": 60}, wait=0.2)
+    k.connect(False)
+    k.take("hello")
+    k.connect(True)
+    k.run(0.2)
+    expect("nothing changed while away: hello has no settings", [("settings" in m) for m in k.take("hello")], [False])
+    k.connect(False)
+    k.turn_right()
+    k.press(wait=0.8)       # Settings
+    k.press()               # Display
+    k.press()               # Brightness
+    k.turn_right(wait=0.2)  # 60 -> 62
+    k.connect(True)
+    k.run(0.2)
+    hello = k.take("hello")
+    expect("changed while away: hello carries it", [m.get("settings", {}).get("brightness") for m in hello], [62])
+    k.send({"t": "settings", "brightness": 62}, wait=0.2)  # Knob Hub sends back what it took
+    k.connect(False)
+    k.connect(True)
+    k.run(0.2)
+    expect("only once", [("settings" in m) for m in k.take("hello")], [False])
+    k.turn_left(wait=0.2)  # changed while connected: a settings message, not the next hello
+    expect("a change while connected is sent at once", [m.get("brightness") for m in k.take("settings")], [60])
+    k.connect(False)
+    k.connect(True)
+    k.run(0.2)
+    expect("and doesn't go in the next hello", [("settings" in m) for m in k.take("hello")], [False])
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
           "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy, "awake": check_awake,
           "push": check_push, "picker": check_picker,
-          "screens": check_screens, "marquee": check_marquee}
+          "screens": check_screens, "marquee": check_marquee,
+          "away": check_away}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:

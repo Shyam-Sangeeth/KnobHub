@@ -269,8 +269,9 @@ the end **Time's up** shows over whatever the knob shows, waking it (with a buzz
 The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode, on knobs with LEDs),
 Haptics (strength and vibration, on knobs with a motor or a vibration motor), Connection (USB, Wi-Fi setup) and
 About. Knob Hub's Settings page has them too. The knob keeps its settings itself, so it starts with
-them before Knob Hub connects; once connected, Knob Hub's saved settings win, and a change on either side shows on the
-other.
+them before Knob Hub connects. Settings changed on the knob while Knob Hub isn't connected are kept: Knob Hub takes
+them when it connects (Knob OS 1.0.4 and Knob Hub 1.0.4 or newer). Otherwise Knob Hub's saved settings are used, and
+a change on either side shows on the other.
 
 Each row shows its setting under its name. Press a row to change it: brightness opens a dial, where turning sets it
 and a press goes to the lowest (LEDs **Off**, the screen 5%, so it stays readable) and back to 100%.
@@ -374,7 +375,7 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
   its settings and apps kept. If GitHub doesn't give a SHA-256 for the installer, Knob Hub doesn't run it: download
   it from the releases page instead.
 - **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
-  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.3 is ready: see Knob Hub" once when
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.4 is ready: see Knob Hub" once when
   it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
   keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
   USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
@@ -518,8 +519,8 @@ Each build also makes `knob-os.bin`: the bootloader, the partition table and Kno
 (`knob-os/scripts/merged.py`). It's copied to `%USERPROFILE%\.cache\knob-os\firmware\`, with `firmware.json` saying
 each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
 installs from it. To flash a release's image by hand, put the knob in its loader first: hold its boot button while
-you plug it in (esptool can't restart Knob OS 1.0.3 into it). Then use
-`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.3-crowpanel-1.28.bin`, with the port the loader is on
+you plug it in (esptool can't restart Knob OS 1.0.4 into it). Then use
+`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.4-crowpanel-1.28.bin`, with the port the loader is on
 ("USB JTAG/serial debug unit"). Unlike Knob Hub, that also clears the knob's pairing and Wi-Fi network.
 
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).
@@ -545,7 +546,9 @@ screen size's fonts. It needs Node.js.
 
 ## Connection
 
-- **USB:** the knob shows up as a USB serial port named "Knob Hub knob" (Knob OS's own, on the ESP32-S3's USB).
+- **USB:** the knob shows up in Windows under its own name (e.g. "Smart Knob", set in Knob Hub's Settings), as a USB
+  serial port of Knob OS's own on the ESP32-S3's USB. A new name shows after the knob restarts; one that has never had
+  a name shows as "Knob Hub knob". Names are kept to plain letters, digits and punctuation for USB.
   Knob Hub looks only at ports with Espressif's USB vendor id (303A), so it never opens other serial devices, and
   counts a port as the knob once it says hello. A port that doesn't is left alone for 30 seconds. Unplug and plug back
   in at any time: Windows doesn't list the knob under Safely Remove Hardware. Knob Hub sends the knob a heartbeat

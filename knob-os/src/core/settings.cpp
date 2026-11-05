@@ -53,6 +53,7 @@ void save() {
     d["vibration"] = values.vibration;
     d["haptics"] = values.haptics;
     d["name"] = values.name;
+    d["changed_away"] = values.changed_away;
     std::string s;
     serializeJson(d, s);
     hal_store_write(SettingsFile, std::vector<uint8_t>(s.begin(), s.end()));
@@ -72,6 +73,7 @@ void apply_values(JsonObjectConst msg) {
 }
 
 void changed() {
+    if (!hub_link::connected()) values.changed_away = true;  // Knob Hub takes them when it connects
     idle::refresh();
     haptics::reapply();
     save();
@@ -374,8 +376,10 @@ void show(Page p, bool push) {
 void load() {
     std::vector<uint8_t> data;
     JsonDocument doc;
-    if (hal_store_read(SettingsFile, data) && !deserializeJson(doc, data.data(), data.size()))
+    if (hal_store_read(SettingsFile, data) && !deserializeJson(doc, data.data(), data.size())) {
         apply_values(doc.as<JsonObjectConst>());
+        values.changed_away = doc["changed_away"] | false;
+    }
     hal_set_name(values.name);
 }
 
@@ -414,19 +418,29 @@ void forget_pages() {
     forget_wifi_screens();
 }
 
+void describe(JsonObject out) {
+    out["brightness"] = values.brightness;
+    out["led_brightness"] = values.led_brightness;
+    out["led_mode"] = values.led_mode;
+    out["timeout"] = values.timeout;
+    out["dim_idle"] = values.dim_idle;
+    out["leds_idle_off"] = values.leds_idle_off;
+    out["clock_24h"] = values.clock_24h;
+    out["vibration"] = values.vibration;
+    out["haptics"] = values.haptics;
+    out["name"] = values.name;
+}
+
+void sent_to_hub() {
+    if (!values.changed_away) return;
+    values.changed_away = false;
+    save();
+}
+
 void send_all() {
     JsonDocument d;
     d["t"] = "settings";
-    d["brightness"] = values.brightness;
-    d["led_brightness"] = values.led_brightness;
-    d["led_mode"] = values.led_mode;
-    d["timeout"] = values.timeout;
-    d["dim_idle"] = values.dim_idle;
-    d["leds_idle_off"] = values.leds_idle_off;
-    d["clock_24h"] = values.clock_24h;
-    d["vibration"] = values.vibration;
-    d["haptics"] = values.haptics;
-    d["name"] = values.name;
+    describe(d.as<JsonObject>());
     hub_link::send(d);
 }
 

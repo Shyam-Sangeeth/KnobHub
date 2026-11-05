@@ -98,8 +98,12 @@ There are no unit tests. Check changes with the scripts in `tools/` (see its REA
 Knob Hub's **live preview** (a virtual knob when no simulator is connected), and keep `design/screenshots/` current
 when screens change.
 
-- **Behaviour:** `python -I tools/checks.py` (LEDs, pictures, haptics, toasts, screen timeout, cards, the Wi-Fi
-  screen, the busy spinner, keeping the screen awake) through the preview DLL. Add a check there when you add behaviour.
+- **Behaviour:** `python -I tools/checks.py` (LEDs and dial presses, pictures, haptics, toasts, screen timeout,
+  cards, the Wi-Fi screen, the busy spinner, keeping the screen awake, push vs tap, the picker, odd app data, scrolling
+  text, settings changed while away) through the preview DLL. Add a check there when you add behaviour.
+- **Knob Hub and app code:** `dotnet run --project tools\hub-tests` (the Timer and AudioDesk apps, app ids, the Add
+  apps catalog, the updater's checksum). Add to it when you change that code.
+- **New helper scripts** go in `tools/` (with a usage header and a line in its README), not left in a scratch folder.
 - **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical
   pixel for pixel unless the change is meant to show.
 - **Without the user's mouse or focus:** `tools/sim-capture.ps1` posts wheel and middle-button messages to the

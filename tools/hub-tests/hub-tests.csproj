@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tests Knob Hub's and the apps' code directly (see Program.cs). Build Knob Hub (Debug) first. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Hub>$(MSBuildThisFileDirectory)..\..\hub\</Hub>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="KnobHub.Sdk"><HintPath>$(Hub)KnobHub.Sdk\bin\Debug\net10.0\KnobHub.Sdk.dll</HintPath></Reference>
+    <Reference Include="KnobHub"><HintPath>$(Hub)KnobHub\bin\Debug\net10.0-windows10.0.19041.0\KnobHub.dll</HintPath></Reference>
+    <Reference Include="Timer.KnobApp"><HintPath>$(Hub)Plugins\Timer\bin\Debug\net10.0-windows\Timer.KnobApp.dll</HintPath></Reference>
+    <Reference Include="AudioDesk.KnobApp"><HintPath>$(Hub)Plugins\AudioDesk\bin\Debug\net10.0-windows\AudioDesk.KnobApp.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

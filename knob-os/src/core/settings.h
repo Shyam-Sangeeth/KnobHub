@@ -4,7 +4,8 @@
 #include <string>
 
 // The knob's own settings. They live on the knob (so they work without the PC) and are kept in step with Knob Hub's
-// Settings page: a change on either side is sent to the other.
+// Settings page: a change on either side is sent to the other. Changes made while Knob Hub isn't connected go in the
+// next hello, and Knob Hub takes them (the newer ones) instead of sending its own.
 struct KnobSettings {
     int brightness = 80;       // screen, percent
     int led_brightness = 70;   // percent
@@ -16,6 +17,7 @@ struct KnobSettings {
     bool vibration = true;     // boards with a vibration motor
     int haptics = 1;           // 0 light, 1 medium, 2 strong: the knob motor's detents and the vibration
     std::string name = "knob-7f3a";
+    bool changed_away = false;  // changed on the knob while Knob Hub wasn't connected (kept across restarts)
 };
 
 namespace settings {
@@ -34,6 +36,10 @@ void apply_from_hub(JsonObjectConst msg);
 // The Settings pages (and the Wi-Fi screens) were taken off the screen by someone else (Knob Hub syncing its preview).
 void forget_pages();
 void send_all();
+// All the settings, as in a "settings" message (without "t").
+void describe(JsonObject out);
+// The hello carried the settings changed while Knob Hub was away: they're Knob Hub's now.
+void sent_to_hub();
 
 // Wi-Fi (Settings > Connection). The state as it goes in hello and "wifi" messages: {state, network, and in setup
 // setup_network and setup_password}.

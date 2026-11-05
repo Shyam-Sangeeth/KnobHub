@@ -51,7 +51,10 @@ void set_connected(bool c) {
             hello["key_id"] = me.key_id;
         }
         settings::describe_wifi(hello["wifi"].to<JsonObject>());
+        // Settings changed on the knob while Knob Hub was away: Knob Hub takes these instead of sending its own.
+        if (settings::get().changed_away) settings::describe(hello["settings"].to<JsonObject>());
         send(hello);
+        settings::sent_to_hub();
     }
     apps::on_connected(c);
     icons::on_connected(c);

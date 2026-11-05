@@ -11,6 +11,8 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <LovyanGFX.hpp>
+#include <USB.h>
+#include <USBCDC.h>
 #include <Wire.h>
 #include <esp32-hal-tinyusb.h>
 #include <lvgl.h>
@@ -26,6 +28,8 @@
 #include "core/hal.h"
 #include "core/knob_os.h"
 #include "net.h"
+
+USBCDC* usb_serial = nullptr;  // Knob OS's USB serial port: the link to Knob Hub (start_usb)
 
 namespace {
 
@@ -134,7 +138,7 @@ void start_display() {
 #ifdef KNOB_PERF
     lv_display_add_event_cb(display, [](lv_event_t*) { perf = {}; perf.start = micros(); }, LV_EVENT_REFR_START, nullptr);
     lv_display_add_event_cb(display, [](lv_event_t*) {
-        if (perf.pixels) Serial.printf("perf frame=%lu us flush=%lu us px=%lu strips=%lu cpu=%lu free=%u\n", micros() - perf.start,
+        if (perf.pixels) usb_serial->printf("perf frame=%lu us flush=%lu us px=%lu strips=%lu cpu=%lu free=%u\n", micros() - perf.start,
                                        perf.flush_us, perf.pixels, perf.flushes, getCpuFrequencyMhz(),
                                        heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     }, LV_EVENT_REFR_READY, nullptr);
@@ -397,12 +401,12 @@ void read_link(void*) {
     bool too_long = false;
     uint8_t buffer[512];
     while (true) {
-        int available = Serial.available();
+        int available = usb_serial->available();
         if (available <= 0) {
             vTaskDelay(1);
             continue;
         }
-        size_t n = Serial.read(buffer, std::min(static_cast<size_t>(available), sizeof buffer));
+        size_t n = usb_serial->read(buffer, std::min(static_cast<size_t>(available), sizeof buffer));
         for (size_t i = 0; i < n; i++) {
             char c = static_cast<char>(buffer[i]);
             if (c == '\n') {
@@ -519,8 +523,8 @@ void hal_link_send(const char* line) {
     if (via == Via::Wifi) {
         net::send(line);
     } else if (via == Via::Usb) {
-        Serial.write(reinterpret_cast<const uint8_t*>(line), strlen(line));
-        Serial.write('\n');
+        usb_serial->write(reinterpret_cast<const uint8_t*>(line), strlen(line));
+        usb_serial->write('\n');
     }
 }
 
@@ -602,6 +606,51 @@ void hal_store_write(const char* name, const std::vector<uint8_t>& data) {
     f.close();
 }
 
+// --- USB ---
+// Knob OS's USB serial port, named after the knob ("Smart Knob") for Windows: the device and its serial port both carry
+// the knob's own name. USB starts here, once the name is read (the core would start it before setup, with fixed names:
+// ARDUINO_USB_CDC_ON_BOOT=0). A new name shows from the next restart.
+std::string usb_name;  // TinyUSB keeps the pointer, so this lives on
+
+// The name saved in the knob's settings (settings.cpp), in plain ASCII (USB strings here can't carry more).
+std::string saved_name() {
+    std::vector<uint8_t> data;
+    JsonDocument doc;
+    std::string name;
+    if (hal_store_read("settings.json", data) && !deserializeJson(doc, data.data(), data.size()))
+        for (const char* c = doc["name"] | ""; *c && name.size() < 60; c++)
+            if (*c >= 0x20 && *c < 0x7F) name += *c;
+    while (!name.empty() && name.back() == ' ') name.pop_back();
+    return name.empty() ? USB_PRODUCT : name;
+}
+
+// The serial port's interface, as the core's own (USBCDC.cpp) but with the knob's name instead of "TinyUSB CDC".
+uint16_t load_serial_descriptor(uint8_t* dst, uint8_t* itf) {
+    uint8_t name = tinyusb_add_string_descriptor(usb_name.c_str());
+    uint8_t descriptor[TUD_CDC_DESC_LEN] = {TUD_CDC_DESCRIPTOR(*itf, name, 0x85, CFG_TUD_ENDPOINT_SIZE, 0x03, 0x84, CFG_TUD_ENDPOINT_SIZE)};
+    *itf += 2;
+    memcpy(dst, descriptor, TUD_CDC_DESC_LEN);
+    return TUD_CDC_DESC_LEN;
+}
+
+void start_usb() {
+    usb_name = saved_name();
+    tinyusb_enable_interface(USB_INTERFACE_CDC, TUD_CDC_DESC_LEN, load_serial_descriptor);
+    usb_serial = new USBCDC(0);  // its own interface is refused ("already enabled"): the one above names the port
+    usb_serial->setRxBufferSize(16 * 1024);  // before begin, which would make it 256 bytes
+    usb_serial->begin(115200);
+    // Knob Hub restarts the knob into its ROM loader (to install Knob OS) by opening the port at 1200 baud. The core
+    // would also restart into it on esptool's DTR/RTS sequence, but Windows plays that by itself when a port opened
+    // with DTR on and RTS off is closed: Knob Hub quitting would leave the knob in its loader. So only 1200 baud does.
+    usb_serial->enableReboot(false);
+    usb_serial->onEvent(ARDUINO_USB_CDC_LINE_CODING_EVENT, [](void*, esp_event_base_t, int32_t, void* data) {
+        if (static_cast<arduino_usb_cdc_event_data_t*>(data)->line_coding.bit_rate == 1200)
+            usb_persist_restart(RESTART_BOOTLOADER);
+    });
+    USB.productName(usb_name.c_str());
+    USB.begin();
+}
+
 void setup() {
 #ifdef PIN_POWER_1
     pinMode(PIN_POWER_1, OUTPUT);
@@ -611,17 +660,8 @@ void setup() {
     pinMode(PIN_POWER_2, OUTPUT);
     digitalWrite(PIN_POWER_2, HIGH);
 #endif
-    Serial.setRxBufferSize(16 * 1024);  // before begin, which would make it 256 bytes
-    Serial.begin(115200);
-    // Knob Hub restarts the knob into its ROM loader (to install Knob OS) by opening the port at 1200 baud. The core
-    // would also restart into it on esptool's DTR/RTS sequence, but Windows plays that by itself when a port opened
-    // with DTR on and RTS off is closed: Knob Hub quitting would leave the knob in its loader. So only 1200 baud does.
-    Serial.enableReboot(false);
-    Serial.onEvent(ARDUINO_USB_CDC_LINE_CODING_EVENT, [](void*, esp_event_base_t, int32_t, void* data) {
-        if (static_cast<arduino_usb_cdc_event_data_t*>(data)->line_coding.bit_rate == 1200)
-            usb_persist_restart(RESTART_BOOTLOADER);
-    });
     LittleFS.begin(true);  // formats it the first time
+    start_usb();           // after the store: it reads the knob's name
 
     start_backlight();
     start_leds();

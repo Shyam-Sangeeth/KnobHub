@@ -44,11 +44,15 @@
 //                                                             closed
 // Knob -> Knob Hub:
 //   hello   {os, name, page, app, board, size, touch, leds,   sent when the link comes up; page = the Home page on
-//            vibration, motor, id, host, key_id, wifi}        show ("clock", an app id, "settings"), app = the open
-//                                                             app; board to motor describe the board (see board.h).
+//            vibration, motor, id, host, key_id, wifi,        show ("clock", an app id, "settings"), app = the open
+//            settings}                                       app; board to motor describe the board (see board.h).
 //                                                             A knob without them (Knob OS 0.1) is a CrowPanel 1.28".
 //                                                             id, host and key_id are the knob's (hal_identity; none
-//                                                             in the simulator and the preview), wifi as below
+//                                                             in the simulator and the preview), wifi as below.
+//                                                             settings (as in "settings"; Knob OS 1.0.4): only when
+//                                                             they were changed on the knob while Knob Hub wasn't
+//                                                             connected; Knob Hub takes them instead of sending its
+//                                                             own
 //   wifi    {state, network, setup_network, setup_password,   the Wi-Fi state: "unsupported", "off", "connecting",
 //            joining, join_failed, join_problem, scanning}    "connected", "failed", "setup" (with the knob's own
 //                                                             network and its password); a network being joined, or
