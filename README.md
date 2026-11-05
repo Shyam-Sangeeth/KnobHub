@@ -267,11 +267,11 @@ the end **Time's up** shows over whatever the knob shows, waking it (with a buzz
 ### Settings
 
 The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode, on knobs with LEDs),
-Haptics (strength and vibration, on knobs with a motor or a vibration motor), Connection (USB, Wi-Fi setup) and
-About. Knob Hub's Settings page has them too. The knob keeps its settings itself, so it starts with
-them before Knob Hub connects. Settings changed on the knob while Knob Hub isn't connected are kept: Knob Hub takes
-them when it connects (Knob OS 1.0.4 and Knob Hub 1.0.4 or newer). Otherwise Knob Hub's saved settings are used, and
-a change on either side shows on the other.
+Haptics (strength and vibration, on knobs with a motor or a vibration motor), Connection (USB, Wi-Fi setup; Wi-Fi
+says **Off on USB** while Knob Hub is connected over USB) and About. Knob Hub's Settings page has them too. The knob
+keeps its settings itself, so it starts with them before Knob Hub connects. Settings changed on the knob while Knob
+Hub isn't connected are kept: Knob Hub takes them when it connects (Knob OS 1.0.4 and Knob Hub 1.0.4 or newer).
+Otherwise Knob Hub's saved settings are used, and a change on either side shows on the other.
 
 Each row shows its setting under its name. Press a row to change it: brightness opens a dial, where turning sets it
 and a press goes to the lowest (LEDs **Off**, the screen 5%, so it stays readable) and back to 100%.
@@ -375,7 +375,7 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
   its settings and apps kept. If GitHub doesn't give a SHA-256 for the installer, Knob Hub doesn't run it: download
   it from the releases page instead.
 - **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
-  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.4 is ready: see Knob Hub" once when
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.5 is ready: see Knob Hub" once when
   it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
   keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
   USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
@@ -519,8 +519,8 @@ Each build also makes `knob-os.bin`: the bootloader, the partition table and Kno
 (`knob-os/scripts/merged.py`). It's copied to `%USERPROFILE%\.cache\knob-os\firmware\`, with `firmware.json` saying
 each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
 installs from it. To flash a release's image by hand, put the knob in its loader first: hold its boot button while
-you plug it in (esptool can't restart Knob OS 1.0.4 into it). Then use
-`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.4-crowpanel-1.28.bin`, with the port the loader is on
+you plug it in (esptool can't restart Knob OS 1.0.5 into it). Then use
+`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.5-crowpanel-1.28.bin`, with the port the loader is on
 ("USB JTAG/serial debug unit"). Unlike Knob Hub, that also clears the knob's pairing and Wi-Fi network.
 
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).
@@ -558,7 +558,10 @@ screen size's fonts. It needs Node.js.
   being installed the knob is a different COM port, "USB JTAG/serial debug unit" (and in Safely Remove Hardware for
   that minute). Knob OS 1.0.1 and earlier used that unit all the time.
 - **USB always has priority:** when the knob is plugged in, Knob Hub switches to it from Wi-Fi or the simulator, and
-  back when it's unplugged.
+  back when it's unplugged. While Knob Hub is connected over USB the knob's Wi-Fi is off (Settings > Connection says
+  **Off on USB**). It comes on for what Knob Hub's Wi-Fi window asks (looking for networks, joining one, pairing
+  mode) and when the USB link goes: unplug the knob or close Knob Hub, and it joins your network again in a few
+  seconds. Plugged into a charger without Knob Hub, it stays on Wi-Fi.
 - **Pairing:** the first time a knob says hello over USB, Knob Hub gives it a random key. Over Wi-Fi both prove they
   hold it before anything else, and every line is encrypted (AES-256-GCM) with a key new for each connection. One
   knob is paired at a time: plugging in another pairs that one instead, and plugging the first back in pairs it again.

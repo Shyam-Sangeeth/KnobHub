@@ -441,6 +441,7 @@ bool starts(const std::string& line, const char* prefix) { return line.rfind(pre
 void link_up(Via v) {
     if (via != Via::None) knob_os_link_connected(false);
     via = v;
+    net::usb_link(v == Via::Usb);  // Wi-Fi rests while Knob Hub is on USB
     heard_at = millis();
     knob_os_link_connected(true);
 }
@@ -449,6 +450,7 @@ void link_down() {
     if (via == Via::None) return;
     if (via == Via::Wifi) net::drop();
     via = Via::None;
+    net::usb_link(false);  // Wi-Fi again, so Knob Hub can find the knob there
     knob_os_link_connected(false);
 }
 

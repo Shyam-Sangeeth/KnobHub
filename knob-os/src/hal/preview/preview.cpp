@@ -106,8 +106,8 @@ KnobIdentity mirror_identity;
 WifiStatus mirror_wifi;
 
 WifiState parse_state(const char* s) {
-    static const char* const Names[] = {"unsupported", "off", "connecting", "connected", "failed", "setup"};
-    for (int i = 0; i < 6; i++)
+    static const char* const Names[] = {"unsupported", "off", "connecting", "connected", "failed", "setup", "usb"};
+    for (int i = 0; i < static_cast<int>(sizeof Names / sizeof Names[0]); i++)
         if (std::strcmp(s, Names[i]) == 0) return static_cast<WifiState>(i);
     return WifiState::Unsupported;
 }

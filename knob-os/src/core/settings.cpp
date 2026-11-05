@@ -93,6 +93,7 @@ const char* wifi_state_name(WifiState s) {
         case WifiState::Connected: return "connected";
         case WifiState::Failed: return "failed";
         case WifiState::Setup: return "setup";
+        case WifiState::Usb: return "usb";
         default: return "unsupported";
     }
 }
@@ -104,6 +105,7 @@ std::string wifi_text(const WifiStatus& w) {
         case WifiState::Connected: return w.network;
         case WifiState::Failed: return "Can't connect";
         case WifiState::Setup: return "Setting up";
+        case WifiState::Usb: return "Off on USB";
         default: return "Not on this knob";
     }
 }

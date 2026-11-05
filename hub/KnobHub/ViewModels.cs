@@ -276,16 +276,17 @@ internal sealed class MainViewModel : Observable
                 "setup" => $"Wi-Fi setup is on: join {_session.WifiSetupNetwork} (password {_session.WifiSetupPassword}) " +
                            "on your phone or PC, then open knobhub.local and choose your network.",
                 "unsupported" => "This knob has no Wi-Fi.",
+                "usb" => $"The knob's Wi-Fi is off while it's on USB. It joins {_session.WifiNetwork} when it's unplugged or Knob Hub closes.",
                 _ => "Update Knob OS on the knob to use Wi-Fi.",
             };
         }
     }
 
-    public bool CanSetUpWifi => IsConnected && _session.WifiState is "off" or "connecting" or "connected" or "failed" or "setup";
+    public bool CanSetUpWifi => IsConnected && _session.WifiState is "off" or "connecting" or "connected" or "failed" or "setup" or "usb";
     /// <summary>While the knob is in pairing mode the button stops it; otherwise it opens the Wi-Fi window.</summary>
     public bool InWifiSetup => _session.WifiState == "setup";
     public string WifiSetupButton => InWifiSetup ? "Stop Wi-Fi setup" : "Set up Wi-Fi…";
-    public bool CanForgetWifi => IsConnected && _session.WifiState is "connecting" or "connected" or "failed";
+    public bool CanForgetWifi => IsConnected && _session.WifiState is "connecting" or "connected" or "failed" or "usb";
     public void StopWifiSetup() => _session.WifiAction("stop");
     public void ForgetWifi() => _session.WifiAction("forget");
 

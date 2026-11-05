@@ -37,11 +37,13 @@ void hal_set_name(const std::string& name);
 // Wi-Fi. The simulator and the preview have none (Unsupported). A network is chosen either in Knob Hub (which has the
 // knob look for networks and then join one) or in Setup, pairing mode: for a few minutes the knob opens its own
 // network (setup_network, setup_password) with a setup page where you choose yours. The hardware layer calls
-// knob_os_wifi_changed() from its main loop (never from inside these calls) whenever any of it changes.
-enum class WifiState { Unsupported, Off, Connecting, Connected, Failed, Setup };
+// knob_os_wifi_changed() from its main loop (never from inside these calls) whenever any of it changes. While Knob
+// Hub is connected over USB the knob's Wi-Fi is off (Usb): it comes on for what Knob Hub asks (looking for networks,
+// joining one, pairing mode) and when the USB link goes.
+enum class WifiState { Unsupported, Off, Connecting, Connected, Failed, Setup, Usb };
 struct WifiStatus {
     WifiState state = WifiState::Unsupported;
-    std::string network;                        // the network it's set up for (Connecting, Connected, Failed)
+    std::string network;                        // the network it's set up for (Connecting, Connected, Failed, Usb)
     std::string setup_network, setup_password;  // its own network, in Setup
     std::string joining;                        // a network chosen in Knob Hub or on the setup page, while it joins
     std::string join_failed, join_problem;      // the last one it couldn't join, and why ("password", "not_found",

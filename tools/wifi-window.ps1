@@ -41,7 +41,10 @@ $null = $ps.BeginInvoke()
 $wifi = $null
 for ($i = 0; $i -lt 20 -and -not $wifi; $i++) {
   Start-Sleep -Milliseconds 300
-  $wifi = $A::RootElement.FindFirst($T::Children, (New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty), "Wi-Fi"))
+  # A top-level window, or one listed under Knob Hub's (its owner), depending on Windows.
+  $byName = New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty), "Wi-Fi"
+  $wifi = $A::RootElement.FindFirst($T::Children, $byName)
+  if (-not $wifi) { $wifi = $main.FindFirst($T::Children, $byName) }
 }
 if (-not $wifi) { "the Wi-Fi window didn't open"; exit 1 }
 Start-Sleep -Seconds 8   # the knob's scan

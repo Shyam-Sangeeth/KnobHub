@@ -292,6 +292,18 @@ def check_wifi():
     k.send({"t": "wifi", "action": "scan"}, wait=0.4)
     k.send({"t": "wifi", "action": "done"}, wait=0.4)  # the Connection page as it is now (on Home)
     expect("back on the Connection page", (left != joined, left == k.frame()), (True, True))
+    # The knob on USB with its Wi-Fi off: the Connection page says so (not "Not on this knob").
+    k.send({"t": "sync", "page": "clock"}, wait=0.3)
+    k.send({**wifi, "state": "unsupported"}, wait=0.3)
+    k.turn_right(); k.press(wait=0.8)
+    for _ in range(2):
+        k.turn_right(wait=0.2)
+    k.press(wait=0.8)
+    unsupported = k.frame()
+    k.send({**wifi, "state": "usb", "network": "Home"}, wait=0.4)
+    expect("Wi-Fi off on USB: the Connection page shows it", k.frame() != unsupported, True)
+    k.send({**wifi, "state": "connected", "network": "Home"}, wait=0.3)
+    k.send({"t": "sync", "page": "clock"}, wait=0.3)
     # Knob Hub reconnecting (sync: Home) while its window is open: the next look shows the Wi-Fi screen again.
     k.send({"t": "wifi", "action": "scan"}, wait=0.4)
     k.send({"t": "sync", "page": "clock"}, wait=0.4)

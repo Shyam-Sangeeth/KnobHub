@@ -26,5 +26,7 @@ bool next_line(std::string& line);
 void send(const char* line);
 // Lets go of Knob Hub over Wi-Fi (USB took over, or it went quiet).
 void drop();
+// Whether Knob Hub is connected over USB: Wi-Fi rests meanwhile (see net.cpp).
+void usb_link(bool up);
 
 }  // namespace net

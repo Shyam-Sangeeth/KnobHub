@@ -54,7 +54,8 @@
 //                                                             connected; Knob Hub takes them instead of sending its
 //                                                             own
 //   wifi    {state, network, setup_network, setup_password,   the Wi-Fi state: "unsupported", "off", "connecting",
-//            joining, join_failed, join_problem, scanning}    "connected", "failed", "setup" (with the knob's own
+//            joining, join_failed, join_problem, scanning}    "connected", "failed", "usb" (off while Knob Hub is on
+//                                                             USB; Knob OS 1.0.5), "setup" (with the knob's own
 //                                                             network and its password); a network being joined, or
 //                                                             the last that couldn't be and why (see hal.h); when
 //                                                             any of it changes. Knob Hub passes it on to its preview

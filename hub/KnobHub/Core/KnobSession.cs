@@ -344,8 +344,8 @@ internal sealed class KnobSession : IDisposable
 
     // --- Wi-Fi and pairing ---
 
-    /// <summary>The connected knob's Wi-Fi: "unsupported", "off", "connecting", "connected", "failed" or "setup"
-    /// (see link.h), and the network it's set up for. Empty when no real knob is connected.</summary>
+    /// <summary>The connected knob's Wi-Fi: "unsupported", "off", "connecting", "connected", "failed", "setup" or "usb"
+    /// (off while Knob Hub is on USB; see link.h), and the network it's set up for. Empty when no real knob is connected.</summary>
     public string WifiState { get; private set; } = "";
     public string WifiNetwork { get; private set; } = "";
     /// <summary>The connected knob holds Knob Hub's key, so it can be reached over Wi-Fi.</summary>
@@ -420,6 +420,7 @@ internal sealed class KnobSession : IDisposable
             "connecting" => $"trying for {wifi.Str("network")}",
             "failed" => $"unable to join {wifi.Str("network")}",
             "setup" => "in Wi-Fi setup",
+            "usb" => $"on USB, with its Wi-Fi off (it joins {wifi.Str("network")} when it's unplugged)",
             "off" => "not set up for Wi-Fi",
             _ => "",
         };

@@ -154,7 +154,9 @@ when screens change.
   `LCD_RGB_ORDER`, and `WIFI_TX_POWER` (in quarter dBm; the 1.46" needs 60, 15 dBm: at full power its router never
   answered it, reason 2, and with 15 dBm it joins in seconds). Wi-Fi and pairing are in `net.cpp`: a join gets a
   minute (`JoinMs`) and is pinned to the scanned access point only in pairing mode; a failure is reported as
-  `join_problem` and the driver's `join_reason`, which Knob Hub logs. Motors still to do.
+  `join_problem` and the driver's `join_reason`, which Knob Hub logs. While Knob Hub is connected over USB the radio
+  is off (`net::usb_link`, state `usb`): it comes on for scans, joins and pairing mode (and `RadioAfterUseMs` after)
+  and when the USB link goes. Motors still to do.
   The 1.46"'s ST77961 needs its own start-up commands (`boards/crowpanel_1_46_panel.h`, from the LovyanGFX 1.2.7 that
   Elecrow's example ships): newer LovyanGFX's `Panel_ST77961` leaves it blank. A DFRobot DRI0056 haptic driver (TM6605,
   I2C 0x2D) on the spare I2C connector (`PIN_EXT_SDA/SCL`, `Wire1`) is looked for at start and gives the board

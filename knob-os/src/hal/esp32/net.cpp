@@ -54,6 +54,9 @@ Preferences prefs;
 std::vector<uint8_t> key;  // empty until paired
 std::string ssid, password;
 std::string id, host, setup_network, setup_password;
+// The name routers list the knob by (its DHCP hostname): its own name, as letters, digits and dashes ("Smart Knob" is
+// smart-knob), or knob-xxxx when nothing of the name is left.
+std::string network_name;
 
 std::string to_hex(const uint8_t* data, size_t n) {
     static const char Hex[] = "0123456789abcdef";
@@ -139,10 +142,19 @@ void radio_mode(wifi_mode_t mode) {
     if (tx_power) WiFi.setTxPower(static_cast<wifi_power_t>(tx_power));
 }
 
+// While Knob Hub is connected over USB the knob doesn't need Wi-Fi, so the radio is off. It comes on for what Knob Hub
+// asks over USB (looking for networks, joining one, pairing mode), stays on a little after (Knob Hub's Wi-Fi window
+// shows how it went), and comes back when the USB link goes (unplugged, or Knob Hub closed): the saved network is
+// joined again and Knob Hub finds the knob over Wi-Fi.
+bool usb_linked = false, radio_off = false;
+uint32_t radio_needed_until = 0;
+constexpr uint32_t RadioAfterUseMs = 30000;
+
 WifiState state() {
     if (setup_on) return WifiState::Setup;
     if (join == Join::Joining) return WifiState::Connecting;  // not Failed while it tries, however long the saved one was gone
     if (ssid.empty()) return WifiState::Off;
+    if (radio_off) return WifiState::Usb;
     if (WiFi.status() == WL_CONNECTED) return WifiState::Connected;
     return millis() - not_joined_since > FailedAfterMs ? WifiState::Failed : WifiState::Connecting;
 }
@@ -156,6 +168,24 @@ void join_saved() {
 void serve_link();
 void stop_link();
 void save_joined();
+
+void radio_on() {
+    if (!radio_off) return;
+    radio_off = false;
+    WiFi.setHostname(network_name.empty() ? host.c_str() : network_name.c_str());
+    radio_mode(WIFI_STA);
+    WiFi.setSleep(false);
+    join_saved();
+}
+
+void radio_rest() {
+    if (radio_off) return;
+    radio_off = true;
+    stop_link();
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+}
+
 
 const char SetupPage[] PROGMEM = R"html(<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -301,6 +331,7 @@ void begin_join(const std::string& name, const std::string& pass) {
         join_channel = WiFi.channel(best);
         memcpy(join_bssid, WiFi.BSSID(best), sizeof join_bssid);
     }
+    radio_on();
     join = Join::Joining;
     join_since = millis();
     join_started = false;
@@ -366,6 +397,7 @@ void page_status() {
 }
 
 void start_setup() {
+    radio_on();
     uint8_t digits[8];
     esp_fill_random(digits, sizeof digits);
     setup_password.clear();
@@ -458,6 +490,7 @@ void poll_join() {
 bool scan_wanted = false, scanning = false, rejoin_after_scan = false;
 
 void poll_scan() {
+    if (scan_wanted) radio_on();
     if (scan_wanted && join != Join::Joining) {
         if (WiFi.status() != WL_CONNECTED && !setup_on) {
             WiFi.disconnect();
@@ -658,9 +691,6 @@ void identify() {
     setup_network = "KnobHub-" + tail;
 }
 
-// The name routers list the knob by (its DHCP hostname): its own name, as letters, digits and dashes ("Smart Knob" is
-// smart-knob), or knob-xxxx when nothing of the name is left.
-std::string network_name;
 bool started = false;
 
 std::string name_for_network(const std::string& name) {
@@ -710,7 +740,13 @@ void start(int board_tx_power) {
     join_saved();
 }
 
+// Whether the radio is in use for something Knob Hub asked: then it's on, and stays on RadioAfterUseMs after.
+bool radio_busy() { return setup_on || join == Join::Joining || join == Join::Joined || scan_wanted || scanning; }
+
 void poll() {
+    if (radio_busy()) radio_needed_until = millis() + RadioAfterUseMs;
+    if (!usb_linked || radio_busy()) radio_on();
+    else if (static_cast<int32_t>(millis() - radio_needed_until) >= 0) radio_rest();
     if (setup_on) poll_setup();
     poll_join();
     poll_scan();
@@ -753,7 +789,7 @@ void poll() {
     }
 
     WifiState now = state();
-    std::string network = now == WifiState::Off || now == WifiState::Setup ? "" : ssid;
+    std::string network = now == WifiState::Off || now == WifiState::Setup ? "" : ssid;  // Usb: the one it joins after
     bool looking = scan_wanted || scanning;
     if (now != shown || network != shown_network || join != shown_join || looking != shown_scanning) {
         shown = now;
@@ -763,6 +799,8 @@ void poll() {
         knob_os_wifi_changed();
     }
 }
+
+void usb_link(bool up) { usb_linked = up; }
 
 void pair(const std::string& line) {
     JsonDocument msg;
