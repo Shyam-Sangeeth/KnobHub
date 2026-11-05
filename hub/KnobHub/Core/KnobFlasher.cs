@@ -45,8 +45,7 @@ internal static class KnobFlasher
         var regions = Regions(image);
         progress.Report(new("Restarting the knob into its loader", 0));
         portName = ResetIntoLoader(portName);
-        using var loader = Loader.Open(portName, cancel);
-        loader.Connect();
+        using var loader = ConnectLoader(portName, cancel);
         if (loader.ReadRegister(0x40001000) != Esp32S3Magic)
             throw new IOException("The device on this port isn't an ESP32-S3, so Knob OS can't be installed on it.");
         loader.KeepWatchdogsQuiet();
@@ -72,6 +71,33 @@ internal static class KnobFlasher
         // Start normally next time (a knob that put itself into the loader sets this), then reset it.
         try { loader.WriteRegister(Option1, 0, ForceDownloadBoot); } catch (IOException) { }
         loader.Reset();
+    }
+
+    /// <summary>Opens the loader's port and syncs with it. Windows can list the port while it's still setting it up, and
+    /// then aborts the first reads ("The operation was canceled"): so it tries again a moment later, three times.</summary>
+    private static Loader ConnectLoader(string portName, CancellationToken cancel)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            var loader = Loader.Open(portName, cancel);
+            try
+            {
+                loader.Connect();
+                return loader;
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException && !cancel.IsCancellationRequested)
+            {
+                loader.Dispose();
+                if (attempt == 3)
+                    throw ex as IOException ?? new IOException("The knob's loader went away while Knob Hub was talking to it. Unplug the knob, plug it in again and retry.");
+                Thread.Sleep(1000);
+            }
+            catch
+            {
+                loader.Dispose();
+                throw;
+            }
+        }
     }
 
     /// <summary>The parts of the image to write: all of it except the nvs partition(s) in its partition table.</summary>

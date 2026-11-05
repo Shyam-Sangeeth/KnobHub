@@ -488,7 +488,8 @@ internal sealed class KnobSession : IDisposable
             // stays 480 px), and stays it when the knob goes.
             _knobBoard = KnobBoard.FromHello(msg);
             Log($"The knob is a {_knobBoard.Name} ({_knobBoard.Size} px)");
-            if (KnobBoard.Known.Contains(_knobBoard) && _knobBoard.Id != _settings.PreviewBoard)
+            // By id: what a knob says can differ from the list (it adds vibration when it finds a haptic driver).
+            if (KnobBoard.Known.Any(b => b.Id == _knobBoard.Id) && _knobBoard.Id != _settings.PreviewBoard)
             {
                 _settings.PreviewBoard = _knobBoard.Id;
                 _settings.Save();

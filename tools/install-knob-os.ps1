@@ -1,5 +1,6 @@
 # Drives Knob Hub's Settings > Knob OS through UI Automation: reads the card, clicks Install, confirms, and prints the
-# status until the knob is back. -ReadOnly only prints the card. Knob Hub must be running, with a knob plugged in.
+# status until the knob is back. -ReadOnly only prints the card. Knob Hub must be running, with a knob plugged in that
+# runs Knob OS (a knob in its loader needs its board chosen in Knob Hub: this stops instead).
 #
 #   powershell -ExecutionPolicy Bypass -File tools\install-knob-os.ps1 [-ReadOnly]
 param([switch]$ReadOnly)
@@ -21,8 +22,11 @@ function Texts {
     $i = [array]::IndexOf($names, 'Knob OS')
     if ($i -ge 0) { $names[($i + 1)..([Math]::Min($i + 4, $names.Count - 1))] | Where-Object { $_ } }
 }
-"card: " + ((Texts) -join ' | ')
+$card = (Texts) -join ' | '
+"card: " + $card
 if ($ReadOnly) { return }
+# A knob that isn't running Knob OS (in its loader) can't say its board, so Knob Hub asks for it: choose it in Knob Hub.
+if ($card -match "isn't running Knob OS") { "The knob isn't running Knob OS: choose its board in Knob Hub and install from there."; return }
 
 $boxCondition = New-Object System.Windows.Automation.PropertyCondition ($A::NameProperty), 'Install Knob OS'
 $box = $win.FindFirst('Children', $boxCondition)  # the confirmation, if it's open already
