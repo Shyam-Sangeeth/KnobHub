@@ -22,7 +22,7 @@ namespace {
 constexpr uint32_t ArcTrack = 0x22252B;
 constexpr uint32_t SegmentOnText = 0x101114;
 constexpr uint32_t Unset = 0xFFFFFFFF;  // a colour the app didn't send
-constexpr int TileSize = 58, PillHeight = 22, IconSize = 12;  // design px
+constexpr int TileSize = 58, PillHeight = 22, PillWidth = 160, IconSize = 12;  // design px; PillWidth: the widest
 constexpr int RowGap = 11;      // between the rows: title, tiles, each pill, hint (design px)
 constexpr int BadgeBelow = 10;  // how far a badge hangs below its circle (design px)
 constexpr int OutlineRoom = 2;  // a focus outline's reach outside its pill (design px)
@@ -168,6 +168,7 @@ private:
         if (!title_.empty()) {
             lv_obj_t* title = ui::label(r, title_.c_str(), ui::font(12), theme::TextSecondary);
             lv_obj_set_style_text_letter_space(title, ui::px(2), 0);
+            ui::marquee(title, ui::px(160));
             lv_obj_align(title, LV_ALIGN_TOP_MID, 0, y);
             y += line + row_gap;
         }
@@ -190,7 +191,7 @@ private:
 
         if (!hint_.empty()) {
             lv_obj_t* hint = ui::label(r, hint_.c_str(), ui::font(12), theme::TextMuted);
-            ui::one_line(hint, ui::px(160));
+            ui::marquee(hint, ui::px(160));
             lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, y + row_gap);
         }
 
@@ -272,12 +273,16 @@ private:
         make_target(p.obj, index);
         if (p.kind == "segment") {
             lv_obj_set_style_pad_all(p.obj, ui::px(2), 0);
+            // The options share the pill's width (PillWidth at most), each with its padding.
+            const int n = std::max<int>(1, static_cast<int>(p.options.size()));
+            const int option_width = std::max(ui::px(24), (ui::px(PillWidth) - ui::px(4)) / n - ui::px(16));
             for (const std::string& option : p.options) {
                 lv_obj_t* part = ui::plain(p.obj);
                 lv_obj_set_size(part, LV_SIZE_CONTENT, ui::px(18));
                 lv_obj_set_style_pad_hor(part, ui::px(8), 0);
                 lv_obj_set_style_radius(part, LV_RADIUS_CIRCLE, 0);
                 lv_obj_t* text = ui::label(part, option.c_str(), ui::font(12), theme::TextSecondary);
+                ui::one_line(text, option_width);
                 lv_obj_center(text);
                 p.parts.push_back(part);
             }
@@ -286,6 +291,7 @@ private:
             lv_obj_set_style_pad_column(p.obj, ui::px(5), 0);
             p.icon_obj = p.icon.empty() ? nullptr : ui::icon(p.obj, p.icon, ui::px(12), theme::TextMuted);
             p.text = ui::label(p.obj, p.label.c_str(), ui::font(12), theme::TextSecondary);
+            ui::marquee(p.text, ui::px(PillWidth) - ui::px(22) - (p.icon_obj ? ui::px(IconSize + 5) : 0));
         }
         style_pill(p);
     }

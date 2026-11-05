@@ -38,6 +38,8 @@ lv_obj_t* parent();
 void push(Screen* screen);
 // Removes the top screen (never Home).
 void pop();
+// Removes that screen wherever it is in the stack (never Home); nothing if it isn't there.
+void remove(Screen* screen);
 // Replaces the top screen (for an app's screen changes); pushes if only Home is shown.
 void replace(Screen* screen);
 // Back to Home.

@@ -21,9 +21,9 @@ def expect(what, got, wanted):
         raise AssertionError(f"{what}: got {got!r}, wanted {wanted!r}")
 
 
-def dial(value, color="#4CC2FF"):
+def dial(value, color="#4CC2FF", **data):
     return {"t": "screen", "app": "demo", "screen": "v", "template": "dial",
-            "data": {"label": "VOLUME", "icon": "music", "color": color, "value": value}}
+            "data": {"label": "VOLUME", "icon": "music", "color": color, "value": value, **data}}
 
 
 def check_leds():
@@ -47,6 +47,20 @@ def check_leds():
     k.press(wait=0.8)
     k.send(dial(64), wait=0.2)
     expect("dial at 64: 3 full, 1 a fifth, 1 off", k.leds(), ([0x3587B2] * 3 + [0x0A1B23, 0], 135, 270))
+    k.take("input")
+    k.press(wait=0.2)
+    expect("a press sends a dial to 0: all off", k.leds()[0], [0] * 5)
+    k.press(wait=0.2)
+    expect("another, to 100: all full", k.leds()[0], [0x3587B2] * 5)
+    expect("the presses report the new value", [(m["kind"], m.get("delta", 0)) for m in k.take("input")],
+           [("press", 0), ("press", 100)])
+    k.send(dial(64, min=20), wait=0.2)
+    k.press(wait=0.2)
+    expect("a dial with a lowest value: a press goes there", [m.get("delta", 0) for m in k.take("input")], [20])
+    k.send(dial(64, mutes=True), wait=0.2)
+    k.press(wait=0.2)
+    expect("a press mutes a dial that mutes: all off", k.leds()[0], [0] * 5)
+    expect("and reports muted", [m.get("delta", 0) for m in k.take("input")], [1])
     k.send(dial(0), wait=0.2)
     expect("dial at 0: all off", k.leds()[0], [0] * 5)
     k.send({"t": "settings", "led_mode": 1, "led_brightness": 100})
@@ -190,6 +204,11 @@ def check_haptics():
     expect("held at 100", k.motor(), (51, 50, False, "fine"))
     k.send({"t": "update", "app": "demo", "screen": "d", "data": {"value": 40}}, wait=0.3)
     expect("the app set 40: the motor follows", k.motor(), (51, 20, False, "fine"))
+    media = {"t": "screen", "app": "demo", "screen": "m", "template": "media", "data": {"title": "Song", "duration": 200}}
+    k.send(media, wait=0.3)
+    expect("media: endless fine clicks for seeking", k.motor(), (0, 0, False, "fine"))
+    k.send({"t": "update", "app": "demo", "screen": "m", "data": {"can_seek": False}}, wait=0.3)
+    expect("media that can't seek: a stop each way", k.motor(), (1, 0, False, "fine"))
     k.vibrations()
     k.send({"t": "toast", "text": "Hi"}, wait=0.1)
     expect("a toast", k.vibrations(), ["alert"])
@@ -239,7 +258,7 @@ def check_cards():
 
 def check_wifi():
     """Knob Hub's Wi-Fi window: the Wi-Fi screen over Connection; a turn, press or tap leaves it (wifi_left); done doesn't;
-    5 s after joining it leaves by itself."""
+    5 s after joining it leaves by itself; after Knob Hub syncs, it comes up again."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
     k.send(APPS, wait=0.3)
@@ -273,6 +292,14 @@ def check_wifi():
     k.send({"t": "wifi", "action": "scan"}, wait=0.4)
     k.send({"t": "wifi", "action": "done"}, wait=0.4)  # the Connection page as it is now (on Home)
     expect("back on the Connection page", (left != joined, left == k.frame()), (True, True))
+    # Knob Hub reconnecting (sync: Home) while its window is open: the next look shows the Wi-Fi screen again.
+    k.send({"t": "wifi", "action": "scan"}, wait=0.4)
+    k.send({"t": "sync", "page": "clock"}, wait=0.4)
+    home = k.frame()
+    k.send({"t": "wifi", "action": "scan"}, wait=0.4)
+    expect("after a sync, the Wi-Fi screen comes up again", k.frame() != home, True)
+    k.turn_right()
+    expect("and leaving it works", len(k.take("wifi_left")), 1)
 
 
 def check_busy():
@@ -344,8 +371,93 @@ def check_awake():
     expect("left it: the timeout counts again (off 15 s later)", k.brightness(), 0)
 
 
+def check_push():
+    """A touch cancelled (the knob's button pushed with it) isn't a tap; a plain tap still is."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    k.send({"t": "screen", "app": "demo", "screen": "l", "template": "list", "data": {"title": "ROWS", "items": [
+        {"id": "a", "label": "A"}, {"id": "b", "label": "B"}, {"id": "c", "label": "C"}]}}, wait=0.4)
+    k.take("input")
+    k.kp.kp_touch(120, 120, 1)
+    k.run(0.15)
+    k.kp.kp_touch(120, 120, 2)
+    k.kp.kp_touch(120, 120, 0)
+    k.run(0.4)
+    expect("a cancelled touch reports nothing", k.take("input"), [])
+    expect("and tells Knob Hub", [m.get("cancel", False) for m in k.take("touch")], [False, True, False])
+    k.tap(120, 120)
+    expect("a plain tap presses the row in the middle", [(m["kind"], m["item"]) for m in k.take("input")], [("press", "b")])
+
+
+def check_picker():
+    """A picker with nothing chosen: a turn right picks the first option, a turn left the last."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    options = [{"id": i, "name": i.upper()} for i in ("a", "b", "c")]
+    for turn, wanted in (("turn_right", "a"), ("turn_left", "c")):
+        k.send({"t": "screen", "app": "demo", "screen": "c" + wanted, "template": "controls", "data": {
+            "label": "GAME", "icon": "music", "value": 50, "picker": {"options": options}}}, wait=0.4)
+        k.press(wait=0.5)  # from the value to the picker
+        k.take("input")
+        getattr(k, turn)()
+        k.run(0.8)  # the picker picks once the knob rests
+        expect(f"{turn} from nothing chosen", [m["item"] for m in k.take("input") if m["kind"] == "select"], [wanted])
+
+
+def check_screens():
+    """What screens do with odd app data: a controls value over 100, a dial marked muted on a press."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    def controls(value):
+        k.send({"t": "screen", "app": "demo", "screen": f"c{value}", "template": "controls",
+                "data": {"label": "GAME", "icon": "music", "value": value}}, wait=0.4)
+        return k.frame()
+    expect("controls: 150 shows as 100", controls(150) == controls(100), True)
+    expect("controls: -20 shows as 0", controls(-20) == controls(0), True)
+    k.send(dial(60, muted=True), wait=0.3)
+    k.take("input")
+    k.press(wait=0.3)
+    after = k.frame()
+    k.send(dial(0), wait=0.3)
+    expect("a dial the app marked muted: a press shows Off, like any dial at 0", after == k.frame(), True)
+    expect("and reports 0", [m.get("delta", 0) for m in k.take("input")], [0])
+
+
+def check_marquee():
+    """Long text scrolls: a list's highlighted row, and a ring's label through updates every second (a timer)."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    k.send({"t": "screen", "app": "demo", "screen": "l", "template": "list", "data": {"title": "ROWS", "items": [
+        {"id": "a", "label": "A row with a label far too long to fit"}, {"id": "b", "label": "B"}]}}, wait=0.4)
+    before = k.frame()
+    k.run(4)
+    expect("a long label on the highlighted row scrolls", k.frame() != before, True)
+    k.send({"t": "screen", "app": "demo", "screen": "r", "template": "ring",
+            "data": {"label": "A RING LABEL THAT IS FAR TOO LONG", "text": "4:59", "value": 99}}, wait=0.4)
+    strips = []
+    for second in range(5):
+        k.send({"t": "update", "app": "demo", "screen": "r", "data": {"text": f"4:5{8 - second}", "value": 98 - second}})
+        k.run(1.0)
+        strips.append(k.frame()[60 * 240 * 4:78 * 240 * 4])  # the label's strip
+    expect("the ring's label keeps scrolling through updates", len(set(strips)), 5)
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
-          "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy, "awake": check_awake}
+          "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy, "awake": check_awake,
+          "push": check_push, "picker": check_picker,
+          "screens": check_screens, "marquee": check_marquee}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:

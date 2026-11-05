@@ -202,8 +202,12 @@ KP_API void kp_input(int input) {
     if (input >= 0 && input <= 3) knob_os_input(static_cast<KnobInput>(input));
 }
 
-// A touch on the preview in screen pixels (0 to kp_size() - 1): down while the mouse button is held (knob_os_touch).
-KP_API void kp_touch(int x, int y, int down) { knob_os_touch(x, y, down != 0); }
+// A touch on the preview in screen pixels (0 to kp_size() - 1): down while the mouse button is held (knob_os_touch);
+// 2 cancels the touch under way (knob_os_cancel_touch).
+KP_API void kp_touch(int x, int y, int down) {
+    if (down == 2) knob_os_cancel_touch(x, y);
+    else knob_os_touch(x, y, down != 0);
+}
 
 KP_API void kp_link_connected(int connected) { knob_os_link_connected(connected != 0); }
 

@@ -55,6 +55,7 @@ public sealed class TimerApp : KnobHub.Sdk.KnobApp
                 {
                     if (_endsAt is { } end)  // running: pause
                     {
+                        if (end <= DateTime.UtcNow) return;  // it ran out just now: the next tick says so
                         _pausedLeft = end - DateTime.UtcNow;
                         StopTicking();
                     }

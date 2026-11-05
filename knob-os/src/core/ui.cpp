@@ -197,6 +197,12 @@ void marquee(lv_obj_t* label, int max_width) {
     lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 }
 
+void marquee_text(lv_obj_t* label, const char* text, int max_width) {
+    if (std::strcmp(lv_label_get_text(label), text) == 0) return;
+    lv_label_set_text(label, text);
+    marquee(label, max_width);
+}
+
 void press_feedback(lv_obj_t* obj, int scale_percent) {
     static const lv_style_prop_t props[] = {LV_STYLE_TRANSFORM_SCALE_X, LV_STYLE_TRANSFORM_SCALE_Y,
                                             LV_STYLE_COLOR_FILTER_OPA, LV_STYLE_PROP_INV};

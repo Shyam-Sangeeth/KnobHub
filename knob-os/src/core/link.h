@@ -66,8 +66,9 @@
 //   icon_request {name, size}                                 an icon a screen shows (see icons.h)
 //   key     {input: "right" | "left" | "press" | "back"}      every knob action, before it is handled, so Knob Hub
 //                                                             can replay it on its preview of the knob
-//   touch   {x, y, down}                                      the same for touches (on the knob, or from Knob Hub's
-//                                                             preview)
+//   touch   {x, y, down, cancel}                              the same for touches (on the knob, or from Knob Hub's
+//                                                             preview); cancel: true ends one without a tap (the
+//                                                             knob's button was pushed with it)
 //   idle    {state: "awake" | "dim" | "off"}                  the screen's state (see idle.h): when it changes and
 //                                                             when the link comes up. An input that only wakes the
 //                                                             screen isn't sent as a key

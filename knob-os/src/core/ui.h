@@ -45,6 +45,8 @@ void one_line(lv_obj_t* label, int max_width);
 // Like one_line, but text longer than max_width scrolls round in a loop (a marquee), pausing at the start of each
 // round. Call after setting the text; setting the same text again restarts the scroll, so skip that.
 void marquee(lv_obj_t* label, int max_width);
+// Sets a label's text and makes it a marquee, only when the text has changed (so updates don't restart the scroll).
+void marquee_text(lv_obj_t* label, const char* text, int max_width);
 
 // Where a letter's ink starts below the top of its line, and how tall it is: for spacing text by what's drawn (a
 // label's letters sit inside its line, with room above and below). 'M' measures capitals.

@@ -31,7 +31,7 @@ void refresh();
 
 void apply_from_hub(JsonObjectConst msg);
 
-// The Settings pages were taken off the screen by someone else (Knob Hub syncing its preview).
+// The Settings pages (and the Wi-Fi screens) were taken off the screen by someone else (Knob Hub syncing its preview).
 void forget_pages();
 void send_all();
 

@@ -193,7 +193,8 @@ internal static class KnobFlasher
         var until = DateTime.UtcNow + within;
         while (true)
         {
-            var port = new SerialPort(portName, 115200) { DtrEnable = false, RtsEnable = false, Handshake = Handshake.None };
+            // A write to a knob that stopped answering gives up rather than hanging the install (Cancel can't stop it).
+            var port = new SerialPort(portName, 115200) { DtrEnable = false, RtsEnable = false, Handshake = Handshake.None, WriteTimeout = 5000 };
             try
             {
                 port.Open();

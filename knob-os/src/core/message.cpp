@@ -17,7 +17,7 @@ MessageScreen::MessageScreen(const std::string& icon, const std::string& title, 
     lv_obj_t* r = root();
     lv_obj_t* glyph = ui::icon(r, icon, IconSize, theme::TextMuted);
     lv_obj_t* heading = ui::label(r, title.c_str(), heading_font, theme::Text);
-    ui::one_line(heading, ui::px(190));
+    ui::marquee(heading, ui::px(190));
     lv_obj_t* body = ui::label(r, text.c_str(), body_font, theme::TextSecondary);
     lv_obj_set_width(body, TextWidth);
     lv_obj_set_style_text_align(body, LV_TEXT_ALIGN_CENTER, 0);

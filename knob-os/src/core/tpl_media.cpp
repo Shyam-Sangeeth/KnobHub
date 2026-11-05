@@ -101,10 +101,11 @@ public:
         return {color_, played > 100 ? 100 : played};
     }
 
-    // Seeking: endless fine clicks.
+    // Seeking: endless fine clicks; a song that can't be sought, a stop each way.
     haptics::Feel feel() const override {
         haptics::Feel f;
         f.detent = haptics::Detent::Fine;
+        if (!can_seek_ || duration_ <= 0) f.positions = 1;
         return f;
     }
 
@@ -114,11 +115,10 @@ public:
             lv_obj_set_style_arc_color(progress_, theme::color(color_), LV_PART_INDICATOR);
             lv_obj_set_style_text_color(art_icon_, theme::color(color_), 0);
         }
-        if (data["title"].is<const char*>()) set_text(title_, data["title"], ui::px(TitleWidth));
+        if (data["title"].is<const char*>()) ui::marquee_text(title_, data["title"], ui::px(TitleWidth));
         if (data["artist"].is<const char*>()) artist_text_ = data["artist"].as<const char*>();
         if (data["source"].is<const char*>()) {
-            lv_label_set_text(source_, data["source"]);
-            ui::one_line(source_, ui::px(120));
+            ui::marquee_text(source_, data["source"], ui::px(120));
         }
         if (data["playing"].is<bool>()) {
             set_position(position());  // keep the position where it is when playing stops or starts
@@ -237,20 +237,14 @@ private:
         else lv_obj_remove_flag(artist_, LV_OBJ_FLAG_HIDDEN);
         if (seek_timer_) {
             lv_obj_set_style_text_color(artist_, theme::color(color_), 0);
-            set_text(artist_, (clock(p) + " / " + clock(duration_)).c_str(), ui::px(ArtistWidth));
+            ui::marquee_text(artist_, (clock(p) + " / " + clock(duration_)).c_str(), ui::px(ArtistWidth));
         } else {
             lv_obj_set_style_text_color(artist_, theme::color(theme::TextSecondary), 0);
-            set_text(artist_, artist_text_.c_str(), ui::px(ArtistWidth));
+            ui::marquee_text(artist_, artist_text_.c_str(), ui::px(ArtistWidth));
         }
     }
 
     // Only when the text changes: setting it again would restart the marquee.
-    static void set_text(lv_obj_t* label, const char* text, int max_width) {
-        if (std::strcmp(lv_label_get_text(label), text) == 0) return;
-        lv_label_set_text(label, text);
-        ui::marquee(label, max_width);
-    }
-
     void show_playing() { lv_label_set_text(lv_obj_get_child(play_, 0), playing_ ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY); }
 
     // --- Album art ---

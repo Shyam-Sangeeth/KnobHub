@@ -3,6 +3,8 @@
 //   color (the fill), track_color (the ring under the fill; "" or not sent: a dark track), label (small, above the
 //   text; optional)
 // Turning reports rotate (+1/-1) and pressing reports press; the app changes the screen. Long press: back.
+#include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "templates.h"
@@ -57,7 +59,10 @@ public:
         }
         if (data["track_color"].is<const char*>())
             lv_obj_set_style_arc_color(arc_, theme::color(ui::parse_color(data["track_color"], DefaultTrack)), LV_PART_MAIN);
-        if (data["label"].is<const char*>()) lv_label_set_text(label_, data["label"]);
+        if (data["label"].is<const char*>() && std::strcmp(lv_label_get_text(label_), data["label"]) != 0) {
+            ui::marquee_text(label_, data["label"], ui::px(TextWidth));
+            label_y_ = INT32_MIN;  // its size changed: place it again
+        }
         if (data["text"].is<const char*>()) {
             text_value_ = data["text"].as<const char*>();
             lv_label_set_text(text_, text_value_.c_str());
@@ -86,7 +91,13 @@ private:
         lv_obj_align(text_, LV_ALIGN_CENTER, 0, line / 2 - ink_middle);
 
         const int above = ui::ink_height(font, '0') / 2 + ui::px(14);  // over the digits' tops
-        lv_obj_align(label_, LV_ALIGN_CENTER, 0, -above - lv_font_get_line_height(ui::font(12)) / 2);
+        // Moved only when its place changes: placing a scrolling label again starts its scroll afresh (a timer's
+        // update every second would keep it at the start).
+        const int label_y = -above - lv_font_get_line_height(ui::font(12)) / 2;
+        if (label_y != label_y_) {
+            lv_obj_align(label_, LV_ALIGN_CENTER, 0, label_y);
+            label_y_ = label_y;
+        }
         if (lv_label_get_text(label_)[0]) lv_obj_remove_flag(label_, LV_OBJ_FLAG_HIDDEN);
         else lv_obj_add_flag(label_, LV_OBJ_FLAG_HIDDEN);
     }
@@ -96,6 +107,7 @@ private:
     lv_obj_t* text_;
     lv_obj_t* label_;
     std::string text_value_;
+    int label_y_ = INT32_MIN;  // where the label was last placed
 };
 
 }  // namespace

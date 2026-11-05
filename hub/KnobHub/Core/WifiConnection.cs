@@ -30,7 +30,8 @@ internal sealed class WifiConnection(Func<PairedKnob?> paired) : LineConnection
         try { key = Convert.FromBase64String(knob.Key); }
         catch (FormatException) { return null; }
 
-        var client = new TcpClient { NoDelay = true };
+        // Sends are on the UI thread: one to a knob that has dropped off the network gives up in a moment.
+        var client = new TcpClient { NoDelay = true, SendTimeout = 2000 };
         try
         {
             using var within = CancellationTokenSource.CreateLinkedTokenSource(stop);
@@ -39,6 +40,11 @@ internal sealed class WifiConnection(Func<PairedKnob?> paired) : LineConnection
             if (await SealedStream.OpenAsync(client.GetStream(), key, within.Token) is { } link) return (link, client);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !stop.IsCancellationRequested) { }
+        catch (OperationCanceledException)
+        {
+            client.Dispose();  // stopping
+            throw;
+        }
         client.Dispose();
         _restUntil = DateTime.UtcNow + RestAfterMiss;  // not on the network now (or not the paired knob)
         return null;

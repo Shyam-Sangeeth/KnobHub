@@ -25,6 +25,7 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
     private string _screen = "";  // the screen on show
     private string? _resume;      // the screen on show when AudioDesk went away: shown again once it's back
     private double _volumeTarget;  // quick turns build on the last target, not on AudioDesk's slightly older state
+    private string _turned = "";   // the channel _volumeTarget is for
     private DateTime _lastTurn;
     // A switch was asked for and AudioDesk hasn't reported on it yet: busy already, so nothing else can be started.
     private DateTime? _asked;
@@ -111,8 +112,9 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
             {
                 case (InputKind.Back, _): Show(Channels); break;
                 case (InputKind.Rotate, _):
-                    double from = DateTime.UtcNow - _lastTurn < TurnWindow ? _volumeTarget : channel.Volume;
+                    double from = id == _turned && DateTime.UtcNow - _lastTurn < TurnWindow ? _volumeTarget : channel.Volume;
                     _volumeTarget = Math.Clamp(from + input.Delta * StepPercent / 100.0, 0, 1);
+                    _turned = id;
                     _lastTurn = DateTime.UtcNow;
                     _client.SetVolume(id, _volumeTarget);
                     if (channel.Muted) _client.SetMuted(id, false);  // like turning a volume knob up from mute
@@ -187,10 +189,10 @@ public sealed class AudioDeskApp : KnobHub.Sdk.KnobApp
         else if (_screen.StartsWith(VolumePrefix) && state.Channel(_screen[VolumePrefix.Length..]) is { } channel)
         {
             var controls = ChannelControls(channel);
-            // While the knob is turning it shows its own value; AudioDesk catches up.
-            bool turning = DateTime.UtcNow - _lastTurn < TurnWindow;
+            // While the knob is turning it shows its own value (and turning unmutes it); AudioDesk catches up.
+            bool turning = channel.Id == _turned && DateTime.UtcNow - _lastTurn < TurnWindow;
             Host.Update(_screen, turning
-                ? new { controls.Muted, controls.Toggle, controls.Picker, controls.Busy }
+                ? new { controls.Toggle, controls.Picker, controls.Busy }
                 : new { controls.Value, controls.Muted, controls.Toggle, controls.Picker, controls.Busy });
         }
     }

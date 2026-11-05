@@ -97,15 +97,20 @@ internal static class HubUpdates
 
         if (new FileInfo(path).Length != update.InstallerSize)
             throw new InvalidDataException("The download is incomplete. Please try again.");
+        // Without GitHub's digest the download can't be checked, so it isn't run.
+        bool passed = false;
         if (update.Sha256 != null)
         {
             await using var stream = File.OpenRead(path);
-            string actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancel));
-            if (!actual.Equals(update.Sha256, StringComparison.OrdinalIgnoreCase))
-            {
-                File.Delete(path);
-                throw new InvalidDataException("The downloaded installer didn't pass its check and was deleted.");
-            }
+            passed = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancel))
+                .Equals(update.Sha256, StringComparison.OrdinalIgnoreCase);
+        }
+        if (!passed)
+        {
+            File.Delete(path);
+            throw new InvalidDataException(update.Sha256 == null
+                ? "GitHub gave no checksum for this installer, so it can't be checked. It was deleted: download it from the releases page instead."
+                : "The downloaded installer didn't pass its check and was deleted.");
         }
         return path;
     }

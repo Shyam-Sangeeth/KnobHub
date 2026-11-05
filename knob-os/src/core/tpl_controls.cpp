@@ -145,7 +145,7 @@ public:
             redraw_icon = true;
         }
         if (data["label"].is<const char*>()) lv_label_set_text(name_, data["label"]);
-        if (data["value"].is<int>()) value_now_ = data["value"];
+        if (data["value"].is<int>()) value_now_ = std::min(100, std::max(0, data["value"].as<int>()));
         if (data["step"].is<int>()) step_ = std::max(1, data["step"].as<int>());
         if (data["unit"].is<const char*>()) unit_ = data["unit"].as<const char*>();
         if (data["muted_text"].is<const char*>()) muted_text_ = data["muted_text"].as<const char*>();
@@ -274,7 +274,9 @@ private:
     void step_picker(int delta) {
         if (options_.empty()) return;
         int n = static_cast<int>(options_.size());
-        shown_ = ((shown_ < 0 ? 0 : shown_) + delta + n) % n;
+        // With nothing chosen yet, a turn right starts at the first option and a turn left at the last.
+        int from = shown_ >= 0 ? shown_ : delta > 0 ? -1 : 0;
+        shown_ = (from + delta + n) % n;
         show();
         if (rest_timer_) {
             lv_timer_reset(rest_timer_);

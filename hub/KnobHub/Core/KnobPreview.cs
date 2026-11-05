@@ -175,6 +175,9 @@ internal sealed class KnobPreview : IDisposable
     /// the screen.</summary>
     public void Touch(int x, int y, bool down) => _lib?.Touch(x, y, down ? 1 : 0);
 
+    /// <summary>The touch under way ends without being a tap (the real knob's button was pushed with it).</summary>
+    public void CancelTouch(int x, int y) => _lib?.Touch(x, y, 2);
+
     public void LinkConnected(bool connected) => _lib?.LinkConnected(connected ? 1 : 0);
 
     public void LinkLine(string line) => _lib?.LinkLine(Utf8(line));

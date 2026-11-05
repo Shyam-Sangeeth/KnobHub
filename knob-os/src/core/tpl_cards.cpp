@@ -157,17 +157,17 @@ private:
         y += circle + gap;
 
         lv_obj_t* name = ui::label(page, card.label.c_str(), name_font, theme::Text);
-        ui::one_line(name, ui::px(NameWidth));
+        ui::marquee(name, ui::px(NameWidth));
         lv_obj_align(name, LV_ALIGN_TOP_MID, 0, y - ui::ink_top(name_font));
         if (card.detail.empty()) return page;
         y += ui::ink_height(name_font) + detail_gap;
         lv_obj_t* detail = ui::label(page, card.detail.c_str(), detail_font, theme::TextSecondary);
-        ui::one_line(detail, ui::px(NameWidth));
+        ui::marquee(detail, ui::px(NameWidth));
         lv_obj_align(detail, LV_ALIGN_TOP_MID, 0, y - ui::ink_top(detail_font));
         return page;
     }
 
-    // Home's 24 when the label fits across; smaller for a long one (a monitor's model name), "..." past the smallest.
+    // Home's 24 when the label fits across; smaller for a long one (a monitor's model name), scrolling past the smallest.
     static const lv_font_t* fitting_font(const std::string& text) {
         for (int size : {24, 20}) {
             if (lv_text_get_width(text.c_str(), static_cast<uint32_t>(text.size()), ui::font(size), 0) <= ui::px(NameWidth))

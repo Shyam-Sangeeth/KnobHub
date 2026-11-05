@@ -278,17 +278,18 @@ internal sealed class AppManager
 
     private static void Validate(AppManifest m)
     {
-        if (string.IsNullOrWhiteSpace(m.Id)
-            || m.Id is "." or ".."
-            || m.Id.StartsWith('.')
-            || m.Id.Contains("..")
-            || m.Id.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')))
+        if (!IsValidId(m.Id))
             throw new InvalidDataException("app.json needs an id made of letters, digits, '-', '_' or '.'.");
         if (string.IsNullOrWhiteSpace(m.Name)) throw new InvalidDataException("app.json needs a name.");
         if (string.IsNullOrWhiteSpace(m.Assembly) || string.IsNullOrWhiteSpace(m.Type))
             throw new InvalidDataException("app.json needs the app's assembly and type.");
         if (Path.GetFileName(m.Assembly) != m.Assembly) throw new InvalidDataException("app.json's assembly must be a file name.");
     }
+
+    /// <summary>Letters, digits, '-', '_' and '.', not starting with '.' and without "..": safe in a file or folder name.</summary>
+    public static bool IsValidId(string? id) =>
+        !string.IsNullOrWhiteSpace(id) && !id.StartsWith('.') && !id.Contains("..")
+        && id.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.');
 
     private static void EnsureInsidePlugins(string folder)
     {

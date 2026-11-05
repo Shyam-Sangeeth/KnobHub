@@ -93,15 +93,16 @@ namespace {
 // exactly like a finger on the knob's screen. They're queued so a quick tap isn't lost between two reads.
 struct TouchSample {
     int16_t x, y;
-    bool down;
+    bool down, cancel = false;
 };
 std::deque<TouchSample> touches;
 TouchSample current_touch = {0, 0, false};  // what LVGL last read
 
-void read_remote_touch(lv_indev_t*, lv_indev_data_t* data) {
+void read_remote_touch(lv_indev_t* indev, lv_indev_data_t* data) {
     if (!touches.empty()) {
         current_touch = touches.front();
         touches.pop_front();
+        if (current_touch.cancel) lv_indev_reset(indev, nullptr);  // forgets the press: lifting it isn't a tap
     }
     data->point.x = current_touch.x;
     data->point.y = current_touch.y;
@@ -111,18 +112,24 @@ void read_remote_touch(lv_indev_t*, lv_indev_data_t* data) {
 
 }  // namespace
 
-void knob_os_report_touch(int x, int y, bool down) {
+void knob_os_report_touch(int x, int y, bool down, bool cancelled) {
     JsonDocument touch;
     touch["t"] = "touch";
     touch["x"] = x;
     touch["y"] = y;
     touch["down"] = down;
+    if (cancelled) touch["cancel"] = true;
     hub_link::send(touch);
 }
 
 void knob_os_touch(int x, int y, bool down) {
     knob_os_report_touch(x, y, down);
     if (touches.size() < 64) touches.push_back({static_cast<int16_t>(x), static_cast<int16_t>(y), down});
+}
+
+void knob_os_cancel_touch(int x, int y) {
+    knob_os_report_touch(x, y, false, true);
+    if (touches.size() < 64) touches.push_back({static_cast<int16_t>(x), static_cast<int16_t>(y), false, true});
 }
 
 void knob_os_link_connected(bool connected) { hub_link::set_connected(connected); }

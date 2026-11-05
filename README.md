@@ -12,6 +12,7 @@
   <img src="design/screenshots/media/media.png" width="160" alt="Media, now playing" />
   <img src="design/screenshots/counter/counter-25.png" width="160" alt="Counter" />
   <img src="design/screenshots/displays/displays-main.png" width="160" alt="Displays, the main display" />
+  <img src="design/screenshots/timer/timer-running.png" width="160" alt="Timer, running" />
 </p>
 
 ---
@@ -271,6 +272,9 @@ About. Knob Hub's Settings page has them too. The knob keeps its settings itself
 them before Knob Hub connects; once connected, Knob Hub's saved settings win, and a change on either side shows on the
 other.
 
+Each row shows its setting under its name. Press a row to change it: brightness opens a dial, where turning sets it
+and a press goes to the lowest (LEDs **Off**, the screen 5%, so it stays readable) and back to 100%.
+
 **Screen timeout:** after the chosen time with nothing done on the knob, the screen turns off. The next turn, press or
 touch only wakes it; it doesn't act. A message from Knob Hub (e.g. "Sonar is off") wakes it too, and the timeout starts
 again; apps updating their screens don't. An app can keep the screen on while it needs it (Timer, while it runs):
@@ -367,9 +371,10 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
 - **Knob Hub** checks GitHub for a newer version a little after it starts (turn it off in Settings) and says so in
   a Windows notification. **Check for updates** in Settings checks now. **Download and install** fetches the
   installer, checks it against the release's SHA-256, and runs it: Knob Hub closes, updates and starts again, with
-  its settings and apps kept.
+  its settings and apps kept. If GitHub doesn't give a SHA-256 for the installer, Knob Hub doesn't run it: download
+  it from the releases page instead.
 - **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
-  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.2 is ready: see Knob Hub" once when
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.3 is ready: see Knob Hub" once when
   it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
   keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
   USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
@@ -513,8 +518,8 @@ Each build also makes `knob-os.bin`: the bootloader, the partition table and Kno
 (`knob-os/scripts/merged.py`). It's copied to `%USERPROFILE%\.cache\knob-os\firmware\`, with `firmware.json` saying
 each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
 installs from it. To flash a release's image by hand, put the knob in its loader first: hold its boot button while
-you plug it in (esptool can't restart Knob OS 1.0.2 into it). Then use
-`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.2-crowpanel-1.28.bin`, with the port the loader is on
+you plug it in (esptool can't restart Knob OS 1.0.3 into it). Then use
+`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.3-crowpanel-1.28.bin`, with the port the loader is on
 ("USB JTAG/serial debug unit"). Unlike Knob Hub, that also clears the knob's pairing and Wi-Fi network.
 
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).

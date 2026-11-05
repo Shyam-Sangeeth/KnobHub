@@ -51,6 +51,16 @@ void pop() {
     show_top();
 }
 
+void remove(Screen* screen) {
+    for (size_t i = 1; i < stack.size(); i++) {
+        if (stack[i] != screen) continue;
+        delete screen;
+        stack.erase(stack.begin() + static_cast<std::ptrdiff_t>(i));
+        show_top();
+        return;
+    }
+}
+
 void replace(Screen* screen) {
     add_back_gesture(screen);
     if (stack.size() > 1) {

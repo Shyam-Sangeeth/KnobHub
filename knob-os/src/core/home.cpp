@@ -99,8 +99,11 @@ private:
     void rebuild_pages() {
         const Page clock{PageKind::Clock, {"clock", "Clock", "", "clock", theme::Text}};
         const Board& board = hal_board();
-        const char* groups = board.leds > 0 ? "Display, Lights, Connection"
-                           : board.vibration || board.motor ? "Display, Haptics, Connection" : "Display, Connection";
+        const bool haptics = board.vibration || board.motor;
+        const char* groups = board.leds > 0 && haptics ? "Display, Lights, Haptics"  // all four don't fit
+                           : board.leds > 0           ? "Display, Lights, Connection"
+                           : haptics                  ? "Display, Haptics, Connection"
+                                                      : "Display, Connection";
         const Page settings{PageKind::Settings, {"settings", "Settings", groups, "settings", theme::Settings}};
         std::vector<Page> rest;
         for (const AppInfo& app : apps::list()) rest.push_back({PageKind::App, app});

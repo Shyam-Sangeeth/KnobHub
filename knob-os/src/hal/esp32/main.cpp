@@ -166,9 +166,29 @@ struct {
     int x = 0, y = 0;
 } finger;
 
-void read_touch(lv_indev_t*, lv_indev_data_t* data) {
+// The knob is pressed by pushing the screen, so a push touches it too, and the tap would act as well as the press
+// (pressing About on the Settings list opened Connection, the row in the middle). A touch under way when the button
+// goes down is cancelled, not a tap, and so is one that starts while it's down; the finger is ignored until it's lifted.
+bool touch_ignored = false;
+
+void read_touch(lv_indev_t* indev, lv_indev_data_t* data) {
     int x, y;
     bool down = touch_read(x, y);
+    if (touch_ignored && !down) touch_ignored = false;
+    if (!touch_ignored && down && digitalRead(PIN_ENCODER_PRESS) == LOW) {
+        touch_ignored = true;
+        if (finger.down) {
+            finger.down = false;
+            lv_indev_reset(indev, nullptr);  // forgets the press: lifting it isn't a tap
+            knob_os_report_touch(finger.x, finger.y, false, true);
+        }
+    }
+    if (touch_ignored) {
+        data->point.x = finger.x;
+        data->point.y = finger.y;
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
     int size = hal_board().size;
     if (down) {
 #ifdef SCREEN_UPSIDE_DOWN
@@ -262,12 +282,16 @@ void start_knob() {
 }
 
 void poll_knob() {
+    uint32_t now = millis();
+    bool raw = digitalRead(PIN_ENCODER_PRESS) == LOW;
+
+    // Pushing the knob in can turn it a click, which would move the choice before the press lands (pressing About
+    // opened Connection, the row above). Turns while it's held in are dropped.
     int steps = encoder_steps.exchange(0);
+    if (raw || button.down) steps = 0;
     for (; steps > 0; steps--) knob_os_input(KnobInput::TurnRight);
     for (; steps < 0; steps++) knob_os_input(KnobInput::TurnLeft);
 
-    uint32_t now = millis();
-    bool raw = digitalRead(PIN_ENCODER_PRESS) == LOW;
     if (raw != button.raw) {
         button.raw = raw;
         button.raw_since = now;

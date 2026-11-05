@@ -1,6 +1,7 @@
 // "list": a list of rows, e.g. output devices or a Settings page.
 //   title, color, note (small pill under the title, optional), hint,
-//   items [{id, label, detail, value, icon, selected (the current one, ticked), danger}], focus (item id, optional)
+//   items [{id, label, value and detail (under the label), icon, selected (the current one, ticked), danger}],
+//   focus (item id, optional)
 // Turning moves the highlight; pressing reports press (item). Tapping a row does the same. Three rows show at a time.
 #include <algorithm>
 #include <cmath>
@@ -179,43 +180,41 @@ private:
             lv_obj_align(icon, LV_ALIGN_LEFT_MID, ui::px(9), 0);
             text_x = ui::px(28);
         }
-        // The label comes first: the tick or value on the right gets what the label leaves (shortened with "..." if
-        // that's not enough, never below a short minimum), and the detail line goes under the label.
-        const int RightPad = ui::px(10), ValueGap = ui::px(6), MinValue = ui::px(36);
+        // The label, and under it the value and the detail ("value · detail" when there are both); the selected row
+        // has a tick on the right. A line that doesn't fit scrolls on the highlighted row and ends in "..." on the others.
+        const int RightPad = ui::px(10), TickGap = ui::px(6);
         const lv_font_t* label_font = ui::font(14);
         const lv_font_t* small = ui::font(12);
-        const int space = row_width - text_x - RightPad;
-        lv_obj_t* label = ui::label(obj, row.label.c_str(), label_font, row.danger ? DangerText : theme::Text);
-        lv_obj_update_layout(label);
-        int text_width = space;
-        if (row.selected || !row.value.empty()) {
-            lv_obj_t* end = row.selected ? ui::label(obj, LV_SYMBOL_OK, small, color_)
-                                         : ui::label(obj, row.value.c_str(), small, theme::TextSecondary);
-            lv_obj_update_layout(end);
-            int end_width = lv_obj_get_width(end);
-            int label_room = std::min<int>(lv_obj_get_width(label), space - ValueGap - std::min(end_width, MinValue));
-            ui::one_line(end, space - ValueGap - label_room);
-            // A value is centred by its letters, like the label; the tick by its box.
-            if (row.selected) lv_obj_align(end, LV_ALIGN_RIGHT_MID, -RightPad, 0);
-            else lv_obj_align(end, LV_ALIGN_TOP_RIGHT, -RightPad, (row_height - ui::ink_height(small)) / 2 - ui::ink_top(small));
-            lv_obj_update_layout(end);
-            text_width = space - ValueGap - lv_obj_get_width(end);
+        int text_width = row_width - text_x - RightPad;
+        if (row.selected) {
+            lv_obj_t* tick = ui::label(obj, LV_SYMBOL_OK, small, color_);
+            lv_obj_align(tick, LV_ALIGN_RIGHT_MID, -RightPad, 0);
+            lv_obj_update_layout(tick);
+            text_width -= TickGap + lv_obj_get_width(tick);
         }
-        ui::one_line(label, text_width);
+        lv_obj_t* label = ui::label(obj, row.label.c_str(), label_font, row.danger ? DangerText : theme::Text);
+        fit(label, text_width, focused);
+        std::string second = row.value;
+        if (!row.detail.empty()) second = second.empty() ? row.detail : second + " \xC2\xB7 " + row.detail;
 
         // Placed by their letters, so one line sits in the middle and two sit evenly with a fixed gap.
         const int LineGap = ui::px(5);
         const int label_top = ui::ink_top(label_font), label_height = ui::ink_height(label_font);
-        if (row.detail.empty()) {
+        if (second.empty()) {
             lv_obj_set_pos(label, text_x, (row_height - label_height) / 2 - label_top);
             return;
         }
-        const int detail_height = ui::ink_height(small);
-        const int top = (row_height - (label_height + LineGap + detail_height)) / 2 - ui::px(1);  // a little up: room for g, p, y
+        const int second_height = ui::ink_height(small);
+        const int top = (row_height - (label_height + LineGap + second_height)) / 2 - ui::px(1);  // a little up: room for g, p, y
         lv_obj_set_pos(label, text_x, top - label_top);
-        lv_obj_t* detail = ui::label(obj, row.detail.c_str(), small, theme::TextSecondary);
-        ui::one_line(detail, text_width);
-        lv_obj_set_pos(detail, text_x, top + label_height + LineGap - ui::ink_top(small));
+        lv_obj_t* under = ui::label(obj, second.c_str(), small, theme::TextSecondary);
+        fit(under, text_width, focused);
+        lv_obj_set_pos(under, text_x, top + label_height + LineGap - ui::ink_top(small));
+    }
+
+    static void fit(lv_obj_t* label, int width, bool scroll) {
+        if (scroll) ui::marquee(label, width);
+        else ui::one_line(label, width);
     }
 
     static void on_click(lv_event_t* e) {

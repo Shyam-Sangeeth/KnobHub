@@ -22,7 +22,9 @@ public abstract class KnobScreen
 }
 
 /// <summary>One big value on a 270° arc, e.g. a volume. Turning reports rotate (+1/-1, the knob moves the value by
-/// 2 right away); pressing reports press (e.g. mute); tapping the button reports tap with its id.</summary>
+/// 2 right away). Pressing mutes or unmutes a dial that <see cref="Mutes"/>, and sends any other to <see cref="Min"/>
+/// and back to 100, right away; it reports press with the new state as the delta (1 muted, 0 not; or the new value).
+/// Tapping the button reports tap with its id.</summary>
 public sealed class DialScreen : KnobScreen
 {
     /// <inheritdoc />
@@ -34,11 +36,18 @@ public sealed class DialScreen : KnobScreen
     public string? Color { get; set; }
     /// <summary>0-100.</summary>
     public int Value { get; set; }
+    /// <summary>The lowest value turning and pressing go to; 0 if not set.</summary>
+    public int Min { get; set; }
     /// <summary>After the value; "%" if not set.</summary>
     public string? Unit { get; set; }
     /// <summary>0-1: a live meter inside the arc.</summary>
     public double? Level { get; set; }
     public bool Muted { get; set; }
+    /// <summary>Pressing mutes and unmutes (e.g. a volume) instead of going to <see cref="Min"/> and 100. Knob OS 1.0.2
+    /// and earlier always mute.</summary>
+    public bool Mutes { get; set; }
+    /// <summary>Shown instead of the value while muted or at 0; "Muted" or "Off" if not set.</summary>
+    public string? OffText { get; set; }
     /// <summary>A button under the value, e.g. the output device.</summary>
     public DialButton? Button { get; set; }
     public string? Hint { get; set; }
@@ -114,7 +123,8 @@ public sealed class ListScreen : KnobScreen
 
 /// <summary>A row on a <see cref="ListScreen"/>.</summary>
 /// <param name="Selected">The current choice: shown with a tick.</param>
-/// <param name="Value">Right-aligned text, e.g. "30 s".</param>
+/// <param name="Detail">A line under the label.</param>
+/// <param name="Value">The setting's value, e.g. "30 s", under the label (before the detail when there's both).</param>
 public sealed record ListRow(string Id, string Label, string? Detail = null, string? Icon = null, bool Selected = false,
                              string? Value = null, bool Danger = false);
 
@@ -202,8 +212,8 @@ public sealed class CardsScreen : KnobScreen
 public sealed record Card(string Id, string Label, string Icon, string? Color = null, string? Detail = null, bool Selected = false);
 
 /// <summary>What's playing. Turning seeks 5 s per step (the knob shows the new position right away) and reports
-/// rotate +1/-1. Pressing, tapping the art or the play button reports tap "play"; the other buttons and swipes report
-/// tap "previous" / "next". While <see cref="Playing"/>, the knob moves the position on by itself.</summary>
+/// rotate +1/-1. Pressing or tapping the play button reports tap "play"; the other buttons report tap "previous" /
+/// "next". While <see cref="Playing"/>, the knob moves the position on by itself.</summary>
 public sealed class MediaScreen : KnobScreen
 {
     /// <inheritdoc />

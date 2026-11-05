@@ -121,6 +121,9 @@ uint32_t join_since = 0;
 int join_channel = 0;  // 0: not seen in the scan
 uint8_t join_bssid[6];
 bool join_started = false;
+// Set when the network being joined gives the knob an address. WiFi.status() can still say connected to the network
+// it's leaving for a moment after WiFi.begin, so that alone doesn't mean the new one worked.
+volatile bool join_got_ip = false;
 volatile int last_reason = 0;  // WIFI_REASON_*, from the last disconnect
 int fail_reason = 0;           // last_reason when the join was given up
 uint32_t not_joined_since = 0;  // the saved network, while not joined
@@ -138,6 +141,7 @@ void radio_mode(wifi_mode_t mode) {
 
 WifiState state() {
     if (setup_on) return WifiState::Setup;
+    if (join == Join::Joining) return WifiState::Connecting;  // not Failed while it tries, however long the saved one was gone
     if (ssid.empty()) return WifiState::Off;
     if (WiFi.status() == WL_CONNECTED) return WifiState::Connected;
     return millis() - not_joined_since > FailedAfterMs ? WifiState::Failed : WifiState::Connecting;
@@ -321,6 +325,8 @@ void page_join() {
 // worked; another network can have the same name (e.g. "Wi-Fi"), or a router several access points.
 void start_join() {
     join_started = true;
+    // Already on this network with this password: WiFi.begin keeps the connection, so no new address comes.
+    join_got_ip = WiFi.status() == WL_CONNECTED && join_ssid == WiFi.SSID().c_str() && join_password == WiFi.psk().c_str();
     if (setup_on && join_channel > 0) {
         WiFi.softAP(setup_network.c_str(), setup_password.c_str(), join_channel);
         WiFi.begin(join_ssid.c_str(), join_password.c_str(), join_channel, join_bssid);
@@ -430,7 +436,7 @@ void poll_join() {
     if (join == Join::Joining && !join_started) {
         if (now - join_since >= StartJoinAfterMs) start_join();
     } else if (join == Join::Joining) {
-        if (WiFi.status() == WL_CONNECTED) {
+        if (join_got_ip && WiFi.status() == WL_CONNECTED) {
             if (setup_on) {
                 join = Join::Joined;
                 setup_until = now + SetupAfterJoinMs;
@@ -700,6 +706,7 @@ void start(int board_tx_power) {
     WiFi.setAutoReconnect(true);
     WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) { last_reason = info.wifi_sta_disconnected.reason; },
                  ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t) { join_got_ip = true; }, ARDUINO_EVENT_WIFI_STA_GOT_IP);
     join_saved();
 }
 
@@ -813,7 +820,7 @@ void hal_set_name(const std::string& name) {
 WifiStatus hal_wifi() {
     WifiStatus s;
     s.state = net::state();
-    if (s.state != WifiState::Off && s.state != WifiState::Setup) s.network = net::ssid;
+    if (s.state != WifiState::Off && s.state != WifiState::Setup) s.network = net::join == net::Join::Joining ? net::join_ssid : net::ssid;
     if (s.state == WifiState::Setup) {
         s.setup_network = net::setup_network;
         s.setup_password = net::setup_password;

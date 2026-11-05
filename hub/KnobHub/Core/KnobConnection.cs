@@ -99,7 +99,13 @@ internal abstract class LineConnection : IKnobConnection
         lock (_writeLock)
         {
             try { stream?.Write(bytes); stream?.Flush(); }
-            catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or TimeoutException) { }
+            catch (Exception ex) when (ex is IOException or TimeoutException)
+            {
+                // Timed out (a knob gone from Wi-Fi, a stuck port): part of the line may have gone, so the link can't
+                // be trusted. Let go of it; it's opened again.
+                if (stream == _writer) _current?.Cancel();
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException) { }
         }
     }
 

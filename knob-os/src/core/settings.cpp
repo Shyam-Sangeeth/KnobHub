@@ -264,11 +264,15 @@ void fill_page(Page p, JsonDocument& d) {
     }
 }
 
+// The LEDs can go off; the screen stays readable.
+int dial_min() { return dial_is_leds ? 0 : 5; }
+
 void fill_dial(JsonDocument& d) {
     d["label"] = dial_is_leds ? "LED BRIGHTNESS" : "BRIGHTNESS";
     d["icon"] = dial_is_leds ? "lights" : "sun";
     d["color"] = "#F2C14E";
     d["value"] = dial_is_leds ? values.led_brightness : values.brightness;
+    d["min"] = dial_min();
     d["button"] = false;
 }
 
@@ -295,9 +299,12 @@ void go_back() {
 }
 
 void on_dial(const TemplateEvent& ev) {
+    int& v = dial_is_leds ? values.led_brightness : values.brightness;
     if (std::strcmp(ev.kind, "rotate") == 0) {
-        int& v = dial_is_leds ? values.led_brightness : values.brightness;
-        v = std::min(100, std::max(dial_is_leds ? 0 : 5, v + ev.delta * 2));
+        v = std::min(100, std::max(dial_min(), v + ev.delta * 2));
+        changed();
+    } else if (std::strcmp(ev.kind, "press") == 0) {
+        v = ev.delta;  // the dial went to its lowest or to 100
         changed();
     } else if (std::strcmp(ev.kind, "back") == 0) {
         go_back();
@@ -399,9 +406,12 @@ void apply_from_hub(JsonObjectConst msg) {
     }
 }
 
+void forget_wifi_screens();
+
 void forget_pages() {
     page = Page::None;
     page_screen = nullptr;
+    forget_wifi_screens();
 }
 
 void send_all() {
@@ -482,7 +492,7 @@ void stop_leave_after() {
 void close_pc_screen() {
     stop_leave_after();
     if (!pc_screen) return;
-    if (screens::top() == pc_screen) screens::pop();
+    screens::remove(pc_screen);  // also when something was opened over it
     pc_screen = nullptr;
     pc_join.clear();
 }
@@ -529,6 +539,14 @@ void show_pc_screen() {
 
 }  // namespace
 
+// Already deleted (Home was shown under them): a pairing mode still on shows its screen again on the next change.
+void forget_wifi_screens() {
+    stop_leave_after();
+    pc_screen = nullptr;
+    pc_join.clear();
+    setup_screen = nullptr;
+}
+
 void wifi_changed() {
     WifiStatus w = hal_wifi();
     if (pc_screen && !w.joining.empty()) pc_join = w.joining;
@@ -558,7 +576,7 @@ void wifi_changed() {
         show_setup(w);
     } else if (w.state != WifiState::Setup && setup_screen) {
         // Setup ended by itself (joined a network, or its time ran out), not by pressing.
-        if (screens::top() == setup_screen) screens::pop();
+        screens::remove(setup_screen);
         setup_screen = nullptr;
         toast_show(w.state == WifiState::Connected ? ("Connected to " + w.network).c_str() : "Wi-Fi setup ended");
     }

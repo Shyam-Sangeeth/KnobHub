@@ -36,11 +36,19 @@ internal static class AppCatalog
     /// <summary>The newest release of each app in <paramref name="repo"/> ("owner/name"), by name.</summary>
     public static async Task<List<CatalogApp>> LoadAsync(string repo, CancellationToken cancel = default)
     {
-        string json = await Http.GetStringAsync($"https://api.github.com/repos/{repo}/releases?per_page=100", cancel);
+        // Every release, 100 a page (GitHub's most), up to 1,000.
+        var releases = new List<JsonObject>();
+        for (int page = 1; page <= 10; page++)
+        {
+            string json = await Http.GetStringAsync($"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}", cancel);
+            var some = (JsonNode.Parse(json) as JsonArray ?? []).OfType<JsonObject>().ToList();
+            releases.AddRange(some);
+            if (some.Count < 100) break;
+        }
         // The newest version of each app, by the files' names; only its app.json is downloaded.
         var newest = new Dictionary<string, (string Version, JsonObject Package, JsonObject? Manifest, JsonObject Release)>(
             StringComparer.OrdinalIgnoreCase);
-        foreach (var release in (JsonNode.Parse(json) as JsonArray ?? []).OfType<JsonObject>())
+        foreach (var release in releases)
         {
             if (Flag(release, "draft") || Flag(release, "prerelease")) continue;
             var assets = (release["assets"] as JsonArray ?? []).OfType<JsonObject>().ToList();
@@ -59,6 +67,7 @@ internal static class AppCatalog
         {
             var manifest = manifestAsset != null ? await ReadManifest(manifestAsset.Str("browser_download_url"), cancel) : null;
             manifest ??= new AppManifest { Id = id, Name = string.IsNullOrEmpty(release.Str("name")) ? id : release.Str("name") };
+            if (!AppManager.IsValidId(manifest.Id)) continue;  // it couldn't be installed, and the id names a temp file
             if (string.IsNullOrEmpty(manifest.Version)) manifest.Version = version;
             apps.Add(new CatalogApp(manifest, package.Str("browser_download_url"), release.Str("html_url")));
         }

@@ -232,8 +232,9 @@ internal sealed class KnobSession : IDisposable
                 if (input >= 0) Preview.Input(input);
                 return;
             case "touch":
-                Preview.Touch(Rescale(msg.Int("x"), _knobBoard.Size, Preview.Size), Rescale(msg.Int("y"), _knobBoard.Size, Preview.Size),
-                    msg["down"] is JsonValue d && d.TryGetValue(out bool down) && down);
+                int touchX = Rescale(msg.Int("x"), _knobBoard.Size, Preview.Size), touchY = Rescale(msg.Int("y"), _knobBoard.Size, Preview.Size);
+                if (msg["cancel"] is JsonValue c && c.TryGetValue(out bool cancel) && cancel) Preview.CancelTouch(touchX, touchY);
+                else Preview.Touch(touchX, touchY, msg["down"] is JsonValue d && d.TryGetValue(out bool down) && down);
                 return;
             case "icon_request":
                 SendIcon(msg, toKnob: true);
