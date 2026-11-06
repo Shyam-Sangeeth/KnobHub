@@ -198,7 +198,12 @@ internal sealed class MainViewModel : Observable
     public int Brightness { get => Knob.Brightness; set { Knob.Brightness = value; Changed(); } }
     public int LedBrightness { get => Knob.LedBrightness; set { Knob.LedBrightness = value; Changed(); } }
     public int LedMode { get => Knob.LedMode; set { Knob.LedMode = value; Changed(); } }
-    public int Timeout { get => Knob.Timeout; set { Knob.Timeout = value; Changed(); } }
+    /// <summary>The Screen timeout's position in <see cref="Timeouts"/>: the choice the time is, or the next longer one.</summary>
+    public int Timeout
+    {
+        get => Array.FindIndex(KnobSettings.TimeoutChoices, c => c == Knob.TimeoutSeconds || (Knob.TimeoutSeconds > 0 && c >= Knob.TimeoutSeconds) || c == 0);
+        set { if (value >= 0) { Knob.TimeoutSeconds = KnobSettings.TimeoutChoices[value]; Changed(); } }
+    }
     public bool DimIdle { get => Knob.DimIdle; set { Knob.DimIdle = value; Changed(); } }
     public bool LedsIdleOff { get => Knob.LedsIdleOff; set { Knob.LedsIdleOff = value; Changed(); } }
     public bool Vibration { get => Knob.Vibration; set { Knob.Vibration = value; Changed(); } }

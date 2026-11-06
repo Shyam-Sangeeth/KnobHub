@@ -58,9 +58,11 @@ for pixel tests.
   arc is (start, sweep); Knob OS turns it into LED colours by the Lights settings (Level meter, App colour, Off) and
   passes them to `hal_set_leds`. A screen with a new kind of arc returns its own start and sweep. The preview shows
   them as a glow (`ShowLeds`): one LED a halo, several along the arc, one part per LED.
-- **Screen timeout** (`idle.h`): the time since the last input (LVGL's inactive time; `idle::input()` counts knob
-  turns and presses) dims and then turns off the screen. An input while it's off only wakes it: knob inputs are dropped
-  in `knob_os_input`, touches by a layer over everything until the finger lifts. A toast wakes it (`idle::wake`); app
+- **Screen timeout** (`idle.h`): `KnobSettings::timeout_seconds` (0 = never; `timeout_seconds` on the link since Knob
+  OS 1.0.6). The older `timeout` (a position in 15 s, 30 s, 1 min, 5 min, never) is still sent and taken, for older
+  versions and old settings files, on both sides (`settings.cpp`, Knob Hub's `KnobSettings`). The time since the last
+  input (LVGL's inactive time; `idle::input()` counts knob turns and presses) dims and then turns off the screen. An
+  input while it's off only wakes it: knob inputs are dropped in `knob_os_input`, touches by a layer over everything until the finger lifts. A toast wakes it (`idle::wake`); app
   screen updates don't, or the Media app's position updates would keep it on. An app can keep it on
   (`IKnobHost.KeepAwake`): Knob Hub sends `awake` while any app wants it, again after each hello, and the knob lets
   go when the link drops (`idle::keep_awake`). Settings > Connection and its Wi-Fi screens hold it on the same way
@@ -100,8 +102,8 @@ when screens change.
 
 - **Behaviour:** `python -I tools/checks.py` (LEDs and dial presses, pictures, haptics, toasts, screen timeout,
   cards, the Wi-Fi screen, the busy spinner, keeping the screen awake, push vs tap, the picker, odd app data, scrolling
-  text, settings changed while away) through the preview DLL. Add a check there when you add behaviour.
-- **Knob Hub and app code:** `dotnet run --project tools\hub-tests` (the Timer and AudioDesk apps, app ids, the Add
+  text, settings changed while away, the timeout choices) through the preview DLL. Add a check there when you add behaviour.
+- **Knob Hub and app code:** `dotnet run --project tools\hub-tests` (the Timer and AudioDesk apps, the timeout setting, app ids, the Add
   apps catalog, the updater's checksum). Add to it when you change that code.
 - **New helper scripts** go in `tools/` (with a usage header and a line in its README), not left in a scratch folder.
 - **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical

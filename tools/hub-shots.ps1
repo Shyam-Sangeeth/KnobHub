@@ -41,7 +41,10 @@ if (Test-Path $simData) { Copy-Item $simData "$backup\Simulator" -Recurse }
 # The screen stays on for the shots: no timeout, no dimming (the settings are restored afterwards).
 if (Test-Path $hubSettings) {
   $json = Get-Content $hubSettings -Raw | ConvertFrom-Json
-  if ($json.knob) { $json.knob.timeout = 4; $json.knob.dimIdle = $false }
+  if ($json.knob) {
+    $json.knob.timeout = 4; $json.knob.dimIdle = $false
+    $json.knob | Add-Member -NotePropertyName timeoutSeconds -NotePropertyValue 0 -Force
+  }
   # Without -Board no knob may connect: not even the paired one over Wi-Fi (the pairing is restored afterwards).
   if (-not $Board -and $json.paired) { $json.paired = $null }
   $json | ConvertTo-Json -Depth 20 | Set-Content $hubSettings -Encoding UTF8

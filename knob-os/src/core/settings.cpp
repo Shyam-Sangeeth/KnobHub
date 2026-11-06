@@ -27,8 +27,35 @@ namespace {
 constexpr const char* SettingsFile = "settings.json";
 KnobSettings values;
 
-const char* const TimeoutNames[] = {"15 s", "30 s", "1 min", "5 min", "Never"};
-constexpr int TimeoutCount = 5;
+// The Screen timeout choices, in seconds (0 = never, last). Knob Hub can send any time (timeout_seconds); before Knob
+// OS 1.0.6 the setting was the position in {15 s, 30 s, 1 min, 5 min, never} ("timeout"), still sent for older Knob
+// Hubs and still taken from them.
+constexpr int TimeoutChoices[] = {60, 120, 300, 600, 900, 1200, 1800, 3600, 0};
+constexpr int OldTimeoutSeconds[] = {15, 30, 60, 300, 0};
+
+// The nearest of the old choices, for older Knob Hubs.
+int old_timeout(int seconds) {
+    if (seconds == 0) return 4;
+    return seconds <= 22 ? 0 : seconds <= 45 ? 1 : seconds <= 180 ? 2 : 3;
+}
+
+// The next choice after this time: pressing the row steps through them.
+int next_timeout(int seconds) {
+    if (seconds == 0) return TimeoutChoices[0];
+    for (int c : TimeoutChoices)
+        if (c == 0 || c > seconds) return c;
+    return 0;
+}
+
+std::string timeout_name(int seconds) {
+    char s[16];
+    if (seconds == 0) return "Never";
+    if (seconds % 3600 == 0) std::snprintf(s, sizeof s, "%d hour%s", seconds / 3600, seconds == 3600 ? "" : "s");
+    else if (seconds % 60 == 0) std::snprintf(s, sizeof s, "%d min", seconds / 60);
+    else std::snprintf(s, sizeof s, "%d s", seconds);
+    return s;
+}
+
 const char* const LedModeNames[] = {"Level meter", "App colour", "Off"};
 constexpr int LedModeCount = 3;
 const char* const StrengthNames[] = {"Light", "Medium", "Strong"};
@@ -46,7 +73,8 @@ void save() {
     d["brightness"] = values.brightness;
     d["led_brightness"] = values.led_brightness;
     d["led_mode"] = values.led_mode;
-    d["timeout"] = values.timeout;
+    d["timeout_seconds"] = values.timeout_seconds;
+    d["timeout"] = old_timeout(values.timeout_seconds);  // an older Knob OS flashed over this one reads this
     d["dim_idle"] = values.dim_idle;
     d["leds_idle_off"] = values.leds_idle_off;
     d["clock_24h"] = values.clock_24h;
@@ -63,7 +91,13 @@ void apply_values(JsonObjectConst msg) {
     if (msg["brightness"].is<int>()) values.brightness = std::min(100, std::max(5, msg["brightness"].as<int>()));
     if (msg["led_brightness"].is<int>()) values.led_brightness = std::min(100, std::max(0, msg["led_brightness"].as<int>()));
     if (msg["led_mode"].is<int>()) values.led_mode = std::min(LedModeCount - 1, std::max(0, msg["led_mode"].as<int>()));
-    if (msg["timeout"].is<int>()) values.timeout = std::min(TimeoutCount - 1, std::max(0, msg["timeout"].as<int>()));
+    if (msg["timeout_seconds"].is<int>()) {
+        values.timeout_seconds = std::min(86400, std::max(0, msg["timeout_seconds"].as<int>()));
+    } else if (msg["timeout"].is<int>()) {
+        // An older Knob Hub, or settings saved before 1.0.6: 15 and 30 s became 1 min.
+        int seconds = OldTimeoutSeconds[std::min(4, std::max(0, msg["timeout"].as<int>()))];
+        values.timeout_seconds = seconds == 0 ? 0 : std::max(TimeoutChoices[0], seconds);
+    }
     if (msg["dim_idle"].is<bool>()) values.dim_idle = msg["dim_idle"];
     if (msg["leds_idle_off"].is<bool>()) values.leds_idle_off = msg["leds_idle_off"];
     if (msg["clock_24h"].is<bool>()) values.clock_24h = msg["clock_24h"];
@@ -178,7 +212,7 @@ void fill_categories(JsonDocument& d) {
     display["id"] = "display";
     display["label"] = "Display";
     display["icon"] = "sun";
-    std::snprintf(detail, sizeof detail, "%d%%, %s", values.brightness, TimeoutNames[values.timeout]);
+    std::snprintf(detail, sizeof detail, "%d%%, %s", values.brightness, timeout_name(values.timeout_seconds).c_str());
     display["detail"] = detail;
     const Board& board = hal_board();
     if (board.leds > 0) {
@@ -231,7 +265,7 @@ void fill_page(Page p, JsonDocument& d) {
             d["title"] = "DISPLAY";
             std::snprintf(value, sizeof value, "%d%%", values.brightness);
             add_row(items, "brightness", "Brightness", "sun", value);
-            add_row(items, "timeout", "Screen timeout", "clock", TimeoutNames[values.timeout]);
+            add_row(items, "timeout", "Screen timeout", "clock", timeout_name(values.timeout_seconds).c_str());
             add_row(items, "dim", "Dim when idle", "sun", values.dim_idle ? "On" : "Off");
             add_row(items, "clock", "Clock", "clock", values.clock_24h ? "24-hour" : "12-hour");
             break;
@@ -342,7 +376,7 @@ void on_row(const TemplateEvent& ev) {
     }
     if (id == "brightness") return open_dial(false);
     if (id == "led_brightness") return open_dial(true);
-    if (id == "timeout") values.timeout = (values.timeout + 1) % TimeoutCount;
+    if (id == "timeout") values.timeout_seconds = next_timeout(values.timeout_seconds);
     else if (id == "dim") values.dim_idle = !values.dim_idle;
     else if (id == "clock") values.clock_24h = !values.clock_24h;
     else if (id == "led_mode") values.led_mode = (values.led_mode + 1) % LedModeCount;
@@ -394,13 +428,13 @@ void refresh() {
 }
 
 void apply_from_hub(JsonObjectConst msg) {
-    int timeout = values.timeout;
+    int timeout = values.timeout_seconds;
     bool dim_idle = values.dim_idle;
     apply_values(msg);
     hal_set_name(values.name);
     save();
     // A new timeout counts from now, not from the last time the knob was used (it turned the screen off at once).
-    if (values.timeout != timeout || values.dim_idle != dim_idle) idle::wake();
+    if (values.timeout_seconds != timeout || values.dim_idle != dim_idle) idle::wake();
     idle::refresh();
     haptics::reapply();
     if (page == Page::Dial && page_screen) {
@@ -424,7 +458,8 @@ void describe(JsonObject out) {
     out["brightness"] = values.brightness;
     out["led_brightness"] = values.led_brightness;
     out["led_mode"] = values.led_mode;
-    out["timeout"] = values.timeout;
+    out["timeout_seconds"] = values.timeout_seconds;
+    out["timeout"] = old_timeout(values.timeout_seconds);  // for older Knob Hubs
     out["dim_idle"] = values.dim_idle;
     out["leds_idle_off"] = values.leds_idle_off;
     out["clock_24h"] = values.clock_24h;

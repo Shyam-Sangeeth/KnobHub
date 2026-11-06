@@ -30,8 +30,10 @@
 //                                                             running): no timeout, no dimming (see idle.h)
 //   icon    {name, size, w, h, hash, a8}                      an icon Knob OS asked for (see icons.h)
 //   icons   {known: {name: hash}}                             the icons Knob Hub has, when it connects (see icons.h)
-//   settings{brightness, led_brightness, led_mode, timeout, dim_idle, leds_idle_off, clock_24h, vibration, haptics,
-//            name}                                           after hello and on change; any subset
+//   settings{brightness, led_brightness, led_mode,          after hello and on change; any subset. timeout_seconds
+//            timeout_seconds, timeout, dim_idle,             (0 = never) since Knob OS 1.0.6; timeout is the older
+//            leds_idle_off, clock_24h, vibration, haptics,   setting's position in {15 s, 30 s, 1 min, 5 min, never},
+//            name}                                           sent too for older versions and used without the other
 //   key     {input}                                           a knob action done in Knob Hub's preview of the knob
 //   touch   {x, y, down}                                      a touch in Knob Hub's preview (see knob_os_touch)
 //   sync    {page, app}                                       only to the preview: catch up with the real knob

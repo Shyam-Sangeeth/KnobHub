@@ -12,7 +12,6 @@
 namespace idle {
 namespace {
 
-constexpr uint32_t TimeoutMs[] = {15000, 30000, 60000, 300000, 0};  // the Screen timeout setting's; 0 = never
 constexpr uint32_t DimWithoutTimeoutMs = 60000;
 const char* const Names[] = {"awake", "dim", "off"};
 
@@ -32,7 +31,7 @@ void place_blocker();
 State due() {
     if (held) return State::Awake;
     const KnobSettings& s = settings::get();
-    uint32_t timeout = TimeoutMs[std::min(std::max(s.timeout, 0), 4)];
+    uint32_t timeout = static_cast<uint32_t>(s.timeout_seconds) * 1000;  // 0 = never
     uint32_t idle_ms = lv_display_get_inactive_time(nullptr);
     if (timeout && idle_ms >= timeout) return State::Off;
     if (s.dim_idle && idle_ms >= (timeout ? timeout / 2 : DimWithoutTimeoutMs)) return State::Dim;

@@ -13,7 +13,7 @@ that you send link messages to, turn, press and tap, and read the screen, bright
 
 | Script | What it does |
 |---|---|
-| `checks.py` | Checks behaviour: LEDs and dial presses, pictures from another screen size, haptics, toasts, the screen timeout, cards, the Wi-Fi screen (also after Knob Hub reconnects), the busy spinner, keeping the screen awake, a push that isn't a tap, the picker, odd app data, scrolling text, settings changed while Knob Hub is away. `--list` names them; pass names to run some. About five minutes, since the timeout waits for real. Exits with 1 on a failure. |
+| `checks.py` | Checks behaviour: LEDs and dial presses, pictures from another screen size, haptics, toasts, the screen timeout, cards, the Wi-Fi screen (also after Knob Hub reconnects), the busy spinner, keeping the screen awake, a push that isn't a tap, the picker, odd app data, scrolling text, settings changed while Knob Hub is away, the screen timeout's choices (also from an older Knob Hub). `--list` names them; pass names to run some. About five minutes, since the timeout waits for real. Exits with 1 on a failure. |
 | `tour.py <dir>` | Saves every kind of screen as PNGs (`--board`, `--screen 240/360/480`). |
 | `settings_shots.py [dir]` | Knob OS's own Settings screens as PNGs, into `design/screenshots/settings` by default. |
 | `timer_shots.py <dir>` | The Timer app's screens for the apps repository's README, with Knob Hub's real icons (build `hub-icons` in Release first). |
@@ -38,7 +38,7 @@ and compare them.
 
 | Tool | What it does |
 |---|---|
-| `dotnet run --project tools\hub-tests` | Tests Knob Hub's and the apps' code directly: the Timer app, the AudioDesk app with made-up channels (it never connects to AudioDesk), app ids, the Add apps catalog and the updater's checksum (both read GitHub). Build Knob Hub (Debug) first. Exits with the number of failures. |
+| `dotnet run --project tools\hub-tests` | Tests Knob Hub's and the apps' code directly: the Timer app, the AudioDesk app with made-up channels (it never connects to AudioDesk), the screen timeout setting (old and new settings files), app ids, the Add apps catalog and the updater's checksum (both read GitHub). Build Knob Hub (Debug) first. Exits with the number of failures. |
 | `tools\hub-icons` | Draws Knob Hub's built-in icons as the knob gets them (a line "name size" in, base64 A8 out), for `timer_shots.py`. |
 
 A Knob Hub running in the tray connects to any simulator you start, so it sees what you do there.

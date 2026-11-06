@@ -11,7 +11,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>KnobHub</AssemblyName>
     <RootNamespace>KnobHub</RootNamespace>
-    <Version>1.0.6</Version>
+    <Version>1.0.7</Version>
     <Product>Knob Hub</Product>
     <Company>Shyam Sangeeth</Company>
     <!-- WPF Fluent theme (ThemeMode) is still marked experimental. -->

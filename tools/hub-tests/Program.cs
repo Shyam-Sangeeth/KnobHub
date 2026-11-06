@@ -1,6 +1,7 @@
 // Tests Knob Hub's and the apps' code directly, without a knob or a window: the Timer app, the AudioDesk app (with
-// made-up channels; it never connects to AudioDesk), app ids, the Add apps catalog (reads GitHub) and the updater's
-// checksum (downloads a Knob OS 1.0.2 image from GitHub). Build Knob Hub (Debug) first, then from the repository root:
+// made-up channels; it never connects to AudioDesk), the screen timeout setting, app ids, the Add apps catalog (reads
+// GitHub) and the updater's checksum (downloads a Knob OS 1.0.2 image from GitHub). Build Knob Hub (Debug) first, then
+// from the repository root:
 //     dotnet run --project tools\hub-tests
 // Exits with the number of failures.
 using System.IO;
@@ -84,6 +85,28 @@ void Set(object o, string field, object? v) => o.GetType().GetField(field, Any)!
     app.GetType().GetMethod("OnChanged", Any)!.Invoke(app, null);
     update = host.Updates.LastOrDefault() ?? "";
     Expect("AudioDesk: after turning, updates carry muted and value again", update.Contains("muted") && update.Contains("\"value\""), true);
+}
+
+// ---- Screen timeout: seconds now; the older position still loads and goes out ----
+{
+    var hubAsm = Assembly.Load("KnobHub");
+    var settingsType = hubAsm.GetType("KnobHub.Core.KnobSettings")!;
+    var files = (JsonSerializerOptions)hubAsm.GetType("KnobHub.Core.Json")!.GetField("Files", Any)!.GetValue(null)!;
+    int Seconds(object k) => (int)settingsType.GetProperty("TimeoutSeconds")!.GetValue(k)!;
+    foreach (var (json, wanted) in new[] { ("{\"timeout\":0}", 60), ("{\"timeout\":3}", 300), ("{\"timeout\":4}", 0), ("{}", 60),
+                                           ("{\"timeout\":3,\"timeoutSeconds\":1200}", 1200) })
+        Expect($"Timeout: a settings file {json}", Seconds(JsonSerializer.Deserialize(json, settingsType, files)!), wanted);
+    var knob = Activator.CreateInstance(settingsType)!;
+    settingsType.GetProperty("TimeoutSeconds")!.SetValue(knob, 600);
+    string saved = JsonSerializer.Serialize(knob, settingsType, files);
+    Expect("Timeout: saved and loaded again", Seconds(JsonSerializer.Deserialize(saved, settingsType, files)!), 600);
+    var message = (System.Text.Json.Nodes.JsonObject)settingsType.GetMethod("ToMessage")!.Invoke(knob, null)!;
+    Expect("Timeout: sent as seconds and as the older position", $"{message["timeout_seconds"]} {message["timeout"]}", "600 3");
+    var apply = settingsType.GetMethod("Apply")!;
+    apply.Invoke(knob, [new System.Text.Json.Nodes.JsonObject { ["timeout_seconds"] = 3600, ["timeout"] = 3 }]);
+    Expect("Timeout: a knob's seconds win over its older position", Seconds(knob), 3600);
+    apply.Invoke(knob, [new System.Text.Json.Nodes.JsonObject { ["timeout"] = 1 }]);
+    Expect("Timeout: a knob before 1.0.6 (30 s) becomes 1 minute", Seconds(knob), 60);
 }
 
 // ---- Add apps: id check, and the catalog still loads ----

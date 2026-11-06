@@ -10,7 +10,7 @@ struct KnobSettings {
     int brightness = 80;       // screen, percent
     int led_brightness = 70;   // percent
     int led_mode = 0;          // 0 level meter, 1 app colour, 2 off
-    int timeout = 1;           // index into the timeout choices (15 s, 30 s, 1 min, 5 min, never)
+    int timeout_seconds = 60;  // screen timeout; 0 = never (Settings offers 1, 2, 5, 10, 15, 20, 30 min, 1 hour, never)
     bool dim_idle = true;
     bool leds_idle_off = true;  // Lights > "When dimmed": off while the screen is dimmed (always off with the screen)
     bool clock_24h = false;    // the Home clock: 12-hour with AM/PM, or 24-hour

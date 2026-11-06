@@ -119,7 +119,7 @@ def check_idle():
     """Dims halfway to the timeout, then turns off; an input while off only wakes it; a tap too; following a knob."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
-    k.send({"t": "settings", "brightness": 80, "timeout": 0, "dim_idle": True, "leds_idle_off": True, "led_mode": 1})
+    k.send({"t": "settings", "brightness": 80, "timeout_seconds": 15, "dim_idle": True, "leds_idle_off": True, "led_mode": 1})
     k.send(APPS, wait=0.3)
     k.turn_left()
     k.take()
@@ -153,9 +153,9 @@ def check_idle():
     expect("a replayed turn while following acts", [m["input"] for m in k.take("key")], ["right"])
     k.send({"t": "idle", "follow": False}, wait=0.3)
     expect("timing its own again: awake", k.brightness(), 80)
-    k.send({"t": "settings", "timeout": 4}, wait=0.3)
+    k.send({"t": "settings", "timeout_seconds": 0}, wait=0.3)
     k.run(20)
-    k.send({"t": "settings", "timeout": 0}, wait=0.3)
+    k.send({"t": "settings", "timeout_seconds": 15}, wait=0.3)
     expect("a timeout set after 20 s idle counts from then: awake", k.brightness(), 80)
     k.run(7.6)
     expect("and dims 7.5 s later", k.brightness(), 20)
@@ -165,7 +165,7 @@ def check_toasts():
     """A toast wakes the screen; an app's screen update doesn't; LEDs stay on when dimmed with When dimmed on."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
-    k.send({"t": "settings", "brightness": 80, "timeout": 0, "dim_idle": True, "leds_idle_off": False, "led_mode": 1})
+    k.send({"t": "settings", "brightness": 80, "timeout_seconds": 15, "dim_idle": True, "leds_idle_off": False, "led_mode": 1})
     k.send(APPS, wait=0.3)
     k.turn_left()
     k.run(15.3)
@@ -357,7 +357,7 @@ def check_awake():
     with the link. Settings > Connection keeps it on too."""
     k = Knob(board="crowpanel-1.28")
     k.connect()
-    k.send({"t": "settings", "brightness": 80, "timeout": 0, "dim_idle": True})
+    k.send({"t": "settings", "brightness": 80, "timeout_seconds": 15, "dim_idle": True})
     k.send({"t": "awake", "on": True}, wait=0.3)
     k.run(16)
     expect("kept awake: 16 s idle with a 15 s timeout, not even dimmed", k.brightness(), 80)
@@ -500,11 +500,37 @@ def check_away():
     expect("and doesn't go in the next hello", [("settings" in m) for m in k.take("hello")], [False])
 
 
+def check_timeout():
+    """Screen timeout: pressing its row steps through 1, 2, 5, 10, 15, 20, 30 min, 1 hour, never; an older Knob Hub's
+    position (15 s, 30 s, 1 min, 5 min, never) still works, and the older field goes out too."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send({"t": "apps", "items": [], "order": ["clock", "settings"]}, wait=0.3)
+    k.send({"t": "settings", "timeout": 0}, wait=0.2)  # an older Knob Hub's 15 s: 1 minute now
+    k.turn_right()
+    k.press(wait=0.8)       # Settings
+    k.press()               # Display
+    k.turn_right(wait=0.3)  # Screen timeout
+    k.take("settings")
+    steps = []
+    for _ in range(9):
+        k.press(wait=0.3)
+        steps += [(m.get("timeout_seconds"), m.get("timeout")) for m in k.take("settings")]
+    expect("pressing steps through the choices (with the older field)", steps,
+           [(120, 2), (300, 3), (600, 3), (900, 3), (1200, 3), (1800, 3), (3600, 3), (0, 4), (60, 2)])
+    k.send({"t": "settings", "timeout": 3}, wait=0.2)  # an older Knob Hub's 5 min
+    k.press(wait=0.3)
+    expect("an older Knob Hub's 5 min, then the next", [m.get("timeout_seconds") for m in k.take("settings")], [600])
+    k.send({"t": "settings", "timeout_seconds": 45}, wait=0.2)  # any time is taken; the next choice is 1 min
+    k.press(wait=0.3)
+    expect("from a time between the choices", [m.get("timeout_seconds") for m in k.take("settings")], [60])
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
           "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy, "awake": check_awake,
           "push": check_push, "picker": check_picker,
           "screens": check_screens, "marquee": check_marquee,
-          "away": check_away}
+          "away": check_away, "timeout": check_timeout}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:
