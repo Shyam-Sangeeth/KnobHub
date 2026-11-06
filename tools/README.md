@@ -27,7 +27,7 @@ and compare them.
 | Script | What it does |
 |---|---|
 | `sim-capture.ps1` | Turns, presses or taps the running simulator with posted mouse messages (no focus change, no mouse) and captures its window (`-Out`). |
-| `hub-shots.ps1 -OutDir docs\screenshots` | Knob Hub's pages at the README's size, with no knob connected, or with the simulator as `-Board <id>`. Backs up and restores Knob Hub's settings and the simulator's data, keeps the screen on for the shots, and puts a running Knob Hub back as it was. |
+| `hub-shots.ps1 -OutDir docs\screenshots` | Knob Hub's pages at the README's size, with no knob connected (the paired knob is left out, so it can't connect over Wi-Fi), or with the simulator as `-Board <id>`. Backs up and restores Knob Hub's settings and the simulator's data, keeps the screen on for the shots, and puts a running Knob Hub back as it was. |
 | `hub-page.ps1 -Page 0-3` | Shows a page of the open Knob Hub window (Knob, Apps, Board, Settings) through UI Automation. |
 | `addapps-shot.ps1 -Out docs\screenshots\hub-add-apps.png` | Knob Hub's Add apps window at the README's size, then closes it. Knob Hub's window must be open. |
 | `wifi-window.ps1 -Out <png>` | Opens Knob Hub's Wi-Fi window, waits for the knob's network list, captures it and closes it. Needs a knob connected; the picture shows nearby networks, so don't publish it as is. |

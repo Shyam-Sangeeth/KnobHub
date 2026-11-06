@@ -477,7 +477,7 @@ internal sealed class KnobSession : IDisposable
             if (_knob.Kind == "USB") Pair(msg);
             ReadWifi(msg["wifi"] as JsonObject);
             // Settings changed on the knob while Knob Hub wasn't connected are the newer ones: take them, so the
-            // settings sent below are the knob's own (Knob OS 1.0.3). Not its name, which only Knob Hub changes.
+            // settings sent below are the knob's own (Knob OS 1.0.4). Not its name, which only Knob Hub changes.
             if (msg["settings"] is JsonObject changed)
             {
                 changed.Remove("name");
