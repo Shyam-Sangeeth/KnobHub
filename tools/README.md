@@ -5,6 +5,11 @@ The Python ones need Python 3.10+ (and Pillow for `compare.py`, pyserial for the
 PlatformIO's own Python has it); run them with `python -I`. Those that use a real knob need Knob Hub closed, since it
 holds the knob's port.
 
+**A whole test round:** `powershell -ExecutionPolicy Bypass -File tools\test-round.ps1` builds every Knob OS env,
+runs `checks.py`, builds Knob Hub (Debug and Release) and runs `hub-tests`, then prints a summary (exit 1 if a step
+failed). About ten minutes; no knob needed. It closes a running Knob Hub (installed or Debug) for the builds and starts
+it again the way it was, with its window open or in the tray.
+
 ## Knob OS through the preview DLL
 
 These load `knob_preview.dll` (build it with `pio run -e preview` in `knob-os`) and drive Knob OS directly: no window,
@@ -29,6 +34,7 @@ and compare them.
 | `sim-capture.ps1` | Turns, presses or taps the running simulator with posted mouse messages (no focus change, no mouse) and captures its window (`-Out`). |
 | `hub-shots.ps1 -OutDir docs\screenshots` | Knob Hub's pages at the README's size, with no knob connected (the paired knob is left out, so it can't connect over Wi-Fi), or with the simulator as `-Board <id>`. Backs up and restores Knob Hub's settings and the simulator's data, keeps the screen on for the shots, and puts a running Knob Hub back as it was. |
 | `hub-page.ps1 -Page 0-3` | Shows a page of the open Knob Hub window (Knob, Apps, Board, Settings) through UI Automation. |
+| `update-apps.ps1` | Installs every app update Knob Hub's Add apps window offers (answering Yes to its question), then closes it. Run it before `hub-shots.ps1` so the Apps page shows current versions. Knob Hub's window must be open; it changes the user's installed apps. |
 | `addapps-shot.ps1 -Out docs\screenshots\hub-add-apps.png` | Knob Hub's Add apps window at the README's size, then closes it. Knob Hub's window must be open. |
 | `wifi-window.ps1 -Out <png>` | Opens Knob Hub's Wi-Fi window, waits for the knob's network list, captures it and closes it. Needs a knob connected; the picture shows nearby networks, so don't publish it as is. |
 | `install-knob-os.ps1 [-ReadOnly]` | Settings > Knob OS through UI Automation: clicks Install, confirms, and prints the status until the knob is back. `-ReadOnly` only prints the card. |

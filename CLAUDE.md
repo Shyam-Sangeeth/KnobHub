@@ -105,6 +105,8 @@ when screens change.
   text, settings changed while away, the timeout choices) through the preview DLL. Add a check there when you add behaviour.
 - **Knob Hub and app code:** `dotnet run --project tools\hub-tests` (the Timer and AudioDesk apps, the timeout setting, app ids, the Add
   apps catalog, the updater's checksum). Add to it when you change that code.
+- **Everything at once:** `tools\test-round.ps1` runs all four Knob OS builds, `checks.py`, both Knob Hub builds and
+  `hub-tests` (about ten minutes), closing and restarting a running Knob Hub as it was.
 - **New helper scripts** go in `tools/` (with a usage header and a line in its README), not left in a scratch folder.
 - **Pixels:** `tools/tour.py` before and after a change, then `tools/compare.py`: screens at 240 must stay identical
   pixel for pixel unless the change is meant to show.

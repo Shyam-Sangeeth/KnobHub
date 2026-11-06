@@ -499,7 +499,9 @@ released separately (see [Apps](#apps)).
 ### Checks
 
 `python -I tools/checks.py` checks Knob OS's behaviour (LEDs, pictures, haptics, toasts, the screen timeout, cards, the Wi-Fi screen, the busy spinner, keeping the screen awake) through
-the preview DLL, without a knob. `tools/tour.py` and `tools/compare.py` show whether a change altered any screen. See
+the preview DLL, without a knob. `dotnet run --project tools\hub-tests` tests Knob Hub's and the apps' code.
+`tools\test-round.ps1` runs everything at once: every Knob OS build, the checks, both Knob Hub builds and hub-tests.
+`tools/tour.py` and `tools/compare.py` show whether a change altered any screen. See
 [`tools/README.md`](tools/README.md).
 
 ### The real knob
