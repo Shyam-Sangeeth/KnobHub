@@ -42,6 +42,8 @@ if (Test-Path $simData) { Copy-Item $simData "$backup\Simulator" -Recurse }
 if (Test-Path $hubSettings) {
   $json = Get-Content $hubSettings -Raw | ConvertFrom-Json
   if ($json.knob) { $json.knob.timeout = 4; $json.knob.dimIdle = $false }
+  # Without -Board no knob may connect: not even the paired one over Wi-Fi (the pairing is restored afterwards).
+  if (-not $Board -and $json.paired) { $json.paired = $null }
   $json | ConvertTo-Json -Depth 20 | Set-Content $hubSettings -Encoding UTF8
 }
 
