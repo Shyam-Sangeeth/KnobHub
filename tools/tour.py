@@ -58,7 +58,7 @@ screen("dial", {"label": "VOLUME", "icon": "music", "color": "#4CC2FF", "value":
                 "button": {"id": "device", "label": "Headset"}, "hint": "Press to mute"})
 png("05-dial")
 screen("list", {"title": "DISPLAY", "note": "Changes apply now", "hint": "Press to change", "items": [
-    {"id": "b", "label": "Brightness", "value": "80%", "icon": "sun"}, {"id": "t", "label": "Screen timeout", "value": "30 s"},
+    {"id": "b", "label": "Brightness", "value": "80%", "icon": "sun"}, {"id": "t", "label": "Screen timeout", "value": "1 min"},
     {"id": "c", "label": "Clock", "detail": "12-hour"}, {"id": "d", "label": "Dim", "danger": True}]})
 png("06-list")
 screen("list", {"title": "AUDIODESK", "note": "AudioDesk isn't running", "hint": "Open it on your PC"})

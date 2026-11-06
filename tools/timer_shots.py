@@ -33,7 +33,7 @@ def png(name, wait=0.6):
     k.save_png(os.path.join(out, name + ".png"))
 
 k.connect()
-k.send({"t": "settings", "brightness": 100, "timeout": 4, "dim_idle": False})
+k.send({"t": "settings", "brightness": 100, "timeout_seconds": 0, "dim_idle": False})
 k.send({"t": "apps", "items": [
     {"id": "media", "name": "Media", "subtitle": "Now playing", "icon": "play", "color": "#4ADE80"},
     {"id": "timer", "name": "Timer", "subtitle": "Turn to set, press to start", "icon": "timer", "color": "#F59E0B"}],

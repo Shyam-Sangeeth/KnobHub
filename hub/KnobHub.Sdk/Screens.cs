@@ -124,7 +124,7 @@ public sealed class ListScreen : KnobScreen
 /// <summary>A row on a <see cref="ListScreen"/>.</summary>
 /// <param name="Selected">The current choice: shown with a tick.</param>
 /// <param name="Detail">A line under the label.</param>
-/// <param name="Value">The setting's value, e.g. "30 s", under the label (before the detail when there's both).</param>
+/// <param name="Value">The setting's value, e.g. "5 min", under the label (before the detail when there's both).</param>
 public sealed record ListRow(string Id, string Label, string? Detail = null, string? Icon = null, bool Selected = false,
                              string? Value = null, bool Danger = false);
 
