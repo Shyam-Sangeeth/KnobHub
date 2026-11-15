@@ -552,6 +552,11 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" />
+                        <CheckBox Margin="0,10,0,0" Content="Minimize to the tray" IsChecked="{Binding MinimizeToTray}" />
+                        <CheckBox Margin="0,10,0,0" Content="Hide the tray icon" IsChecked="{Binding HideTrayIcon}" />
+                        <TextBlock Margin="28,2,0,0" TextWrapping="Wrap" Style="{StaticResource SecondaryText}"
+                                   Text="Knob Hub keeps running in the background. Open it from the Start menu to show this window again." />
+                        <Button Margin="0,12,0,0" HorizontalAlignment="Left" Content="Exit Knob Hub" Click="Exit_Click" />
                         <StackPanel Margin="0,14,0,0" DataContext="{Binding Updates}">
                             <TextBlock Text="{Binding Status, Mode=OneWay}" TextWrapping="Wrap" />
                             <TextBlock Margin="0,2,0,0" Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}">

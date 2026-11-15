@@ -24,6 +24,13 @@ internal sealed class TrayIcon : IDisposable
         _icon.BalloonTipClicked += (_, _) => _hintClicked?.Invoke();
     }
 
+    /// <summary>Shown in the notification area (Settings > "Hide the tray icon" turns it off).</summary>
+    public bool Visible
+    {
+        get => _icon.Visible;
+        set => _icon.Visible = value;
+    }
+
     /// <summary>A Windows notification from the tray icon; clicking it calls <paramref name="onClick"/>.</summary>
     public void ShowHint(string title, string text, Action? onClick = null)
     {

@@ -301,6 +301,37 @@ internal sealed class MainViewModel : Observable
         set { try { StartupSetting.Enabled = value; } catch { } OnPropertyChanged(); }
     }
 
+    /// <summary>Settings > Knob Hub > "Hide the tray icon": Knob Hub keeps running without one; starting it again
+    /// (the Start menu) shows the window, and Settings has Exit.</summary>
+    public bool HideTrayIcon
+    {
+        get => _session.HubSettings.HideTrayIcon;
+        set
+        {
+            if (value == _session.HubSettings.HideTrayIcon) return;
+            _session.HubSettings.HideTrayIcon = value;
+            _session.HubSettings.Save();
+            OnPropertyChanged();
+            TrayIconChanged?.Invoke();
+        }
+    }
+
+    /// <summary>The tray icon is to be shown or hidden (<see cref="HideTrayIcon"/> changed).</summary>
+    public event Action? TrayIconChanged;
+
+    /// <summary>Settings > Knob Hub > "Minimize to the tray": minimizing hides the window, as closing it does.</summary>
+    public bool MinimizeToTray
+    {
+        get => _session.HubSettings.MinimizeToTray;
+        set
+        {
+            if (value == _session.HubSettings.MinimizeToTray) return;
+            _session.HubSettings.MinimizeToTray = value;
+            _session.HubSettings.Save();
+            OnPropertyChanged();
+        }
+    }
+
     private void Changed([CallerMemberName] string? name = null)
     {
         OnPropertyChanged(name);

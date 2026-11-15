@@ -340,7 +340,8 @@ While the screen is off (see [Settings](#settings)), the first turn, press or to
 
 ## Knob Hub on the PC
 
-Knob Hub lives in the tray. Its window has four pages, and works without a knob: the preview is then a virtual knob.
+Knob Hub lives in the tray: closing its window leaves it running there (Settings can also send it there when
+minimized, or hide the tray icon). Its window has four pages, and works without a knob: the preview is then a virtual knob.
 While the window is closed, minimized or on another page, the preview keeps up with the knob without drawing, so it
 costs next to nothing and shows the knob's current screen as soon as you open it.
 
@@ -378,8 +379,10 @@ the CrowPanel 1.28", until one does). To try another board, run the simulator as
 
 ![Knob Hub: Settings page](docs/screenshots/hub-settings.png)
 
-**Settings:** the knob's screen brightness, screen timeout, idle behaviour and name, the connection, and Start with
-Windows. **Set up Wi-Fi...** (with a knob connected) opens a small window: the knob looks for networks, you pick
+**Settings:** the knob's screen brightness, screen timeout, idle behaviour and name, the connection, and Knob Hub's
+own options: **Start with Windows**; **Minimize to the tray** (minimizing hides the window, as closing it does,
+instead of leaving it on the taskbar); **Hide the tray icon** (Knob Hub keeps running with no icon: open it from the
+Start menu to get the window back); and **Exit Knob Hub**, the way to close it when the icon is hidden. **Set up Wi-Fi...** (with a knob connected) opens a small window: the knob looks for networks, you pick
 yours and type its password, and the knob joins it there and then. The password goes only to the knob. Meanwhile the
 knob shows a Wi-Fi screen; using the knob closes the window. Once the knob has joined, it says so for 5 seconds,
 then goes back to its Connection page and the window closes by itself. **Use a phone** in that window starts the knob's pairing

@@ -196,7 +196,10 @@ when screens change.
 - `MainWindow`: the Knob, Apps, Board and Settings pages, with its own title bar via `WindowChrome`. Board has the
   board's details and the settings only some boards have (Lights, Haptics). There's no board picker (the user's
   choice): the preview is always the last connected knob's board; try others with the simulator's `--board`. The
-  preview's LEDs glow round it.
+  preview's LEDs glow round it. Settings > Knob Hub also has **Minimize to the tray** (`HubSettings.MinimizeToTray`:
+  `MainWindow.HideWhenMinimized` hides the window on any minimize and restores its normal or maximized state later),
+  **Hide the tray icon** (`HubSettings.HideTrayIcon`: `TrayIcon.Visible`; no update notification then; a second
+  start shows the window) and **Exit Knob Hub** (since 1.0.10).
 - `AddAppsWindow`: the modal Add apps window.
 
 **hub/KnobHub.Sdk**
@@ -279,7 +282,7 @@ Apps are released in **Shyam-Sangeeth/KnobHub-Apps** (its own repo):
 ## Working on the user's PC
 
 - Knob Hub usually runs from `hub\KnobHub\bin\Debug\...` in the tray. It's single instance: setting the event
-  `KnobHub.ShowWindow` opens its window.
+  `KnobHub.ShowWindow` opens its window. With "Hide the tray icon" on it has no tray icon: find it by its process.
 - Don't steal focus without need (the user may be gaming), and put windows back as they were.
 - Commit and push only when asked. Write commit messages to a file and use `git commit -F` (Windows PowerShell adds a
   BOM otherwise).

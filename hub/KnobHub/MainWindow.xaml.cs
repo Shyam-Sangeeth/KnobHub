@@ -44,12 +44,36 @@ public partial class MainWindow : Window
         IsVisibleChanged += (_, _) => { ShowPreview(); WatchForKnobs(); };
         StateChanged += (_, _) => { ShowPreview(); WatchForKnobs(); };
         StateChanged += (_, _) => ShowWindowState();
+        StateChanged += (_, _) => HideWhenMinimized();
         Loaded += (_, _) => ShowWindowState();
     }
 
     // --- The title bar ---
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    /// <summary>Settings > Knob Hub > Exit Knob Hub: the way out when the tray icon is hidden.</summary>
+    internal event Action? ExitRequested;
+
+    private void Exit_Click(object sender, RoutedEventArgs e) => ExitRequested?.Invoke();
+
+    // The state the window goes back to from the tray (normal or maximized).
+    private WindowState _shownState = WindowState.Normal;
+
+    // Settings > "Minimize to the tray": however the window is minimized (its button, Windows+Down, the taskbar), it
+    // goes to the tray instead, as closing it does, and comes back as it was.
+    private void HideWhenMinimized()
+    {
+        if (WindowState != WindowState.Minimized)
+        {
+            _shownState = WindowState;
+            return;
+        }
+        if (!_model.MinimizeToTray) return;
+        Hide();
+        // Set from inside StateChanged, the state doesn't take: set it once this change is done.
+        Dispatcher.BeginInvoke(() => WindowState = _shownState);
+    }
 
     private void Maximize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;

@@ -77,17 +77,20 @@ public partial class App : Application
         _session.Start([(MediaApp.Manifest, () => new MediaApp())]);
         model.Refresh();
 
-        _tray = new TrayIcon(IconHelper.LoadTrayIcon(), ShowWindow, ExitApp);
+        _tray = new TrayIcon(IconHelper.LoadTrayIcon(), ShowWindow, ExitApp) { Visible = !settings.HideTrayIcon };
+        model.TrayIconChanged += () => { if (_tray != null) _tray.Visible = !settings.HideTrayIcon; };
         _window = new MainWindow(model, settings.Window, bounds =>
         {
             settings.Window = bounds;
             settings.Save();
         });
+        _window.ExitRequested += ExitApp;
         _window.Closing += (_, args) =>
         {
             settings.Window = WindowPlace.Save(_window) ?? settings.Window;
             settings.Save();
-            // Closing the window keeps Knob Hub (and the knob's apps) running in the tray.
+            // Closing the window keeps Knob Hub (and the knob's apps) running in the tray (or, with the tray icon
+            // hidden, in the background: starting Knob Hub again shows the window).
             if (_exiting) return;
             args.Cancel = true;
             _window.Hide();
@@ -106,6 +109,7 @@ public partial class App : Application
         _updates.UpdateFound += update =>
         {
             if (_window is { IsVisible: true }) return;  // the Settings page shows it
+            if (_tray is not { Visible: true }) return;  // no tray icon to show a notification from
             _tray?.ShowHint($"Knob Hub {update.Version} is available", "Click to open Settings and update.", () =>
             {
                 ShowWindow();

@@ -32,6 +32,14 @@ internal sealed class HubSettings
     /// <summary>Check GitHub for a newer Knob Hub a little after it starts (see <see cref="HubUpdates"/>).</summary>
     public bool CheckForUpdates { get; set; } = true;
 
+    /// <summary>No icon in the notification area: Knob Hub keeps running, and starting it again (the Start menu)
+    /// shows its window. Since Knob Hub 1.0.10.</summary>
+    public bool HideTrayIcon { get; set; }
+
+    /// <summary>The window's minimize button (and Windows' minimize) hides the window, as closing it does, instead of
+    /// leaving it on the taskbar. Since Knob Hub 1.0.10.</summary>
+    public bool MinimizeToTray { get; set; }
+
     /// <summary>The knob paired over USB, which Knob Hub looks for on Wi-Fi when it isn't plugged in (see
     /// <see cref="WifiConnection"/>).</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
