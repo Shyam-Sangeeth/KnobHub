@@ -1,13 +1,14 @@
-# Screenshots of Knob Hub's pages (hub-knob.png, hub-apps.png, hub-board.png, hub-settings.png) at the README's size
+# Screenshots of Knob Hub's pages (hub-knob.png, hub-apps.png, hub-board.png, hub-settings.png, and
+# hub-settings-bottom.png: Settings scrolled to its Knob Hub card) at the README's size
 # (a 1478 x 834 window), captured with PrintWindow: no focus change, no mouse. With -Board, the simulator runs as that
 # board and Knob Hub connects to it first; without, no knob is connected (the README's shots).
 #
 #   powershell -ExecutionPolicy Bypass -File tools\hub-shots.ps1 -OutDir docs\screenshots [-Board crowpanel-1.46] [-Pages knob,board]
 #
 # Knob Hub's settings and the simulator's kept data are backed up first and restored afterwards. A Knob Hub that was
-# running is closed for the shots and started again as it was (window open, or in the tray). Build Knob Hub (Debug)
-# and the simulator first.
-param([Parameter(Mandatory)][string]$OutDir, [string]$Board, [string]$Pages = "knob,apps,board,settings")
+# running is closed for the shots and started again as it was: the same copy (the installed one, or a build), window
+# open or in the tray. The shots themselves come from the Debug build: build Knob Hub (Debug) and the simulator first.
+param([Parameter(Mandatory)][string]$OutDir, [string]$Board, [string]$Pages = "knob,apps,board,settings,settings-bottom")
 Add-Type -AssemblyName System.Drawing, UIAutomationClient, UIAutomationTypes
 Add-Type @"
 using System; using System.Runtime.InteropServices;
@@ -32,6 +33,9 @@ $OutDir = (Resolve-Path $OutDir).Path
 
 $wasRunning = @(Get-Process KnobHub -ErrorAction SilentlyContinue).Count -gt 0
 $wasShown = @(Get-Process KnobHub -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }).Count -gt 0
+# The copy that was running (the installed one in Program Files, or a build) is the one started again afterwards.
+$wasExe = @(Get-Process KnobHub -ErrorAction SilentlyContinue | ForEach-Object { $_.Path } | Where-Object { $_ })[0]
+if (-not $wasExe) { $wasExe = $exe }
 if ($wasRunning) { Stop-Process -Name KnobHub -Force -Confirm:$false; Start-Sleep -Seconds 1 }
 $backup = Join-Path ([System.IO.Path]::GetTempPath()) "knobhub-shots-backup"
 if (Test-Path $backup) { Remove-Item $backup -Recurse -Force }
@@ -70,15 +74,22 @@ try {
   $A = [System.Windows.Automation.AutomationElement]
   $nav = $A::FromHandle($h).FindAll('Descendants', (New-Object System.Windows.Automation.PropertyCondition ($A::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ListItem)))
   foreach ($name in $Pages.Split(",")) {
-    $page = [array]::IndexOf($PageNames, $name.Trim())
-    if ($page -lt 0) { "no page $name (knob, apps, board, settings)"; continue }
+    # "settings-bottom": the Settings page scrolled to its end (the Knob Hub card), as hub-settings-bottom.png.
+    $toEnd = $name.Trim() -eq "settings-bottom"
+    $page = [array]::IndexOf($PageNames, $(if ($toEnd) { "settings" } else { $name.Trim() }))
+    if ($page -lt 0) { "no page $name (knob, apps, board, settings, settings-bottom)"; continue }
     $nav[$page].GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select(); Start-Sleep -Milliseconds 800
+    $scroller = $A::FromHandle($h).FindFirst('Descendants', (New-Object System.Windows.Automation.PropertyCondition ($A::AutomationIdProperty, "SettingsPage")))
+    if ($scroller -and $page -eq 3) {
+      $scroller.GetCurrentPattern([System.Windows.Automation.ScrollPattern]::Pattern).SetScrollPercent(-1, $(if ($toEnd) { 100 } else { 0 }))
+      Start-Sleep -Milliseconds 600
+    }
     $w = New-Object HubShots+RECT; [void][HubShots]::GetWindowRect($h, [ref]$w)
     $v = New-Object HubShots+RECT; [void][HubShots]::DwmGetWindowAttribute($h, 9, [ref]$v, 16)
     $full = New-Object System.Drawing.Bitmap ($w.R - $w.L), ($w.B - $w.T)
     $g = [System.Drawing.Graphics]::FromImage($full); $dc = $g.GetHdc(); [void][HubShots]::PrintWindow($h, $dc, 2); $g.ReleaseHdc($dc)
     $crop = $full.Clone((New-Object System.Drawing.Rectangle ($v.L - $w.L), ($v.T - $w.T), ($v.R - $v.L), ($v.B - $v.T)), $full.PixelFormat)
-    $file = Join-Path $OutDir "hub-$($PageNames[$page]).png"
+    $file = Join-Path $OutDir $(if ($toEnd) { "hub-settings-bottom.png" } else { "hub-$($PageNames[$page]).png" })
     $crop.Save($file); "saved $file"
   }
 }
@@ -92,7 +103,7 @@ finally {
   }
   Remove-Item $backup -Recurse -Force
   Remove-Item "$env:TEMP\KnobHub\Preview\knob_preview-*.dll" -ErrorAction SilentlyContinue
-  if ($wasShown) { Start-Process $exe; "Knob Hub started again, window open" }
-  elseif ($wasRunning) { Start-Process $exe -ArgumentList "--minimized"; "Knob Hub started again in the tray" }
+  if ($wasShown) { Start-Process $wasExe; "Knob Hub started again ($wasExe), window open" }
+  elseif ($wasRunning) { Start-Process $wasExe -ArgumentList "--minimized"; "Knob Hub started again ($wasExe) in the tray" }
   "settings restored"
 }

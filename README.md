@@ -390,10 +390,12 @@ mode instead, and **Forget Wi-Fi** makes the knob forget its network (see [Conne
 says which Knob OS the knob runs and installs a newer one, and **Knob Hub** checks for a newer Knob Hub (see
 [Updates](#updates)).
 
+![Knob Hub: the Settings page's Knob Hub card](docs/screenshots/hub-settings-bottom.png)
+
 ### Updates
 
 - **Knob Hub** checks GitHub for a newer version a little after it starts (turn it off in Settings) and says so in
-  a Windows notification. **Check for updates** in Settings checks now. **Download and install** fetches the
+  a Windows notification (with the tray icon hidden there's none: the Settings page shows it). **Check for updates** in Settings checks now. **Download and install** fetches the
   installer, checks it against the release's SHA-256, and runs it: Knob Hub closes, updates and starts again, with
   its settings and apps kept. If GitHub doesn't give a SHA-256 for the installer, Knob Hub doesn't run it: download
   it from the releases page instead.

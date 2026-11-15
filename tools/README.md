@@ -33,7 +33,7 @@ and compare them.
 | Script | What it does |
 |---|---|
 | `sim-capture.ps1` | Turns, presses or taps the running simulator with posted mouse messages (no focus change, no mouse) and captures its window (`-Out`). |
-| `hub-shots.ps1 -OutDir docs\screenshots` | Knob Hub's pages at the README's size, with no knob connected (the paired knob is left out, so it can't connect over Wi-Fi), or with the simulator as `-Board <id>`. Backs up and restores Knob Hub's settings and the simulator's data, keeps the screen on for the shots, and puts a running Knob Hub back as it was. |
+| `hub-shots.ps1 -OutDir docs\screenshots` | Knob Hub's pages at the README's size (`-Pages knob,apps,board,settings,settings-bottom`; `settings-bottom` is Settings scrolled to its Knob Hub card), with no knob connected over Wi-Fi (the paired knob is left out; a knob on USB still connects), or with the simulator as `-Board <id>`. The shots come from the Debug build. Backs up and restores Knob Hub's settings and the simulator's data, keeps the screen on for the shots, and puts a running Knob Hub back as it was: the same copy (installed or a build), window open or in the tray. |
 | `hub-page.ps1 -Page 0-3` | Shows a page of the open Knob Hub window (Knob, Apps, Board, Settings) through UI Automation. |
 | `update-apps.ps1` | Installs every app update Knob Hub's Add apps window offers (answering Yes to its question), then closes it. Run it before `hub-shots.ps1` so the Apps page shows current versions. Knob Hub's window must be open; it changes the user's installed apps. |
 | `addapps-shot.ps1 -Out docs\screenshots\hub-add-apps.png` | Knob Hub's Add apps window at the README's size, then closes it. Knob Hub's window must be open. |
