@@ -74,7 +74,7 @@ Knob OS: see [Updates](#updates).
 ```
 
 - **The knob runs no apps.** Knob Hub sends it the list of apps, then screens to show: a template name plus data
-  (dial, tiles, list, controls, ring, media). The knob draws them and reports what was done on them (turn, press,
+  (dial, tiles, list, controls, ring, cards, media). The knob draws them and reports what was done on them (turn, press,
   tap, select, back).
 - **Each app is a Knob Hub plugin** that does the work on the PC. For example, the AudioDesk app turns knob input into
   calls to AudioDesk's local API.
@@ -376,7 +376,7 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
   its settings and apps kept. If GitHub doesn't give a SHA-256 for the installer, Knob Hub doesn't run it: download
   it from the releases page instead.
 - **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
-  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.6 is ready: see Knob Hub" once when
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.7 is ready: see Knob Hub" once when
   it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
   keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
   USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
@@ -427,7 +427,7 @@ needs sizing, for a 240 px screen times `Host.ScreenSize / 240.0`.
 | `TilesScreen` | Up to three round tiles with pills (AudioDesk's channels) |
 | `ListScreen` | Rows |
 | `ControlsScreen` | A value with a toggle and a picker (an AudioDesk channel) |
-| `RingScreen` | A number in the middle of a full ring, drawn as big as fits (Counter) |
+| `RingScreen` | A number in the middle of a full ring, drawn as big as fits (Counter, Timer); the fill can be a colour wheel that turns (`Colors`, `Spin`: Knob OS 1.0.7, SDK in Knob Hub 1.0.8) |
 | `CardsScreen` | One item at a time, like an app's page on Home, with a tick on the current one (Displays) |
 | `MediaScreen` | Now playing |
 
@@ -439,6 +439,10 @@ size the knob asks for. Names are shared between apps, so prefix yours (e.g. `my
 **Settings:** override `Settings` to list them (`AppSetting(id, label, options, default)`, a drop-down of options).
 Knob Hub shows them on the app's row on the Apps page and saves the choice in `settings.json`. Read the chosen
 option's index with `Host.Setting(id)`; `SettingChanged(id)` is called when it changes.
+
+**Older Knob Hubs:** an app runs on the Knob Hub the user has installed, not the SDK it was built with. Setting a
+screen property that Knob Hub's SDK doesn't have yet stops the app (`MissingMethodException`); send such a field as
+data with `Host.Update` instead (`new { colors, spin }`), which reaches the knob on any Knob Hub.
 
 Build with `dotnet build -c Release`: it produces `bin\Release\<name>.knobapp`, ready for **Install from file...**
 
@@ -522,8 +526,8 @@ Each build also makes `knob-os.bin`: the bootloader, the partition table and Kno
 (`knob-os/scripts/merged.py`). It's copied to `%USERPROFILE%\.cache\knob-os\firmware\`, with `firmware.json` saying
 each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
 installs from it. To flash a release's image by hand, put the knob in its loader first: hold its boot button while
-you plug it in (esptool can't restart Knob OS 1.0.6 into it). Then use
-`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.6-crowpanel-1.28.bin`, with the port the loader is on
+you plug it in (esptool can't restart Knob OS into it). Then use
+`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.7-crowpanel-1.28.bin`, with the port the loader is on
 ("USB JTAG/serial debug unit"). Unlike Knob Hub, that also clears the knob's pairing and Wi-Fi network.
 
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).

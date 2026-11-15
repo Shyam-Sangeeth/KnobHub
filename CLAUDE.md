@@ -228,6 +228,15 @@ when screens change.
   use `char.ConvertFromUtf32(...)` when it matters.
 - **Windows reserved names:** `aux`, `con`, `nul` and so on can't be file names (git can't add `aux.png`).
 - **Keep slow work off the UI thread** in Knob Hub, as in AudioDesk.
+- **A new SDK property breaks apps on older Knob Hubs:** an app runs against the installed Knob Hub's SDK, so setting
+  a property that SDK lacks throws `MissingMethodException` (LightDesk's app with `RingScreen.Colors` on Knob Hub
+  1.0.7, 2026-11-15). Say in the property's doc comment which Knob Hub brings it, and that older ones take it as
+  data through `Host.Update`. The wiki's How-apps-work and Troubleshooting pages explain it.
+- **The ring's colour wheel** (`colors`, `spin`, `tpl_ring.cpp`) is drawn from an RGB565 image of the ring's band
+  recoloured from a turning 360-entry palette; LVGL's arc can't draw an image fill as a full circle (it draws only
+  the rounded ends), so a full ring is two overlapping halves. A turn invalidates only rows over the ring's band, and
+  it stands still under the busy overlay (which would redraw the whole screen), with the screen off, or when the
+  screen isn't on top.
 
 ## Releases
 
