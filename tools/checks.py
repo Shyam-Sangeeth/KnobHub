@@ -526,11 +526,54 @@ def check_timeout():
     expect("from a time between the choices", [m.get("timeout_seconds") for m in k.take("settings")], [60])
 
 
+def check_wheel():
+    """The ring's colour wheel: drawn instead of the colour, turning with spin, still at 0 and under the busy spinner,
+    and [] goes back to the plain colour."""
+    k = Knob(board="crowpanel-1.28")
+    k.connect()
+    k.send(APPS, wait=0.3)
+    k.turn_left()
+    k.press(wait=0.8)
+    ring = {"t": "screen", "app": "demo", "screen": "r", "template": "ring",
+            "data": {"label": "LIGHTS", "text": "ON", "value": 100, "color": "#F5B83D"}}
+    k.send(ring, wait=0.4)
+    plain = k.frame()
+    top = 240 * 48 * 4  # the top fifth of the screen: the ring, clear of the busy spinner in the middle
+    wheel = ["#FF3B30", "#FFCC00", "#34C759", "#00C7FF", "#3478F6", "#AF52DE"]
+
+    def update(**data):
+        k.send({"t": "update", "app": "demo", "screen": "r", "data": data}, wait=0.3)
+
+    update(colors=wheel)
+    still = k.frame()
+    expect("colors: the wheel is drawn instead of the colour", still != plain, True)
+    k.run(1.0)
+    expect("without spin it stands still", k.frame() == still, True)
+    update(spin=4)
+    first = k.frame()
+    k.run(0.5)
+    expect("spin: it turns", k.frame()[:top] != first[:top], True)
+    update(busy=True)
+    under = k.frame()[:top]
+    k.run(0.5)
+    expect("it stands still under the busy spinner", k.frame()[:top] == under, True)
+    update(busy=False)
+    first = k.frame()
+    k.run(0.5)
+    expect("and turns again after it", k.frame()[:top] != first[:top], True)
+    update(value=50)
+    expect("a part fill shows part of the wheel", k.frame() != first, True)
+    update(colors=[], value=100)
+    expect("colors []: back to the plain colour", k.frame() == plain, True)
+    k.run(0.5)
+    expect("and it stays so", k.frame() == plain, True)
+
+
 CHECKS = {"leds": check_leds, "pictures": check_pictures, "haptics": check_haptics, "toasts": check_toasts,
           "idle": check_idle, "cards": check_cards, "wifi": check_wifi, "busy": check_busy, "awake": check_awake,
           "push": check_push, "picker": check_picker,
           "screens": check_screens, "marquee": check_marquee,
-          "away": check_away, "timeout": check_timeout}
+          "away": check_away, "timeout": check_timeout, "wheel": check_wheel}
 
 if __name__ == "__main__":
     if "--list" in sys.argv:

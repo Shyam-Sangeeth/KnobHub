@@ -186,6 +186,18 @@ public sealed class RingScreen : KnobScreen
     public string? TrackColor { get; set; }
     /// <summary>Small, above the text.</summary>
     public string? Label { get; set; }
+    /// <summary>A colour wheel as the fill, instead of <see cref="Color"/>: these colours spread evenly round the ring,
+    /// clockwise from the top, each blending into the next and the last back into the first (e.g. red, yellow, green,
+    /// cyan, blue, magenta for a rainbow). The fill shows the part of the wheel it covers. An empty list goes back to
+    /// <see cref="Color"/>. Knob OS 1.0.7 and later; older ones show <see cref="Color"/>, so send that too. This property
+    /// is in Knob Hub 1.0.8's SDK and later: an app that should run on an older Knob Hub sends <c>colors</c> and <c>spin</c> with
+    /// <see cref="IKnobHost.Update"/> instead (<c>new { colors, spin }</c>), as setting the property there stops the
+    /// app.</summary>
+    public List<string>? Colors { get; set; }
+    /// <summary>Seconds for the <see cref="Colors"/> to go once round the ring: more than 0 clockwise, less than 0
+    /// anticlockwise, 0 (or not set) still; under half a second counts as still. The wheel stands still while the busy
+    /// spinner shows and while the knob's screen is off. Knob OS 1.0.7 and later.</summary>
+    public double? Spin { get; set; }
 }
 
 /// <summary>One item at a time, drawn like an app's page on Home (its icon in a circle, its name under it), e.g. the

@@ -65,6 +65,9 @@ screen("list", {"title": "AUDIODESK", "note": "AudioDesk isn't running", "hint":
 png("07-list-empty")
 screen("ring", {"text": "512", "value": 60, "color": "#A3E635", "track_color": "#F472B6"})
 png("08-ring")
+screen("ring", {"text": "ON", "label": "LIGHTS", "value": 100, "color": "#F5B83D",
+                "colors": ["#FF3B30", "#FFCC00", "#34C759", "#00C7FF", "#3478F6", "#AF52DE"]})
+png("08-ring-wheel")
 screen("cards", {"color": "#2DD4BF", "items": [{"id": "main", "label": "AW2725DF", "icon": "monitor", "selected": True},
                                                {"id": "right", "label": "BenQ GW2790QT", "icon": "monitor"}]})
 png("09-cards")
