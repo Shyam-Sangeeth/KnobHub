@@ -376,7 +376,7 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
   its settings and apps kept. If GitHub doesn't give a SHA-256 for the installer, Knob Hub doesn't run it: download
   it from the releases page instead.
 - **Knob OS** comes with Knob Hub, an image for each board. When the knob runs an older Knob OS than the one Knob Hub
-  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.7 is ready: see Knob Hub" once when
+  has, Settings > Knob OS offers to install it, and the knob shows "Knob OS 1.0.8 is ready: see Knob Hub" once when
   it connects. Installing needs the knob plugged in over USB (over Wi-Fi, Settings asks you to plug it in). The knob
   keeps its settings, its pairing and its Wi-Fi network. Knob Hub restarts it into the ESP32-S3's own loader through
   USB, so no buttons are needed, writes Knob OS, checks what it wrote, and restarts it.
@@ -527,7 +527,7 @@ Each build also makes `knob-os.bin`: the bootloader, the partition table and Kno
 each board's file and Knob OS version; building Knob Hub copies that folder next to it, and Settings > Knob OS
 installs from it. To flash a release's image by hand, put the knob in its loader first: hold its boot button while
 you plug it in (esptool can't restart Knob OS into it). Then use
-`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.7-crowpanel-1.28.bin`, with the port the loader is on
+`esptool --chip esp32s3 --port COM3 write-flash 0x0 knob-os-1.0.8-crowpanel-1.28.bin`, with the port the loader is on
 ("USB JTAG/serial debug unit"). Unlike Knob Hub, that also clears the knob's pairing and Wi-Fi network.
 
 How fast a knob draws: build with `-D KNOB_PERF` and run `tools/knob_perf.py` (see [`tools/README.md`](tools/README.md)).
