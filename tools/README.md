@@ -22,6 +22,7 @@ that you send link messages to, turn, press and tap, and read the screen, bright
 | `tour.py <dir>` | Saves every kind of screen as PNGs (`--board`, `--screen 240/360/480`). |
 | `settings_shots.py [dir]` | Knob OS's own Settings screens as PNGs, into `design/screenshots/settings` by default. |
 | `timer_shots.py <dir>` | The Timer app's screens for the apps repository's README, with Knob Hub's real icons (build `hub-icons` in Release first). |
+| `screen_shots.py <dir>` | The Screen app's screens (Home, on, switching, off) for both READMEs (`design/screenshots/screen` here, `docs/screen` in the apps repository), with Knob Hub's real icons (build `hub-icons` in Release first). |
 | `compare.py <dir> --against <dir>` | Lists the screens that differ between two tours (exit 1 if any); `--sheet out.png` makes a contact sheet. |
 
 Screens at 240 px must stay identical unless a change is meant to show: save a tour before the change, one after,

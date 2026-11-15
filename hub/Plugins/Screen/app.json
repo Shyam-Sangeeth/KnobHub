@@ -1,0 +1,12 @@
+{
+  "id": "screen",
+  "name": "Screen",
+  "subtitle": "Off and on",
+  "description": "Turns the PC's screens off and on, as Windows' screen timeout does",
+  "icon": "power",
+  "color": "#60A5FA",
+  "version": "1.0.0",
+  "author": "Knob Hub",
+  "assembly": "Screen.KnobApp.dll",
+  "type": "Screen.KnobApp.ScreenApp"
+}

@@ -208,6 +208,10 @@ when screens change.
 - `Counter` is the small example app.
 - `Displays` picks the main display (cards) through Windows' CCD API (`QueryDisplayConfig`, `SetDisplayConfig`).
 - `Timer` is a countdown on the ring screen; it keeps the knob's screen on while it runs (`Host.KeepAwake`).
+- `Screen` turns the PC's screens off and on (a press toggles; turning does nothing). Off is `SC_MONITORPOWER` 2, as
+  the screen timeout; on is a one-pixel mouse move and back (Windows wakes displays only on input), with
+  `ES_DISPLAY_REQUIRED` and `SC_MONITORPOWER` -1 as well. It follows `GUID_CONSOLE_DISPLAY_STATE` through
+  `PowerSettingRegisterNotification` (a callback, no window). Testing it turns the user's screens off: ask first.
 
 ## Things that bite
 

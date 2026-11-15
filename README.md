@@ -13,6 +13,7 @@
   <img src="design/screenshots/counter/counter-25.png" width="160" alt="Counter" />
   <img src="design/screenshots/displays/displays-main.png" width="160" alt="Displays, the main display" />
   <img src="design/screenshots/timer/timer-running.png" width="160" alt="Timer, running" />
+  <img src="design/screenshots/screen/screen-on.png" width="160" alt="Screen, the screens on" />
 </p>
 
 ---
@@ -35,6 +36,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
   - [Counter](#counter)
   - [Displays](#displays)
   - [Timer](#timer)
+  - [Screen](#screen)
   - [Settings](#settings)
   - [Alerts and messages](#alerts-and-messages)
   - [Using the knob](#using-the-knob)
@@ -57,7 +59,7 @@ themselves run on the PC inside **Knob Hub**, a tray app that sends the knob wha
 2. **Put Knob OS on the knob:** plug the knob into the PC over USB, open Knob Hub's **Settings** page, and under
    **Knob OS** choose the knob's board and click **Install Knob OS**. It takes about a minute; then the knob restarts
    with Knob OS and connects. A CrowPanel straight from the box runs Elecrow's demo, which this replaces.
-3. **Add apps:** Media is built in. **Apps > Add apps** lists the others (AudioDesk, Counter, Displays, Timer and more).
+3. **Add apps:** Media is built in. **Apps > Add apps** lists the others (AudioDesk, Counter, Displays, Timer, Screen and more).
 
 Knob Hub checks for a newer version of itself a little after it starts, and each new Knob Hub brings the newest
 Knob OS: see [Updates](#updates).
@@ -264,6 +266,23 @@ the end **Time's up** shows over whatever the knob shows, waking it (with a buzz
   </tr>
 </table>
 
+### Screen
+
+Turns the PC's screens off and on. Press to turn every screen off, as Windows' screen timeout does; press again to
+turn them back on. Turning the knob does nothing. The ring shows whether the screens are on (blue) or off (grey), and
+follows them whoever changes them: moving the mouse wakes them as usual, and the knob shows it. To wake the screens
+from the knob, the app moves the mouse pointer by a pixel and back (nothing is clicked), because Windows wakes them
+only on the PC's own input.
+
+<table>
+  <tr>
+    <td align="center"><img src="design/screenshots/screen/home-screen.png" width="200" /><br />On the Home ring</td>
+    <td align="center"><img src="design/screenshots/screen/screen-on.png" width="200" /><br />Screens on</td>
+    <td align="center"><img src="design/screenshots/screen/screen-switching.png" width="200" /><br />Switching</td>
+    <td align="center"><img src="design/screenshots/screen/screen-off.png" width="200" /><br />Screens off</td>
+  </tr>
+</table>
+
 ### Settings
 
 The knob's own settings: Display (brightness, screen timeout), Lights (LED brightness and mode, on knobs with LEDs),
@@ -395,6 +414,7 @@ says which Knob OS the knob runs and installs a newer one, and **Knob Hub** chec
 | Counter | Counts up and down as you turn | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Counter`) |
 | Displays | Picks the main display | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Displays`) |
 | Timer | A countdown timer that keeps the screen on while it runs | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Timer`) |
+| Screen | Turns the PC's screens off and on | [KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps) (source in `hub/Plugins/Screen`) |
 
 Apps are released in their own repository, [Shyam-Sangeeth/KnobHub-Apps](https://github.com/Shyam-Sangeeth/KnobHub-Apps),
 apart from Knob Hub's releases. Each app there has one release, tagged with its id, holding every version as
