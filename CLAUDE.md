@@ -232,11 +232,13 @@ when screens change.
   a property that SDK lacks throws `MissingMethodException` (LightDesk's app with `RingScreen.Colors` on Knob Hub
   1.0.7, 2026-11-15). Say in the property's doc comment which Knob Hub brings it, and that older ones take it as
   data through `Host.Update`. The wiki's How-apps-work and Troubleshooting pages explain it.
-- **The ring's colour wheel** (`colors`, `spin`, `tpl_ring.cpp`) is drawn from an RGB565 image of the ring's band
-  recoloured from a turning 360-entry palette; LVGL's arc can't draw an image fill as a full circle (it draws only
-  the rounded ends), so a full ring is two overlapping halves. A turn invalidates only rows over the ring's band, and
-  it stands still under the busy overlay (which would redraw the whole screen), with the screen off, or when the
-  screen isn't on top.
+- **The ring's colour wheel** (`colors`, `spin`, `tpl_ring.cpp`) is an image of the ring's band, recoloured from a
+  turning 360-entry palette. A full ring is drawn as that image with the ring's anti-aliased shape as its alpha
+  (RGB565A8, worked out once) and the track under it hidden: no masks per frame, about half the cost of drawing it
+  through LVGL's arc (measured in the preview, 2026-11-15). A part fill goes through LVGL's arc with the colours
+  alone (the arc can't draw an image as a full circle: it draws only the rounded ends). A turn invalidates only
+  rows over the ring's band, and it stands still under the busy overlay (which would redraw the whole screen), with
+  the screen off, or when the screen isn't on top.
 
 ## Releases
 
